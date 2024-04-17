@@ -1,31 +1,37 @@
-import { defineConfig } from 'astro/config';
-import starlight from '@astrojs/starlight';
-import tailwind from '@astrojs/tailwind';
+import { defineConfig } from "astro/config";
+import starlight from "@astrojs/starlight";
+import tailwind from "@astrojs/tailwind";
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://project-kessel.github.io',
-  base: 'docs',
+  site: "https://project-kessel.github.io",
+  base: "docs",
   integrations: [
     starlight({
-      title: 'Docs with Tailwind',
+      title: "Kessel",
       social: {
-        github: 'https://github.com/withastro/starlight',
+        github: "https://github.com/project-kessel",
       },
       sidebar: [
         {
-          label: 'Guides',
+          label: "Start Here",
           items: [
-            // Each item here is one entry in the navigation menu.
-            { label: 'Example Guide', link: '/guides/example/' },
+            { label: "Coming Soon", link: "./start-here/coming-soon/" },
           ],
         },
         {
-          label: 'Reference',
-          autogenerate: { directory: 'reference' },
+          label: "For Red Hatters",
+          link: "./for-red-hatters/",
+          attrs: {
+            class: "red-hat",
+          },
+        },
+        {
+          label: "Reference",
+          autogenerate: { directory: "reference" },
         },
       ],
-      customCss: ['./src/tailwind.css'],
+      customCss: ["./src/tailwind.css", "./src/custom.css"],
     }),
     tailwind({ applyBaseStyles: false }),
   ],
