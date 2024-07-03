@@ -12,6 +12,10 @@ export default defineConfig({
       social: {
         github: "https://github.com/project-kessel",
       },
+      editLink: {
+        // This enables the "edit" link on the bottom of each page which directly links to contribute
+        baseUrl: 'https://github.com/project-kessel/docs/edit/main/',
+      },
       sidebar: [
         {
           label: "Start Here",
