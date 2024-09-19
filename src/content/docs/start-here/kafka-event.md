@@ -43,16 +43,7 @@ or <br>__`redhat.inventory.resource_relationships.relationship_type.operation`__
 The only valid values for operation are created, updated or deleted. This allows a consumer to filter on method and/or resource type.
 
 
-### Attributes 
-#### Source (URI)
 
-##### Cloud Event Intent
-The version of the CloudEvents specification which the event uses. This enables the interpretation of the context. Compliant event producers MUST use a value of 1.0 when referring to this version of the specification.
-
-##### Kessel Inventory Intent
-Same as above.
-
-### Attributes 
 #### Source (URI)
 
 ##### Cloud Event Intent
@@ -61,7 +52,7 @@ Identifies the context in which an event happened. Often this will include infor
 ##### Kessel Inventory Intent
 Inventory-URI
 
-### Attributes 
+
 #### Id (String)
 
 ##### Cloud Event Intent
@@ -70,7 +61,7 @@ Identifies the event. Producers MUST ensure that source + id is unique for each 
 ##### Kessel Inventory Intent
 inventory-api generated ID for the event
 
-### Attributes 
+
 #### time (Timestamp)
 
 ##### Cloud Event Intent
@@ -81,7 +72,7 @@ Timestamp of when the occurrence happened. If the time of the occurrence cannot 
 ##### Kessel Inventory Intent
 last_reported from inventory-api
 
-### Attributes 
+ 
 #### datacontenttype (String per RFC 2046)
 
 ##### Cloud Event Intent
@@ -90,7 +81,7 @@ Content type of data value. This attribute enables data to carry any type of con
 ##### Kessel Inventory Intent
 "application/json"
 
-### Attributes 
+
 #### data
 
 ##### Cloud Event Intent
@@ -102,7 +93,7 @@ Payload will mimic the OpenAPI Specs for each method, i.e POST, PUT and DELETE. 
 - reporter_data object
 - resource_data object or relationship_data object <br> The reporter_data will be the reporter who made the api call for which this event is referencing.
 
-### Attributes 
+
 #### dataschema (URI)
 
 ##### Cloud Event Intent
@@ -113,7 +104,7 @@ Identifies the schema that data adheres to. Incompatible changes to the schema S
 ##### Kessel Inventory Intent
 Not Used
 
-### Attributes 
+ 
 #### subject (String)
 
 ##### Cloud Event Intent
