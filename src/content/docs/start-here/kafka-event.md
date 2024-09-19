@@ -21,25 +21,24 @@ Same as above.
 This attribute contains a value describing the type of event related to the originating occurrence. Often this attribute is used for routing, observability, policy enforcement, etc. The format of this is producer defined and might include information such as the version of the type - see Versioning of CloudEvents in the Primer for more information. Constraints:
 - MUST be a non-empty string 
 - SHOULD be prefixed with a reverse-DNS name.
-    - The prefixed domain dictates the organization which defines the semantics of this event type. <br> Examples:
-    ```
-    com.github.pull_request.opened 
-    com.example.object.deleted.v2
-    ```
+    - The prefixed domain dictates the organization which defines the semantics of this event type.
+    
+Examples:
+- `com.github.pull_request.opened`
+- `com.example.object.deleted.v2`
 
 ##### Kessel Inventory Intent
-We use a string comprised of __`redhat.inventory.resources.resource_type.operation`__ 
-```
-- redhat.inventory.resources.k8s-cluster.created 
-- redhat.inventory.resources.k8s-cluster.updated 
-- redhat.inventory.resources.k8s-cluster.deleted 
-```
-or <br>__`redhat.inventory.resource_relationships.relationship_type.operation`___ 
-```
-- redhat.inventory.resources-relationship.k8s-policy_ispropagatedto_k8s-cluster.created 
-- redhat.inventory.resources-relationship.k8s-policy_ispropagatedto_k8s-cluster.updated 
-- redhat.inventory.resources-relationship.k8s-policy_ispropagatedto_k8s-cluster.deleted 
-```
+We use a string comprised of _`redhat.inventory.resources.resource_type.operation`_
+
+- `redhat.inventory.resources.k8s-cluster.created`
+- `redhat.inventory.resources.k8s-cluster.updated` 
+- `redhat.inventory.resources.k8s-cluster.deleted` 
+
+or _`redhat.inventory.resource_relationships.relationship_type.operation`_
+
+- `redhat.inventory.resources-relationship.k8s-policy_ispropagatedto_k8s-cluster.created`
+- `redhat.inventory.resources-relationship.k8s-policy_ispropagatedto_k8s-cluster.updated`
+- `redhat.inventory.resources-relationship.k8s-policy_ispropagatedto_k8s-cluster.deleted`
 The only valid values for operation are created, updated or deleted. This allows a consumer to filter on method and/or resource type.
 
 
@@ -47,7 +46,11 @@ The only valid values for operation are created, updated or deleted. This allows
 #### Source (URI)
 
 ##### Cloud Event Intent
-Identifies the context in which an event happened. Often this will include information such as the type of the event source, the organization publishing the event or the process that produced the event. The exact syntax and semantics behind the data encoded in the URI is defined by the event producer. <br> <br>Producers MUST ensure that source + id is unique for each distinct event. <br> An application MAY assign a unique source to each distinct producer, which makes it easy to produce unique IDs since no other producer will have the same source. The application MAY use UUIDs, URNs, DNS authorities or an application-specific scheme to create unique source identifiers.
+Identifies the context in which an event happened. Often this will include information such as the type of the event source, the organization publishing the event or the process that produced the event. The exact syntax and semantics behind the data encoded in the URI is defined by the event producer. 
+
+Producers MUST ensure that source + id is unique for each distinct event. 
+
+An application MAY assign a unique source to each distinct producer, which makes it easy to produce unique IDs since no other producer will have the same source. The application MAY use UUIDs, URNs, DNS authorities or an application-specific scheme to create unique source identifiers.
 
 ##### Kessel Inventory Intent
 Inventory-URI
@@ -65,7 +68,9 @@ inventory-api generated ID for the event
 #### time (Timestamp)
 
 ##### Cloud Event Intent
-Timestamp of when the occurrence happened. If the time of the occurrence cannot be determined then this attribute MAY be set to some other time (such as the current time) by the CloudEvents producer, however all producers for the same source MUST be consistent in this respect. In other words, either they all use the actual time of the occurrence or they all use the same algorithm to determine the value used. <br> Constraints: 
+Timestamp of when the occurrence happened. If the time of the occurrence cannot be determined then this attribute MAY be set to some other time (such as the current time) by the CloudEvents producer, however all producers for the same source MUST be consistent in this respect. In other words, either they all use the actual time of the occurrence or they all use the same algorithm to determine the value used.
+
+Constraints: 
 - OPTIONAL 
     - If present, MUST adhere to the format specified in RFC 3339
 
@@ -91,13 +96,17 @@ The event payload. This specification does not place any restriction on the type
 Payload will mimic the OpenAPI Specs for each method, i.e POST, PUT and DELETE. The data object will contain the information about the resource, including 
 - metadata object 
 - reporter_data object
-- resource_data object or relationship_data object <br> The reporter_data will be the reporter who made the api call for which this event is referencing.
+- resource_data object or relationship_data object
+
+The reporter_data will be the reporter who made the api call for which this event is referencing.
 
 
 #### dataschema (URI)
 
 ##### Cloud Event Intent
-Identifies the schema that data adheres to. Incompatible changes to the schema SHOULD be reflected by a different URI. <br> Constraints:
+Identifies the schema that data adheres to. Incompatible changes to the schema SHOULD be reflected by a different URI.
+
+Constraints:
 - OPTIONAL 
     - If present, MUST be a non-empty URI
 
@@ -108,24 +117,27 @@ Not Used
 #### subject (String)
 
 ##### Cloud Event Intent
-This describes the subject of the event in the context of the event producer (identified by source). In publish-subscribe scenarios, a subscriber will typically subscribe to events emitted by a source, but the source identifier alone might not be sufficient as a qualifier for any specific event if the source context has internal sub-structure. <br> <br> Identifying the subject of the event in context metadata (opposed to only in the data payload) is particularly helpful in generic subscription filtering scenarios where middleware is unable to interpret the data content. In the above example, the subscriber might only be interested in blobs with names ending with '.jpg' or '.jpeg' and the subject attribute allows for constructing a simple and efficient string-suffix filter for that subset of events.
+This describes the subject of the event in the context of the event producer (identified by source). In publish-subscribe scenarios, a subscriber will typically subscribe to events emitted by a source, but the source identifier alone might not be sufficient as a qualifier for any specific event if the source context has internal sub-structure. 
+
+Identifying the subject of the event in context metadata (opposed to only in the data payload) is particularly helpful in generic subscription filtering scenarios where middleware is unable to interpret the data content. In the above example, the subscriber might only be interested in blobs with names ending with '.jpg' or '.jpeg' and the subject attribute allows for constructing a simple and efficient string-suffix filter for that subset of events.
 
 ##### Kessel Inventory Intent
-We use a string composed of __`resources/resource_type/id where id is the ID of the resource created by the asset inventory service.`__ <br> Example:
-```
-/resources/k8s-cluster/A234-1234-1234 
-```
- or <br> __`resource-relationships/relationship_type/id where id is the ID of the resource-relationship created by the asset inventory service`__ <br> Example:
- ```
- /resources-relationships/k8s-policy_is-propagated-to_k8s-cluster/A234-1234-1234
- ```
+We use a string composed of _`resources/resource_type/id where id is the ID of the resource created by the asset inventory service.`_
+
+Example:
+- `/resources/k8s-cluster/A234-1234-1234`
+
+or _`resource-relationships/relationship_type/id`_ where id is the ID of the resource-relationship created by the asset inventory service.
+
+Example:
+- `/resources-relationships/k8s-policy_is-propagated-to_k8s-cluster/A234-1234-1234`
 
 
 
 ## Examples
 ### Resources
-### Create a Cluster
-```
+#### Create a Cluster
+```json
 {
     "specversion" : "1.0",
     “type”: “redhat.inventory.resources.k8s-cluster.created,
@@ -184,9 +196,9 @@ We use a string composed of __`resources/resource_type/id where id is the ID of 
 ```
 
 
-### Update a Cluster
+#### Update a Cluster
 
-```
+```json
 {
     "specversion" : "1.0",
     “type”: “redhat.inventory.resources.k8s-cluster.updated”,
@@ -242,8 +254,8 @@ We use a string composed of __`resources/resource_type/id where id is the ID of 
 }
 ```
 
-### Delete a Cluster
-```
+#### Delete a Cluster
+```json
 {
     "specversion" : "1.0",
     “type”: “redhat.inventory.resources.k8s-cluster.deleted”, 
@@ -266,8 +278,8 @@ We use a string composed of __`resources/resource_type/id where id is the ID of 
 
 ```
 
-### Create a Policy
-```
+#### Create a Policy
+```json
 {
     "specversion" : "1.0",
     “type”: “redhat.inventory.resources.k8s-policy.created”,
@@ -306,8 +318,8 @@ We use a string composed of __`resources/resource_type/id where id is the ID of 
 }
 ```
 
-### Update a Policy
-```
+#### Update a Policy
+```json
 {
     "specversion" : "1.0",
     “type”: “redhat.inventory.resources.k8s-policy.updated”
@@ -346,8 +358,8 @@ We use a string composed of __`resources/resource_type/id where id is the ID of 
 }
 ```
 
-### Delete a Policy
-```
+#### Delete a Policy
+```json
 {
     "specversion" : "1.0",
     “type”: “redhat.inventory.resources.k8s-policy.deleted”
@@ -373,8 +385,8 @@ We use a string composed of __`resources/resource_type/id where id is the ID of 
 
 ### Resource Relationships
 
-### Create a Relationship
-```
+#### Create a Relationship
+```json
 {
     "specversion" : "1.0",
     “type”: “redhat.inventory.resources_relationship.k8s-policy_is-propagated-to_k8s-cluster.created”,
@@ -407,8 +419,8 @@ We use a string composed of __`resources/resource_type/id where id is the ID of 
 ```
 
 
-### Update a Relationship
-```
+#### Update a Relationship
+```json
 {
     "specversion" : "1.0",
     “type”: “redhat.inventory.resources_relationship.k8s-policy_is-propagated-to_k8s-cluster.updated”,
@@ -441,8 +453,8 @@ We use a string composed of __`resources/resource_type/id where id is the ID of 
 ```
 
 
-### Delete a Relationship
-```
+#### Delete a Relationship
+```json
 {
 
 "specversion" : "1.0",
