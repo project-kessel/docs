@@ -410,9 +410,9 @@ Example:
            "reporter_instance_id": "an id of the reporter",
     },
    "relationship_data": {
-     "status": "COMPLIANT”,
-     “k8s_policy_id”: “id-in-inventory”,
-     “k8s_cluster_id”: “id-in-inventory",
+     "status": "COMPLIANT",
+     "k8s_policy_id": "id-in-inventory",
+     "k8s_cluster_id": "id-in-inventory",
         }
     }
 }
@@ -444,9 +444,9 @@ Example:
       "reporter_instance_id": "an id of the reporter",
     },
    "relationship_data": {
-     "status": "COMPLIANT”,
-     “k8s_policy_id”: “id-in-inventory”,
-     “k8s_cluster_id”: “id-in-inventory",
+     "status": "COMPLIANT",
+     "k8s_policy_id": "id-in-inventory",
+     "k8s_cluster_id": "id-in-inventory",
         }
     }
 }
