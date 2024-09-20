@@ -271,7 +271,7 @@ Example:
          "reporter_data": {
             "reporter_instance_id" : "an id of the reporter",
             "reporter_type": "ACM",
-            "local_resource_id": "id-as-supplied-by-reporter",
+            "local_resource_id": "id-as-supplied-by-reporter"
           }
       }
 }
@@ -372,10 +372,10 @@ Example:
       "metadata": {
         "id": "B234-1234-1234",
         "resource_type": "k8s-policy",
-        "workspace": "workspace name",
+        "workspace": "workspace name"
       },
       "reporter_data": {
-        "reporter_instance_id": "an id of the reporter" ,
+        "reporter_instance_id": "an id of the reporter",
         "reporter_type": "ACM",
         "local_resource_id": "id-as-supplied-by-reporter"
       }
@@ -399,20 +399,19 @@ Example:
       "metadata": {
         "id": "C234-1234-1234",
         "relationship_type": "k8s-policy_is-propagated-to_k8s-cluster",
-          "last_reported": "2018-04-05T17:31:00Z",
-        "workspace": "workspace name",
+        "last_reported": "2018-04-05T17:31:00Z"
       },
       "reporter_data": {
         "reporter_type": "ACM",
         "subject_local_resource_id": "policy-id-as-supplied-by-reporter",
         "object_local_resource_id": "cluster-id-as-supplied-by-reporter",
         "reporter_version": "2.12",
-              "reporter_instance_id": "an id of the reporter",
+        "reporter_instance_id": "an id of the reporter"
       },
       "relationship_data": {
         "status": "NO_VIOLATIONS",
         "k8s_policy_id": "B234-1234-1234",
-        "k8s_cluster_id": "A234-1234-1234",
+        "k8s_cluster_id": "A234-1234-1234"
       }
     }
 }
@@ -433,20 +432,19 @@ Example:
       "metadata": {
         "id": "C234-1234-1234",
         "relationship_type": "k8s-policy_is-propagated-to_k8s-cluster",
-          "last_reported": "2018-04-05T17:31:00Z",
-        "workspace": "workspace name",
+        "last_reported": "2018-04-05T17:31:00Z"
         },
       "reporter_data": {
         "reporter_type": "ACM",
         "subject_local_resource_id": "policy-id-as-supplied-by-reporter",
         "object_local_resource_id": "cluster-id-as-supplied-by-reporter",
         "reporter_version": "2.12",
-          "reporter_instance_id": "an id of the reporter",
+        "reporter_instance_id": "an id of the reporter"
       },
       "relationship_data": {
         "status": "NO_VIOLATIONS",
         "k8s_policy_id": "B234-1234-1234",
-        "k8s_cluster_id": "A234-1234-1234",
+        "k8s_cluster_id": "A234-1234-1234"
       }
     }
 }
@@ -466,16 +464,15 @@ Example:
     "datacontenttype" : "application/json",
       "data" :{
         "metadata": {
-        "id": "C234-1234-1234",
-        "relationship_type": "k8s-policy_is-propagated-to_k8s-cluster",
-        "workspace": "workspace name",
-        },
-      "reporter_data": {
-        "reporter_type": "ACM",
-        "subject_local_resource_id": "policy-id-as-supplied-by-reporter",
-        "object_local_resource_id": "cluster-id-as-supplied-by-reporter",
-        "reporter_version": "2.12",
-          "reporter_instance_id": "an id of the reporter",
+          "id": "C234-1234-1234",
+          "relationship_type": "k8s-policy_is-propagated-to_k8s-cluster",
+          },
+        "reporter_data": {
+          "reporter_type": "ACM",
+          "subject_local_resource_id": "policy-id-as-supplied-by-reporter",
+          "object_local_resource_id": "cluster-id-as-supplied-by-reporter",
+          "reporter_version": "2.12",
+          "reporter_instance_id": "an id of the reporter"
         }
     }
 }
