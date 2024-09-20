@@ -272,7 +272,7 @@ Example:
             "reporter_instance_id" : "an id of the reporter",
             "reporter_type": "ACM",
             "local_resource_id": "id-as-supplied-by-reporter",
-           }
+          }
       }
 }
 
@@ -329,31 +329,31 @@ Example:
     "time" : "2018-04-05T17:31:00Z",
     "datacontenttype" : "application/json",
     "data" :{
-    "metadata": {
-      "id": "B234-1234-1234",
-      "resource_type": "k8s-policy",
-      "last_reported": "2018-04-05T17:31:00Z",
-      "workspace": "workspace name",
-      "labels": [
-        {
-          "key": "apps.open-cluster-management.io/reconcile-rate",
-          "value": "high"
-        }
-      ]
-    },
-         "reporter_data": {
-            "reporter_instance_id" : "an id of the reporter",
-            "last_reported" : "2018-04-05T17:31:00Z",
-            "reporter_type": "ACM",
-            "console_href": "some https://referring the local-res-id",
-            "api_href": "some https://referring the local-res-id",
-            "local_resource_id": "id-as-supplied-by-reporter",
-            "reporter_version": "2.12"
-         },
-    "resource_data": {
-      "Disabled": "False",
-      "severity": "LOW"
-        }
+      "metadata": {
+        "id": "B234-1234-1234",
+        "resource_type": "k8s-policy",
+        "last_reported": "2018-04-05T17:31:00Z",
+        "workspace": "workspace name",
+        "labels": [
+          {
+            "key": "apps.open-cluster-management.io/reconcile-rate",
+            "value": "high"
+          }
+        ]
+      },
+      "reporter_data": {
+        "reporter_instance_id" : "an id of the reporter",
+        "last_reported" : "2018-04-05T17:31:00Z",
+        "reporter_type": "ACM",
+        "console_href": "some https://referring the local-res-id",
+        "api_href": "some https://referring the local-res-id",
+        "local_resource_id": "id-as-supplied-by-reporter",
+        "reporter_version": "2.12"
+      },
+      "resource_data": {
+        "Disabled": "False",
+        "severity": "LOW"
+      }
     }
 }
 ```
@@ -369,16 +369,16 @@ Example:
     "time" : "2018-04-05T17:31:00Z",
     "datacontenttype" : "application/json",
     "data" :{
-    "metadata": {
-      "id": "B234-1234-1234",
-      "resource_type": "k8s-policy",
-      "workspace": "workspace name",
-    },
-    "reporter_data": {
-      "reporter_instance_id": "an id of the reporter" ,
-      "reporter_type": "ACM",
-      "local_resource_id": "id-as-supplied-by-reporter"
-        }
+      "metadata": {
+        "id": "B234-1234-1234",
+        "resource_type": "k8s-policy",
+        "workspace": "workspace name",
+      },
+      "reporter_data": {
+        "reporter_instance_id": "an id of the reporter" ,
+        "reporter_type": "ACM",
+        "local_resource_id": "id-as-supplied-by-reporter"
+      }
     }
 }
 ```
@@ -392,28 +392,28 @@ Example:
     "type": "redhat.inventory.resources_relationship.k8s-policy_is-propagated-to_k8s-cluster.created",
     "source": "inventory-api-uri",
     "id": "Z789-6789-678944",
-    "subject": "/resources-relationships/k8s-policy_is-propagated-to_k8s-cluster/A234-1234-1234",
+    "subject": "/resources-relationships/k8s-policy_is-propagated-to_k8s-cluster/C234-1234-1234",
     "time": "2018-04-05T17:31:00Z",
     "datacontenttype" : "application/json",
     "data" :{
-  "metadata": {
-     "id": "A234-1234-1234",
-     "relationship_type": "k8s-policy_is-propagated-to_k8s-cluster",
-      "last_reported": "2018-04-05T17:31:00Z",
-     "workspace": "workspace name",
- 	    },
-    "reporter_data": {
-     "reporter_type": "ACM",
-     "subject_local_resource_id": "policy-id-as-supplied-by-reporter",
-     "object_local_resource_id": "cluster-id-as-supplied-by-reporter",
-     "reporter_version": "2.12",
-           "reporter_instance_id": "an id of the reporter",
-    },
-   "relationship_data": {
-     "status": "NO_VIOLATIONS",
-     "k8s_policy_id": "B234-1234-1234",
-     "k8s_cluster_id": "A234-1234-1234",
-        }
+      "metadata": {
+        "id": "C234-1234-1234",
+        "relationship_type": "k8s-policy_is-propagated-to_k8s-cluster",
+          "last_reported": "2018-04-05T17:31:00Z",
+        "workspace": "workspace name",
+      },
+      "reporter_data": {
+        "reporter_type": "ACM",
+        "subject_local_resource_id": "policy-id-as-supplied-by-reporter",
+        "object_local_resource_id": "cluster-id-as-supplied-by-reporter",
+        "reporter_version": "2.12",
+              "reporter_instance_id": "an id of the reporter",
+      },
+      "relationship_data": {
+        "status": "NO_VIOLATIONS",
+        "k8s_policy_id": "B234-1234-1234",
+        "k8s_cluster_id": "A234-1234-1234",
+      }
     }
 }
 ```
@@ -426,28 +426,28 @@ Example:
     "type": "redhat.inventory.resources_relationship.k8s-policy_is-propagated-to_k8s-cluster.updated",
     "source": "inventory-api-uri",
     "id": "Z789-6789-678945",
-    "subject": "/resources-relationships/k8s-policy_is-propagated-to_k8s-cluster/A234-1234-1234",
+    "subject": "/resources-relationships/k8s-policy_is-propagated-to_k8s-cluster/C234-1234-1234",
     "time": "2018-04-05T17:31:00Z",
     "datacontenttype" : "application/json",
     "data" :{
-  "metadata": {
-     "id": "A234-1234-1234",
-     "relationship_type": "k8s-policy_is-propagated-to_k8s-cluster",
-      "last_reported": "2018-04-05T17:31:00Z",
-     "workspace": "workspace name",
- 	    },
-    "reporter_data": {
-     "reporter_type": "ACM",
-     "subject_local_resource_id": "policy-id-as-supplied-by-reporter",
-     "object_local_resource_id": "cluster-id-as-supplied-by-reporter",
-     "reporter_version": "2.12",
-      "reporter_instance_id": "an id of the reporter",
-    },
-   "relationship_data": {
-     "status": "NO_VIOLATIONS",
-     "k8s_policy_id": "B234-1234-1234",
-     "k8s_cluster_id": "A234-1234-1234",
-        }
+      "metadata": {
+        "id": "C234-1234-1234",
+        "relationship_type": "k8s-policy_is-propagated-to_k8s-cluster",
+          "last_reported": "2018-04-05T17:31:00Z",
+        "workspace": "workspace name",
+        },
+      "reporter_data": {
+        "reporter_type": "ACM",
+        "subject_local_resource_id": "policy-id-as-supplied-by-reporter",
+        "object_local_resource_id": "cluster-id-as-supplied-by-reporter",
+        "reporter_version": "2.12",
+          "reporter_instance_id": "an id of the reporter",
+      },
+      "relationship_data": {
+        "status": "NO_VIOLATIONS",
+        "k8s_policy_id": "B234-1234-1234",
+        "k8s_cluster_id": "A234-1234-1234",
+      }
     }
 }
 ```
@@ -461,21 +461,21 @@ Example:
     "type": "redhat.inventory.resources_relationship.k8s-policy_is-propagated-to_k8s-cluster.deleted",
     "source": "inventory-api-uri",
     "id": "Z789-6789-678946",
-    "subject": "/resources-relationships/k8s-policy_is-propagated-to_k8s-cluster/A234-1234-1234",
+    "subject": "/resources-relationships/k8s-policy_is-propagated-to_k8s-cluster/C234-1234-1234",
     "time": "2018-04-05T17:31:00Z",
     "datacontenttype" : "application/json",
-    "data" :{
-    "metadata": {
-     "id": "A234-1234-1234",
-     "relationship_type": "k8s-policy_is-propagated-to_k8s-cluster",
-     "workspace": "workspace name",
- 	    },
-    "reporter_data": {
-     "reporter_type": "ACM",
-     "subject_local_resource_id": "policy-id-as-supplied-by-reporter",
-     "object_local_resource_id": "cluster-id-as-supplied-by-reporter",
-     "reporter_version": "2.12",
-      "reporter_instance_id": "an id of the reporter",
+      "data" :{
+        "metadata": {
+        "id": "C234-1234-1234",
+        "relationship_type": "k8s-policy_is-propagated-to_k8s-cluster",
+        "workspace": "workspace name",
+        },
+      "reporter_data": {
+        "reporter_type": "ACM",
+        "subject_local_resource_id": "policy-id-as-supplied-by-reporter",
+        "object_local_resource_id": "cluster-id-as-supplied-by-reporter",
+        "reporter_version": "2.12",
+          "reporter_instance_id": "an id of the reporter",
         }
     }
 }
