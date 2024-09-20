@@ -285,12 +285,12 @@ Example:
   "type": "redhat.inventory.resources.k8s-policy.created",
   "source" : "inventory-api-uri",
   "id" : "Z789-6789-67891",
-  "subject": "/resources/k8s-policy/A234-1234-1234",
+  "subject": "/resources/k8s-policy/B234-1234-1234",
   "time" : "2018-04-05T17:31:00Z",
   "datacontenttype" : "application/json",
   "data" : {
     "metadata": {
-      "id": "A234-1234-1234",
+      "id": "B234-1234-1234",
       "resource_type": "k8s-policy",
       "last_reported": "2018-04-05T17:31:00Z",
       "workspace": "workspace name",
@@ -325,12 +325,12 @@ Example:
     "type": "redhat.inventory.resources.k8s-policy.updated",
     "source" : "inventory-api-uri",
     "id" : "Z789-6789-67892",
-    "subject": "/resources/k8s-policy/A234-1234-1234",
+    "subject": "/resources/k8s-policy/B234-1234-1234",
     "time" : "2018-04-05T17:31:00Z",
     "datacontenttype" : "application/json",
     "data" :{
     "metadata": {
-      "id": "A234-1234-1234",
+      "id": "B234-1234-1234",
       "resource_type": "k8s-policy",
       "last_reported": "2018-04-05T17:31:00Z",
       "workspace": "workspace name",
@@ -365,12 +365,12 @@ Example:
     "type": "redhat.inventory.resources.k8s-policy.deleted",
     "source" : "inventory-api-uri",
     "id" : "Z789-6789-67893",
-    "subject": "/resources/k8s-policy/A234-1234-1234",
+    "subject": "/resources/k8s-policy/B234-1234-1234",
     "time" : "2018-04-05T17:31:00Z",
     "datacontenttype" : "application/json",
     "data" :{
     "metadata": {
-      "id": "A234-1234-1234",
+      "id": "B234-1234-1234",
       "resource_type": "k8s-policy",
       "workspace": "workspace name",
     },
@@ -411,8 +411,8 @@ Example:
     },
    "relationship_data": {
      "status": "NO_VIOLATIONS",
-     "k8s_policy_id": "id-in-inventory",
-     "k8s_cluster_id": "id-in-inventory",
+     "k8s_policy_id": "B234-1234-1234",
+     "k8s_cluster_id": "A234-1234-1234",
         }
     }
 }
@@ -445,8 +445,8 @@ Example:
     },
    "relationship_data": {
      "status": "NO_VIOLATIONS",
-     "k8s_policy_id": "id-in-inventory",
-     "k8s_cluster_id": "id-in-inventory",
+     "k8s_policy_id": "B234-1234-1234",
+     "k8s_cluster_id": "A234-1234-1234",
         }
     }
 }
