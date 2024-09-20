@@ -410,7 +410,7 @@ Example:
            "reporter_instance_id": "an id of the reporter",
     },
    "relationship_data": {
-     "status": "NO_VIOLATION",
+     "status": "NO_VIOLATIONS",
      "k8s_policy_id": "id-in-inventory",
      "k8s_cluster_id": "id-in-inventory",
         }
@@ -444,7 +444,7 @@ Example:
       "reporter_instance_id": "an id of the reporter",
     },
    "relationship_data": {
-     "status": "NO_VIOLATION",
+     "status": "NO_VIOLATIONS",
      "k8s_policy_id": "id-in-inventory",
      "k8s_cluster_id": "id-in-inventory",
         }
