@@ -102,7 +102,7 @@ Given the above, a reporter can use *reporter_type:local_resource_id* for PUTs a
 
 
 
-##Reporting a New Relationship Between 2 Resources
+## Reporting a New Relationship Between 2 Resources
 In addition to maintaining metadata about managed resources, Asset Inventory maintains information about relationships between 2 managed resources. These relationships can have attributes associated with the relationship itself that are in addition to the attributes that are associated with either the subject or object resources in the relationship.
 
 For example, there is a _k8s-policy_ (foo) in Asset Inventory with its set of attributes. In addition, there is a _k8s-cluster_ (bar) in Asset Inventory with its own set of attributes. One can create a relationship between foo and bar, including such attributes as _status=compliant_.
