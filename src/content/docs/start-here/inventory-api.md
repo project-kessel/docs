@@ -35,7 +35,7 @@ This object represents the attributes that are common for all resources, no matt
 - ___updated_at___
 - ___deleted_at___
    
-The only metadata that a Reporter can provide is: 
+The only metadata that a Reporter provides is: 
 - ___org_id*___
 - ___workspace_id___
 - ___labels___
