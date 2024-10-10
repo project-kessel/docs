@@ -149,9 +149,10 @@ Example:
     "data" : {
          "metadata": {
            "id" :  "A234-1234-1234",       
+           "org_id" : "IdP's id for the organization",
            "resource_type" : "k8s-cluster",
-           "last_reported" : "2018-04-05T17:31:00Z",
-           "workspace": "workspace name",
+           "created_at" : "2018-04-05T17:31:00Z",
+           "workspace_id": "id of the workspace",
            "labels": [
               {
                 "key": "env",
@@ -161,7 +162,6 @@ Example:
          },
          "reporter_data": {
             "reporter_instance_id" : "an id of the reporter",
-            "last_reported" : "2018-04-05T17:31:00Z",
             "reporter_type" : "ACM",
             "console_href" : "some https://referring the local-res-id",
             "api_href": "some https://referring the local-res-id",
@@ -209,10 +209,11 @@ Example:
     "datacontenttype" : "application/json",
     "data" : {
          "metadata": {
-           "id" :  "A234-1234-1234",      
+           "id" :  "A234-1234-1234",  
+           "org_id" : "IdP's id for the organization",    
            "resource_type" : "k8s-cluster",
-           "last_reported" : "2018-04-05T17:31:00Z",
-           "workspace": "workspace name",
+           "updated_at" : "2018-04-05T17:31:00Z",
+           "workspace_id": "id of the workspace",
            "labels": [
               {
                 "key": "env",
@@ -222,7 +223,6 @@ Example:
          },
          "reporter_data": {
             "reporter_instance_id" : "an id of the reporter",
-            "last_reported" : "2018-04-05T17:31:00Z",
             "reporter_type": "ACM",
             "console_href": "some https://referring the local-res-id",
             "api_href": "some https://referring the local-res-id",
@@ -266,7 +266,10 @@ Example:
     "datacontenttype" : "application/json",
     "data" : {
          "metadata": {
-           "id" : "A234-1234-1234"         
+           "id" : "A234-1234-1234" 
+           "org_id" : "IdP's id for the organization",
+           "resource_type" : "k8s-cluster",
+           "deleted_at" : "2018-04-05T17:31:00Z"      
           },
          "reporter_data": {
             "reporter_instance_id" : "an id of the reporter",
@@ -291,9 +294,10 @@ Example:
   "data" : {
     "metadata": {
       "id": "B234-1234-1234",
+      "org_id" : "IdP's id for the organization",
       "resource_type": "k8s-policy",
-      "last_reported": "2018-04-05T17:31:00Z",
-      "workspace": "workspace name",
+      "created_at": "2018-04-05T17:31:00Z",
+      "workspace_id": "id of the workspace",
       "labels": [
         {
           "key": "apps.open-cluster-management.io/reconcile-rate",
@@ -303,7 +307,6 @@ Example:
     },
       "reporter_data": {
         "reporter_instance_id" : "an id of the reporter",
-        "last_reported" : "2018-04-05T17:31:00Z",
         "reporter_type": "ACM",
         "console_href": "some https://referring the local-res-id",
         "api_href": "some https://referring the local-res-id",
@@ -331,9 +334,10 @@ Example:
     "data" :{
       "metadata": {
         "id": "B234-1234-1234",
+        "org_id" : "IdP's id for the organization",
         "resource_type": "k8s-policy",
-        "last_reported": "2018-04-05T17:31:00Z",
-        "workspace": "workspace name",
+        "updated_at": "2018-04-05T17:31:00Z",
+        "workspace_id": "id of the workspace",
         "labels": [
           {
             "key": "apps.open-cluster-management.io/reconcile-rate",
@@ -343,7 +347,6 @@ Example:
       },
       "reporter_data": {
         "reporter_instance_id" : "an id of the reporter",
-        "last_reported" : "2018-04-05T17:31:00Z",
         "reporter_type": "ACM",
         "console_href": "some https://referring the local-res-id",
         "api_href": "some https://referring the local-res-id",
@@ -371,8 +374,9 @@ Example:
     "data" :{
       "metadata": {
         "id": "B234-1234-1234",
+        "org_id" : "IdP's id for the organization",
         "resource_type": "k8s-policy",
-        "workspace": "workspace name"
+        "deleted_at" : "2018-04-05T17:31:00Z"   
       },
       "reporter_data": {
         "reporter_instance_id": "an id of the reporter",
@@ -398,8 +402,9 @@ Example:
     "data" :{
       "metadata": {
         "id": "C234-1234-1234",
+        "org_id" : "IdP's id for the organization",
         "relationship_type": "k8s-policy_is-propagated-to_k8s-cluster",
-        "last_reported": "2018-04-05T17:31:00Z"
+        "created_at": "2018-04-05T17:31:00Z"
       },
       "reporter_data": {
         "reporter_type": "ACM",
@@ -425,6 +430,7 @@ Example:
     "type": "redhat.inventory.resources_relationship.k8s-policy_is-propagated-to_k8s-cluster.updated",
     "source": "inventory-api-uri",
     "id": "Z789-6789-678945",
+    "org_id" : "IdP's id for the organization",
     "subject": "/resources-relationships/k8s-policy_is-propagated-to_k8s-cluster/C234-1234-1234",
     "time": "2018-04-05T17:31:00Z",
     "datacontenttype" : "application/json",
@@ -432,7 +438,7 @@ Example:
       "metadata": {
         "id": "C234-1234-1234",
         "relationship_type": "k8s-policy_is-propagated-to_k8s-cluster",
-        "last_reported": "2018-04-05T17:31:00Z"
+        "updated_at": "2018-04-05T17:31:00Z"
         },
       "reporter_data": {
         "reporter_type": "ACM",
@@ -465,7 +471,9 @@ Example:
       "data" :{
         "metadata": {
           "id": "C234-1234-1234",
+          "org_id" : "IdP's id for the organization",
           "relationship_type": "k8s-policy_is-propagated-to_k8s-cluster",
+          "deleted_at" : "2018-04-05T17:31:00Z"   
           },
         "reporter_data": {
           "reporter_type": "ACM",
