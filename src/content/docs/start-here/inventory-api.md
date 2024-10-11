@@ -146,7 +146,6 @@ This object represents data that is specific to the reporter who called the Asse
 - ___subject_local_resource_id*___
 - ___object_local_resource_id*___
 
-<br><br>
 Similar to the metadata, some of this information is created by the Asset Inventory service, i.e. 
 - ___reporter_instance_id___ - created from attributes in the authentication token
 
