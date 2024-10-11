@@ -48,7 +48,6 @@ This object represents data that is specific to the reporter who called the Asse
 - ___console_href___
 - ___api_href___ 
 
-<br><br>
 Similar to the metadata, some of this information is created by the Asset Inventory service, i.e. 
 - ___reporter_instance_id___ - created from attributes in the authentication token
 
