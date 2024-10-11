@@ -145,6 +145,9 @@ The report_data differs in that there are no hrefs provided for the relationship
 - ___reporter_version___
 - ___subject_local_resource_id*___
 - ___object_local_resource_id*___
+<br><br>
+Similar to the metadata, some of this information is created by the Asset Inventory service, i.e. 
+- ___reporter_instance_id___ - created from attributes in the authentication token
 
 ##### Multiple Reporters
 The semantics of multiple reporters is the same as with resources.
