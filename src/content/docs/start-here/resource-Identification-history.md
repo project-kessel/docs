@@ -21,7 +21,7 @@ When we say that a resource id is unique within the scope of the reporter, we re
 ### Resource Identification and lifecycle
 The above ensures that the identification of a resource is unique within the lifecycle of that managed resource. With respect to maintaining history of a resource, there are a couple of nuances that need to be considered: 
 
-1. Once a reporter issues a delete of a resource, the reporter might reuse ids. For example, a user creates a cluster Foo. After some time, they delete this cluster.  At some future time, they decide to create a new cluster named Foo. Foo is still unique within the context of the reporter. However, Foo is not the same resource as the previous Foo. 
+1. Once a reporter issues a delete of a resource, the reporter might reuse ids. For example, a user creates a cluster _Foo_. After some time, they delete this cluster.  At some future time, they decide to create a new cluster named _Foo_. _Foo_ is still unique within the context of the reporter. However, _Foo_ is not the same resource as the previous _Foo_. 
 
 	Thus, inventory can not just blindly link any resource with the same tuple:
 	- reporter_type
@@ -29,10 +29,10 @@ The above ensures that the identification of a resource is unique within the lif
 	- resource_type
 	- local_resource_id. 
 	
-	Similarly to how deduplication works across reporters, a resource_type-specific correlator must be used to see if this is the same resource. In the example of a cluster, there is an _external_cluster_id_ that is used for deduplication.  In the example above, the first Foo and the second Foo would have different _external_cluster_ids_; thus, they are different clusters.
+	Similarly to how deduplication works across reporters, a resource_type-specific correlator must be used to see if this is the same resource. In the example of a cluster, there is an _external_cluster_id_ that is used for deduplication.  In the example above, the first _Foo_ and the second _Foo_ would have different _external_cluster_ids_; thus, they are different clusters.
 
 2. A delete, i.e. rest operation, tells inventory to delete this resource as it no longer exists within the management domain. However, there are 2 different types of delete. Using a cluster example: 
-	1. One might issue a “destroy” which actually deletes the managed cluster. In this case, a delete would be issued to inventory. Any future creating of a cluster which could lead to conflict would be the same as #1 above.
+	1. One might issue a “destroy” which actually deletes the managed cluster. In this case, a reporter would call the delete method. Any future creating of a cluster which could lead to conflict would be the same as #1 above.
 	
 	2. One might issue a “detach” which removes the cluster from management but does not impact the actual cluster. Given that this cluster still exists, one could decide to bring this cluster back under management, i.e. import the cluster.  In this case, the cluster could have a different local_resource_id, but the cluster is actually the same resource, i.e. it has the same external_resource_id. This case is very similar to having 2 different reporters reporting on the same resource where deduplication resolves that these are the same resource and we would link them in history. 
 	
