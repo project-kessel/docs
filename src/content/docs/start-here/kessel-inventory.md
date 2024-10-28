@@ -42,7 +42,7 @@ erDiagram
         ResourceReporter reporter
         string console_href
         string api_href
-        Label labels 
+        Label[] labels
         date created_at
         date updated_at
     }
@@ -57,7 +57,7 @@ erDiagram
         ResourceReporter reporter
         string console_href
         string api_href
-        Label labels 
+        Label[] labels
         date timestamp
         string operation_type
     }
@@ -111,6 +111,11 @@ erDiagram
         string object_local_resource_id
     }
 
+    Label["Label<JSON>"] {
+        string Key
+        string Value
+    }
+
     Resource |o--o{ ResourceHistory : has
     Relationship |o--o{ RelationshipHistory : has
 
@@ -122,6 +127,9 @@ erDiagram
 %% Json maps
 Resource ||--|| ResourceReporter : reporter
 ResourceHistory ||--|| ResourceReporter : reporter
+
+Resource ||--o{ Label : labels
+ResourceHistory ||--o{ Label : labels
 
 Relationship ||--|| RelationshipReporter : reporter
 RelationshipHistory ||--|| RelationshipReporter : reporter
