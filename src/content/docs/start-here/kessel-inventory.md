@@ -154,7 +154,7 @@ flowchart LR
     CreateResourceHistory("Add resource_history(CREATE)")
 
     UpdateResource("Update Resource")
-    UpdateResourceExists{"Resource already reported?"}
+    UpdateResourceExists{"Resource already reported by same reporter?"}
     UpdateResourceDo("Updates resource")
     UpdateResourceHistory("Add resource_history(UPDATE)")
 
@@ -193,7 +193,7 @@ Note that when a resource is deleted, any associated relationships are also remo
 flowchart LR
 %% Nodes
     CreateRelationship("Create Relationship")
-    CreateRelationshipExists{"Relationship already reported?"}
+    CreateRelationshipExists{"Relationship already reported by same reporter?"}
     CreateRelationshipDo("Adds relationship")
     CreateRelationshipHistory("Add relationship_history(CREATE)")
 
