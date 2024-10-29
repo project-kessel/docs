@@ -1,3 +1,7 @@
+---
+title: Resource Identification
+---
+
 The following is a list of scenarios that impact how resource history is maintained.  
 
 ### Resource Identification
