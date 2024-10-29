@@ -1,3 +1,7 @@
+---
+title: Event Schema Design
+---
+
 # Event Schema Design
 ## Mapping to Cloud Events
 
