@@ -2,7 +2,6 @@
 title: Kessel Asset Inventory APIs
 ---
 
-# Kessel Asset Inventory APIs
 This document does not supersede any information in the API specification. This is meant to help explain why the API works the way that it does. In other words, think of the API specification as the API “syntax” documentation and this as the API “semantics” documentation.
 
 **Notes:**

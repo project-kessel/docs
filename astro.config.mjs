@@ -20,6 +20,15 @@ export default defineConfig({
         {
           label: "Start Here",
           items: [
+            {
+              label: "Kessel Inventory",
+              items: [
+                { label: "API", link: "./start-here/inventory/inventory-api/" },
+                { label: "Kafka events", link: "./start-here/inventory/kafka-event/" },
+                { label: "Data persistence", link: "./start-here/inventory/kessel-inventory/" },
+                { label: "Resource identification", link: "./start-here/inventory/resource-identification-history/" },
+              ]
+            },
             { label: "Coming Soon", link: "./start-here/coming-soon/" },
           ],
         },

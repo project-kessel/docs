@@ -2,8 +2,6 @@
 title: Kessel Inventory
 ---
 
-# Kessel Inventory
-
 Kessel Inventory is a service that keeps track of resources (`rhel-host`, `k8s-policy`, `k8s-cluster`, `integrations`, etc)
 and the relationships (distinct from Kessel Relations) between each resource (e.g., `k8s-policy` -- `is-propagated-to` --> `k8s-cluster`).
 
