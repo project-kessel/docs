@@ -19,18 +19,17 @@ export default defineConfig({
       sidebar: [
         {
           label: "Start Here",
-          items: [
-            {
-              label: "Kessel Inventory",
-              items: [
-                { label: "API", link: "./start-here/inventory/inventory-api/" },
-                { label: "Kafka events", link: "./start-here/inventory/kafka-event/" },
-                { label: "Data persistence", link: "./start-here/inventory/kessel-inventory/" },
-                { label: "Resource identification", link: "./start-here/inventory/resource-identification-history/" },
-              ]
-            },
-            { label: "Coming Soon", link: "./start-here/coming-soon/" },
+          items: [{ label: "Coming Soon", link: "./start-here/coming-soon/" },
           ],
+        },
+        {
+          label: "Kessel Inventory",
+          items: [
+            { label: "API", link: "./inventory/inventory-api/" },
+            { label: "Kafka events", link: "./inventory/kafka-event/" },
+            { label: "Data persistence", link: "./inventory/kessel-inventory/" },
+            { label: "Resource identification", link: "./inventory/resource-identification-history/" },
+          ]
         },
         {
           label: "For Red Hatters",
