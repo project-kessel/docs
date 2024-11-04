@@ -2,7 +2,6 @@
 title: Event Schema Design
 ---
 
-# Event Schema Design
 ## Mapping to Cloud Events
 
 The event schema will be compatible with CloudEvents, a specification for describing event data in a common way. The following describes how the fabric (Kessel Inventory) will align with the CloudEvent schema.
