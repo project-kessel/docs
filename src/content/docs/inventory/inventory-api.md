@@ -2,6 +2,26 @@
 title: Kessel Asset Inventory APIs
 ---
 
+- [Reporting a New Resource to Asset Inventory](#reporting-a-new-resource-to-asset-inventory)
+  - [The Request Body](#the-request-body)
+    - [Tenancy](#tenancy)
+    - [Metadata](#metadata)
+    - [Reporter\_data](#reporter_data)
+      - [Multiple Reporters](#multiple-reporters)
+    - [Resource\_data](#resource_data)
+  - [Resource Deduplication](#resource-deduplication)
+- [Resource Lifecycle](#resource-lifecycle)
+  - [Resource Identification](#resource-identification)
+- [Reporting a New Relationship Between 2 Resources](#reporting-a-new-relationship-between-2-resources)
+  - [The Request Body](#the-request-body-1)
+    - [Tenancy](#tenancy-1)
+    - [Metadata](#metadata-1)
+    - [Reporter\_data](#reporter_data-1)
+    - [Reporter\_data](#reporter_data-2)
+      - [Multiple Reporters](#multiple-reporters-1)
+    - [Relationship\_data](#relationship_data)
+  - [Relationship Lifecycle](#relationship-lifecycle)
+
 This document does not supersede any information in the API specification. This is meant to help explain why the API works the way that it does. In other words, think of the API specification as the API “syntax” documentation and this as the API “semantics” documentation.
 
 **Notes:**
