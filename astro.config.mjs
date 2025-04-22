@@ -44,6 +44,7 @@ export default defineConfig({
         },
       ],
       customCss: ["./src/tailwind.css", "./src/custom.css"],
+
     }),
     tailwind({ applyBaseStyles: false }),
   ],

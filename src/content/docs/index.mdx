@@ -1,17 +1,134 @@
 ---
 title: Kessel Documentation
-description: Open source, multi-app, B2B access and policy management.
+description: Platform for building resource management APIs with shared access, resource inventory, and eventing.
 template: splash
 hero:
   title: |
-    Kessel
-  tagline: Open source, multi-app, B2B access and policy management.
+    Kessel brings platforms together.
+  tagline: Unify your APIs with fine-grained authorization, common inventory, and CloudEvents.
   actions:
-    - text: For Red Hatters
-      link: ./for-red-hatters/
+    - text: Get started
+      link: ./start-here/coming-soon/
       icon: right-arrow
       variant: primary
-    - text: More coming soon!
+    - text: Explore APIs
       link: ./start-here/coming-soon/
+      icon: right-arrow
       variant: secondary
+    - text: For Red Hatters
+      link: ./for-red-hatters/
+      icon: external
+      variant: minimal
+
 ---
+<style>{ /* Add a little pizazz. */ `
+  html[data-theme="dark"] body {
+    background: linear-gradient(150deg, rgb(24 24 27), rgb(30, 30, 40));
+  }
+
+  html[data-theme="light"] body {
+    background: linear-gradient(135deg, rgb(255, 255, 255), rgb(240, 240, 255));
+  }
+`}</style>
+
+import { Aside, Card, CardGrid, LinkButton, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <Card icon="warning" title="Remove barriers to consumption">
+    Users get the right access, quickly–even in complex B2B and multi-tenant environments.
+  </Card>
+  <Card icon="approve-check" title="Give users control">
+    Delegate access management and resource organization to users, without overentitling.
+  </Card>
+  <Card icon="information" title="Build an ecosystem">
+    Integrate diverse services with consistent sharing semantics, events, and hypermedia.
+  </Card>
+  <Card icon="laptop" title="Designed for developers">
+    Stay laser focused with self-service schema workflows and reusable primitives, like access management and events.
+  </Card>
+</CardGrid>
+
+## How it works
+
+<Steps>
+1. Describe enough of your resource's attributes, permissions (relationships), and identifiers necessary for access control and event-based integration.
+
+   <Aside title="Under construction">There are two different schema languages to use together for now, but this is temporary.</Aside>
+
+   <Tabs>
+     <TabItem label="Attributes">
+     ```
+     lorem ipsum
+     ```
+     </TabItem>
+     <TabItem label="Permissions and relationships">
+     ```
+     lorem ipsum
+     ```
+     </TabItem>
+   </Tabs>
+
+2. Tell Kessel when your resources change in order to ensure access based on latest state, to publish events, and to track history.
+
+   <Tabs syncKey="language">
+     <TabItem label="Python">
+     ```python
+     import kessel
+
+     kessel.ReportResource(...)
+     ```
+     </TabItem>
+     <TabItem label="Go">
+     ```go
+     kessel.ReportResource(...)
+     ```
+     </TabItem>
+     <TabItem label="Java">
+     ```go
+     kessel.ReportResource(...)
+     ```
+     </TabItem>
+   </Tabs>
+3. Check access.
+   <Tabs syncKey="language">
+     <TabItem label="Python">
+     ```python
+     import kessel
+
+     kessel.Check(...)
+     ```
+     </TabItem>
+     <TabItem label="Go">
+     ```go
+     kessel.Check(...)
+     ```
+     </TabItem>
+     <TabItem label="Java">
+     ```go
+     kessel.Check(...)
+     ```
+     </TabItem>
+   </Tabs>
+4. React to events
+   <Tabs syncKey="language">
+     <TabItem label="Python">
+     ```python
+     import kafka
+
+     kafka.Consume(...)
+     ```
+     </TabItem>
+     <TabItem label="Go">
+     ```go
+     kafka.Consume(...)
+     ```
+     </TabItem>
+     <TabItem label="Java">
+     ```go
+     kafka.Consume(...)
+     ```
+     </TabItem>
+   </Tabs>
+</Steps>
+
+<LinkButton icon='right-arrow'>Learn more</LinkButton>

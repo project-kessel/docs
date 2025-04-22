@@ -14,3 +14,11 @@
   margin-left: 5px;
   vertical-align: middle;
 }
+
+.hero {
+  display: block
+}
+
+.tagline {
+  max-width: max-content;
+}
