@@ -36,3 +36,17 @@ All commands are run from the root of the project, from a terminal:
 | `npm run build`     | Build your production site to `./dist/`          |
 | `npm run preview`   | Preview your build locally, before deploying     |
 | `npm run astro ...` | Run CLI commands like `astro add`, `astro check` |
+
+## Writing documentation
+
+Follow the [Diátaxis](https://diataxis.fr/) model of documentation.
+
+> Diátaxis solves problems related to documentation content (what to write), style (how to write it) and architecture (how to organise it).
+
+There are four forms of content. Think about what kind of content you're creating before you create it.
+
+- Tutorials: Step-by-step instructions that teach a new user how to accomplish something technical. The focus is _studying_ as opposed to helping with real-world work. Don't explain too much "why" – that's for Explanation.
+- How-to guides: Given a practical, real-world situation (e.g. a deployment or modeling problem) and a more experienced user, teach them how to resolve it.
+- Technical reference: Accurate "facts" about Kessel and how it works for experienced users, agnostic of any particular task.
+- Explanation: Answers "why" something was done some way with "context and background."
+

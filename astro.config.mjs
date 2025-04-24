@@ -19,7 +19,9 @@ export default defineConfig({
       sidebar: [
         {
           label: "Start Here",
-          items: [{ label: "Coming Soon", link: "./start-here/coming-soon/" },
+          items: [
+            { label: "Getting Started", link: "./start-here/getting-started/" },
+            { label: "Understanding Kessel", link: "./start-here/understanding-kessel/" },
           ],
         },
         {
@@ -32,16 +34,16 @@ export default defineConfig({
           ]
         },
         {
+          label: "Reference",
+          autogenerate: { directory: "reference" },
+        },
+        {
           label: "For Red Hatters",
           link: "./for-red-hatters/",
           attrs: {
             class: "red-hat",
           },
-        },
-        {
-          label: "Reference",
-          autogenerate: { directory: "reference" },
-        },
+        }
       ],
       customCss: ["./src/tailwind.css", "./src/custom.css"],
 
