@@ -1,6 +1,6 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
-import tailwind from "@astrojs/tailwind";
+import tailwindcss from "@tailwindcss/vite";
 
 // https://astro.build/config
 export default defineConfig({
@@ -9,9 +9,9 @@ export default defineConfig({
   integrations: [
     starlight({
       title: "Kessel",
-      social: {
-        github: "https://github.com/project-kessel",
-      },
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/project-kessel' },
+      ],
       editLink: {
         // This enables the "edit" link on the bottom of each page which directly links to contribute
         baseUrl: 'https://github.com/project-kessel/docs/edit/main/',
@@ -34,6 +34,17 @@ export default defineConfig({
           ]
         },
         {
+          label: "API Reference",
+          items: [
+            {
+              label: "gRPC API Reference",
+              link: "https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2",
+              attrs: { target: '_blank' }
+            }
+
+          ]
+        },
+        {
           label: "Reference",
           autogenerate: { directory: "reference" },
         },
@@ -48,6 +59,8 @@ export default defineConfig({
       customCss: ["./src/tailwind.css", "./src/custom.css"],
 
     }),
-    tailwind({ applyBaseStyles: false }),
   ],
+  vite: {
+    plugins: [tailwindcss()],
+  },
 });
