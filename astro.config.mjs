@@ -1,5 +1,6 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import starlightOpenAPI, { openAPISidebarGroups } from 'starlight-openapi'
 import tailwindcss from "@tailwindcss/vite";
 
 // https://astro.build/config
@@ -16,37 +17,71 @@ export default defineConfig({
         // This enables the "edit" link on the bottom of each page which directly links to contribute
         baseUrl: 'https://github.com/project-kessel/docs/edit/main/',
       },
+      plugins: [
+        starlightOpenAPI([
+          {
+            base: 'building-with-kessel/reference/http-api',
+            schema: 'https://raw.githubusercontent.com/project-kessel/inventory-api/refs/heads/main/openapi.yaml',
+            sidebar: {
+              label: "🚧 HTTP API",
+            }
+          },
+        ]),
+      ],
       sidebar: [
         {
           label: "Start Here",
           items: [
-            { label: "Getting Started", link: "./start-here/getting-started/" },
-            { label: "Understanding Kessel", link: "./start-here/understanding-kessel/" },
+            "start-here/getting-started",
+            "start-here/understanding-kessel",
           ],
         },
         {
-          label: "Kessel Inventory",
-          items: [
-            { label: "API", link: "./inventory/inventory-api/" },
-            { label: "Kafka events", link: "./inventory/kafka-event/" },
-            { label: "Data persistence", link: "./inventory/kessel-inventory/" },
-            { label: "Resource identification", link: "./inventory/resource-identification-history/" },
-          ]
-        },
-        {
-          label: "API Reference",
+          label: "Building with Kessel",
           items: [
             {
-              label: "gRPC API Reference",
-              link: "https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2",
-              attrs: { target: '_blank' }
-            }
-
+              label: "How To",
+              autogenerate: { directory: 'building-with-kessel/how-to' }
+            },
+            {
+              label: "Concepts",
+              autogenerate: { directory: 'building-with-kessel/concepts' },
+            },
+            {
+              label: "Reference",
+              items: [
+                'building-with-kessel/reference/schema',
+                'building-with-kessel/reference/glossary',
+                {
+                  label: "gRPC API",
+                  link: "https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2",
+                  attrs: { target: '_blank' }
+                },
+                ...openAPISidebarGroups,
+              ]
+            },
+            {
+              label: "Archive",
+              badge: "Outdated",
+              collapsed: true,
+              items: [
+                'building-with-kessel/archive/inventory-api',
+                'building-with-kessel/archive/kafka-event',
+                "building-with-kessel/archive/kessel-inventory",
+                "building-with-kessel/archive/resource-identification-history",
+              ]
+            },
           ]
         },
         {
-          label: "Reference",
-          autogenerate: { directory: "reference" },
+          label: "Running Kessel",
+          items: [
+            'running-kessel/architecture',
+            {
+              label: "Installation",
+              autogenerate: { directory: 'running-kessel/installation' }
+            }
+          ]
         },
         {
           label: "For Red Hatters",
