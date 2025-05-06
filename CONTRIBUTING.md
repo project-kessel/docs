@@ -39,7 +39,7 @@ All commands are run from the root of the project, from a terminal:
 
 ## Writing documentation
 
-Follow the [Diátaxis](https://diataxis.fr/) model of documentation.
+Follow the [Diátaxis](https://diataxis.fr/) model of documentation, used by projects such as Django and Kubernetes.
 
 > Diátaxis solves problems related to documentation content (what to write), style (how to write it) and architecture (how to organise it).
 
