@@ -75,6 +75,7 @@ export default defineConfig({
         },
         {
           label: "Running Kessel",
+          collapsed: true,
           items: [
             'running-kessel/architecture',
             {
@@ -82,6 +83,11 @@ export default defineConfig({
               autogenerate: { directory: 'running-kessel/installation' }
             }
           ]
+        },
+        {
+          label: "Contributing",
+          collapsed: true,
+          autogenerate: { directory: 'contributing' }
         },
         {
           label: "For Red Hatters",
