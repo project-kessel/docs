@@ -1,0 +1,137 @@
+---
+title: Getting Started
+description: Step-by-step instructions for installing and running Kessel with your first managed and access controlled resource.
+---
+
+import { Aside, Card, CardGrid, LinkButton, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+TODO: Tutorial to run through end to end basic usage of Kessel with very basic demo/toy code, using the client libraries.
+Use the Tabs component to show code examples with different tabs for language (e.g. python vs go).
+
+NOTE: This prose is placeholder. Feel free to update.
+
+## Quick start
+
+### Install and run Kessel.
+
+<Tabs>
+  <TabItem label="Docker compose">
+  
+  ```bash
+  docker-compose foo
+  ```
+  
+  </TabItem>
+  
+  <TabItem label="bonfire">
+    <Aside title="Red Hatter?">
+    TODO: If you need information on ephemeral cluster access, go here.
+    </Aside>
+
+    ```bash
+    bonfire bar
+    ```
+  </TabItem>
+</Tabs>
+
+### Configure Resources
+
+A new installation of Kessel begins as a blank slate. To integrate a Resource (e.g. for access control), you have to configure a Resource _schema_.
+
+TODO: configure not just an asset but a barebones user type with a simple relation to a user
+
+```json title="path/to/common_representation.json"
+{}
+```
+
+```yaml title="path/to/config.yaml"
+config: yaml
+```
+
+```yaml title="path/to/reporter/config.yaml"
+reporter:
+  config: yaml
+```
+
+```json title="path/to/reporter/representation.json"
+{}
+```
+
+```ksl title="path/to/resource_relationships_schema.ksl"
+ksl
+```
+
+### Import a client
+
+<Tabs syncKey="language">
+  <TabItem label="Python">
+  ```bash
+  pip install whatever-the-package-is
+  ```
+  </TabItem>
+  <TabItem label="Go">
+  ```bash
+  go mod etc etc
+  ```
+  </TabItem>
+  <TabItem label="Java (Maven)">
+  ```xml
+  <maven coords></maven coords>
+  ```
+  </TabItem>
+  <TabItem label="Java (Gradle)">
+  ```gradle
+  gradle coords
+  ```
+  </TabItem>
+</Tabs>
+
+### Report resources
+
+TODO: Report the resource with a relationship to a user.
+NOTE: May need to add support for relationships for this to be an uncomplicated quick start
+
+<Tabs syncKey="language">
+  <TabItem label="Python">
+  ```python
+  import kessel
+
+  kessel.ReportResource(...)
+  ```
+  </TabItem>
+  <TabItem label="Go">
+  ```go
+  kessel.ReportResource(...)
+  ```
+  </TabItem>
+  <TabItem label="Java">
+  ```go
+  kessel.ReportResource(...)
+  ```
+  </TabItem>
+</Tabs>
+
+### Enforce access
+
+TODO: Check access
+
+<Tabs syncKey="language">
+  <TabItem label="Python">
+  ```python
+  import kessel
+
+  kessel.Check(...)
+  ```
+  </TabItem>
+  <TabItem label="Go">
+  ```go
+  kessel.Check(...)
+  ```
+  </TabItem>
+  <TabItem label="Java">
+  ```go
+  kessel.Check(...)
+  ```
+  </TabItem>
+</Tabs>
+
