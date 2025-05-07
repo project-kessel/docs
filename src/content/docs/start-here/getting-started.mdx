@@ -1,5 +1,5 @@
 ---
-title: Getting Started
+title: Getting Started with RBAC
 description: Step-by-step instructions for installing and running Kessel with your first managed and access controlled resource.
 ---
 
@@ -12,7 +12,49 @@ NOTE: This prose is placeholder. Feel free to update.
 
 ## Quick start
 
-### Install and run Kessel.
+### Configure Resources
+
+A new installation of Kessel begins as a blank slate. To integrate a Resource (e.g. for access control), you have to configure a Resource _schema_.
+
+TODO: configure not just an asset but a barebones user type with a simple relation to a user
+
+<Steps>
+1. Author schemas
+
+    ```json title="path/to/common_representation.json"
+    {}
+    ```
+
+    ```yaml title="path/to/config.yaml"
+    config: yaml
+    ```
+
+    ```yaml title="path/to/reporter/config.yaml"
+    reporter:
+      config: yaml
+    ```
+
+    ```json title="path/to/reporter/representation.json"
+    {}
+    ```
+
+    ```ksl title="path/to/resource_relationships_schema.ksl"
+    ksl for resource
+    ```
+
+    ```ksl title="path/to/rbac.ksl"
+    ksl for rbac
+    ```
+2. Compile to SpiceDB schema
+
+    ```bash
+    however you do that
+    ```
+</Steps>
+
+### Install and run Kessel with RBAC
+
+TODO: Load schemas from previous step
 
 <Tabs>
   <TabItem label="Docker compose">
@@ -34,31 +76,12 @@ NOTE: This prose is placeholder. Feel free to update.
   </TabItem>
 </Tabs>
 
-### Configure Resources
+### Set up access with RBAC
 
-A new installation of Kessel begins as a blank slate. To integrate a Resource (e.g. for access control), you have to configure a Resource _schema_.
+TODO: Set up a basic user with role on a workspace
 
-TODO: configure not just an asset but a barebones user type with a simple relation to a user
-
-```json title="path/to/common_representation.json"
-{}
-```
-
-```yaml title="path/to/config.yaml"
-config: yaml
-```
-
-```yaml title="path/to/reporter/config.yaml"
-reporter:
-  config: yaml
-```
-
-```json title="path/to/reporter/representation.json"
-{}
-```
-
-```ksl title="path/to/resource_relationships_schema.ksl"
-ksl
+```bash
+curl ...
 ```
 
 ### Import a client
@@ -88,8 +111,7 @@ ksl
 
 ### Report resources
 
-TODO: Report the resource with a relationship to a user.
-NOTE: May need to add support for relationships for this to be an uncomplicated quick start
+TODO: Report the resource into above workspace
 
 <Tabs syncKey="language">
   <TabItem label="Python">
