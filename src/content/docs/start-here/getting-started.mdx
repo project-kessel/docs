@@ -16,7 +16,7 @@ NOTE: This prose is placeholder. Feel free to update.
 
 A new installation of Kessel begins as a blank slate. To integrate a Resource (e.g. for access control), you have to configure a Resource _schema_.
 
-TODO: configure a basic resource that ties into RBAC for permissions
+Configure a basic resource that ties into RBAC for permissions. Following is an example of a Host schema configured by HBI.
 
 <Steps>
 1. Author schemas
@@ -28,24 +28,46 @@ TODO: configure a basic resource that ties into RBAC for permissions
 
     import someRepresentation from 'src/examples/common_rep.json?raw'
 
-    <Code code={someRepresentation> lang="json" title="path/to/common_representation"} />
+    <Code code={someRepresentation> lang="json" title="host/common_representation.json"} />
     */}
 
-    ```json title="path/to/common_representation.json"
-    {}
+    ```json title="host/common_representation.json"
+    {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "workspace_id": {
+            "type": "string"
+        }
+    },
+    "required": ["workspace_id"]
+   }    
     ```
 
-    ```yaml title="path/to/config.yaml"
-    config: yaml
+    ```yaml title="host/config.yaml"
+    resource_type: host
+    resource_reporters:
+      - hbi
     ```
 
-    ```yaml title="path/to/reporter/config.yaml"
-    reporter:
-      config: yaml
+    ```yaml title="host/reporters/hbi/config.yaml"
+    resource_type: host
+    reporter_name: hbi
+    namespace: hbi
     ```
 
-    ```json title="path/to/reporter/representation.json"
-    {}
+    ```json title="host/reporters/hbi/host.json"
+    {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "insights_inventory_id": {
+            "type": "string",
+            "format": "uuid"
+        }
+    },
+    "required": []
+   }
     ```
 
     ```ksl title="path/to/resource_relationships_schema.ksl"
@@ -64,15 +86,30 @@ TODO: configure a basic resource that ties into RBAC for permissions
 
 ### Install and run Kessel with RBAC
 
-TODO: Load schemas from previous step
-
 <Tabs>
   <TabItem label="Docker compose">
+
+#### 1. Start Kessel Inventory
+
+```bash
+git clone git@github.com:project-kessel/inventory-api.git
+cd inventory-api
+make inventory-up-relations ready
+```
+
+#### 2. Start Relations and SpiceDB
+
+```bash
+git clone git@github.com:project-kessel/relations-api.git
+cd relations-api
+curl -o deploy/schema.zed https://raw.githubusercontent.com/RedHatInsights/rbac-config/refs/heads/master/configs/prod/schemas/schema.zed
+make relations-api-up 
+```
   
-  ```bash
-  docker-compose foo
-  ```
-  
+#### 3. Start RBAC
+
+TODO. For now we will create the Relationships directly
+
   </TabItem>
   
   <TabItem label="bonfire">
@@ -90,11 +127,30 @@ TODO: Load schemas from previous step
 
 TODO: Set up a basic user with role on a workspace
 
+In the short term, run the following commands in relations-api repo,
+to add relationships to spicedb directly. 
+Long term, you will do this via RBAC
+
 ```bash
-curl ...
+
+# link workspace to role binding
+zed relationship touch rbac/workspace:a64d17d0-aec3-410a-acd0-e0b85b22c076 t_binding rbac/role_binding:it_team_a --endpoint "$SPICEDB_IP:50051" --token foobar --insecure 
+
+# grant permission to all principals
+zed relationship touch rbac/role:inventory_hosts_admin t_inventory_hosts_read "rbac/principal:sarah" --endpoint "$SPICEDB_IP:50051" --token foobar --insecure 
+
+# link the role binding to a role
+zed relationship touch rbac/role_binding:it_team_a t_role rbac/role:inventory_hosts_admin --endpoint "$SPICEDB_IP:50051" --token foobar --insecure
+
+# link the user sarah to the role binding
+zed relationship touch rbac/role_binding:it_team_a t_subject rbac/principal:sarah --endpoint "$SPICEDB_IP:50051" --token foobar --insecure
+
 ```
 
 ### Import a client
+
+TODO: This section will be updated shortly. 
+In the meantime, we will show you how to make calls using grpcurl
 
 <Tabs syncKey="language">
   <TabItem label="Python">
@@ -121,9 +177,18 @@ curl ...
 
 ### Report resources
 
-TODO: Report the resource into above workspace
+TODO: Add examples for all languages
 
 <Tabs syncKey="language">
+  <TabItem label="grpcurl">
+  ```grpcurl
+  grpcurl -plaintext -d @ "localhost:9081" kessel.inventory.v1beta2.KesselInventoryService.ReportResource < data/testData/v1beta2/host.json
+  ```
+  </TabItem>
+  <TabItem label="curl">
+  ```curl
+  ```
+  </TabItem>
   <TabItem label="Python">
   ```python
   import kessel
@@ -148,6 +213,11 @@ TODO: Report the resource into above workspace
 TODO: Check access
 
 <Tabs syncKey="language">
+  <TabItem label="gRPCurl">
+  ```grpcurl
+  grpcurl -plaintext -d '{"object": {"resourceType": "host", "resourceId": "dd1b73b9-3e33-4264-968c-e3ce55b9afec", "reporter": {"type": "hbi", "instanceId": "3088be62-1c60-4884-b133-9200542d0b3f"}}, "relation": "t_workspace", "subject": {"resource": {"resourceType": "workspace", "resourceId": "a64d17d0-aec3-410a-acd0-e0b85b22c076", "reporter": {"type": "rbac", "instanceId": "3088be62-1c60-4884-b133-9200542d0b3f"}}}}' localhost:9081 kessel.inventory.v1beta2.KesselInventoryService.Check
+  ```
+  </TabItem>
   <TabItem label="Python">
   ```python
   import kessel
