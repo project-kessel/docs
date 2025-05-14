@@ -88,27 +88,28 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
 
 <Tabs>
   <TabItem label="Docker compose">
+    <Steps>
+    1. Start Kessel Inventory
 
-#### 1. Start Kessel Inventory
+        ```bash
+        git clone git@github.com:project-kessel/inventory-api.git
+        cd inventory-api
+        make inventory-up-relations ready
+        ```
 
-```bash
-git clone git@github.com:project-kessel/inventory-api.git
-cd inventory-api
-make inventory-up-relations ready
-```
+    2. Start Relations and SpiceDB
 
-#### 2. Start Relations and SpiceDB
+        ```bash
+        git clone git@github.com:project-kessel/relations-api.git
+        cd relations-api
+        curl -o deploy/schema.zed https://raw.githubusercontent.com/RedHatInsights/rbac-config/refs/heads/master/configs/prod/schemas/schema.zed
+        make relations-api-up 
+        ```
+      
+    3. Start RBAC
 
-```bash
-git clone git@github.com:project-kessel/relations-api.git
-cd relations-api
-curl -o deploy/schema.zed https://raw.githubusercontent.com/RedHatInsights/rbac-config/refs/heads/master/configs/prod/schemas/schema.zed
-make relations-api-up 
-```
-  
-#### 3. Start RBAC
-
-TODO. For now we will create the Relationships directly
+       TODO. For now we will create the Relationships directly
+    </Steps>
 
   </TabItem>
   
@@ -181,7 +182,7 @@ TODO: Add examples for all languages
 
 <Tabs syncKey="language">
   <TabItem label="grpcurl">
-  ```grpcurl
+  ```bash
   grpcurl -plaintext -d @ "localhost:9081" kessel.inventory.v1beta2.KesselInventoryService.ReportResource < data/testData/v1beta2/host.json
   ```
   </TabItem>
@@ -202,7 +203,7 @@ TODO: Add examples for all languages
   ```
   </TabItem>
   <TabItem label="Java">
-  ```go
+  ```java
   kessel.ReportResource(...)
   ```
   </TabItem>
@@ -213,8 +214,8 @@ TODO: Add examples for all languages
 TODO: Check access
 
 <Tabs syncKey="language">
-  <TabItem label="gRPCurl">
-  ```grpcurl
+  <TabItem label="grpcurl">
+  ```bash
   grpcurl -plaintext -d '{"object": {"resourceType": "host", "resourceId": "dd1b73b9-3e33-4264-968c-e3ce55b9afec", "reporter": {"type": "hbi", "instanceId": "3088be62-1c60-4884-b133-9200542d0b3f"}}, "relation": "t_workspace", "subject": {"resource": {"resourceType": "workspace", "resourceId": "a64d17d0-aec3-410a-acd0-e0b85b22c076", "reporter": {"type": "rbac", "instanceId": "3088be62-1c60-4884-b133-9200542d0b3f"}}}}' localhost:9081 kessel.inventory.v1beta2.KesselInventoryService.Check
   ```
   </TabItem>
@@ -231,7 +232,7 @@ TODO: Check access
   ```
   </TabItem>
   <TabItem label="Java">
-  ```go
+  ```java
   kessel.Check(...)
   ```
   </TabItem>
