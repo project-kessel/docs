@@ -126,27 +126,38 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
 
 ### Set up access with RBAC
 
-TODO: Set up a basic user with role on a workspace
+<Steps>
 
-In the short term, run the following commands in relations-api repo,
-to add relationships to spicedb directly. 
-Long term, you will do this via RBAC
+1. Link workspace to role binding
+    ```bash
+    MESSAGE='{"tuples":[{"resource":{"id":"a64d17d0-aec3-410a-acd0-e0b85b22c076","type":{"name":"workspace","namespace":"rbac"}},"relation":"binding","subject":{"subject":{"id":"it_team_a","type":{"name":"role_binding","namespace":"rbac"}}}}]}'
+    grpcurl -plaintext -d $MESSAGE \
+	localhost:9000 \
+	kessel.relations.v1beta1.KesselTupleService.CreateTuple
+        ```
+2. Grant permission to all principals
+    ```bash
+    MESSAGE='{"tuples":[{"resource":{"id":"inventory_hosts_admin","type":{"name":"role","namespace":"rbac"}},"relation":"inventory_hosts_read","subject":{"subject":{"id":"*","type":{"name":"principal","namespace":"rbac"}}}}]}'
+    grpcurl -plaintext -d $MESSAGE \
+	localhost:9000 \
+	kessel.relations.v1beta1.KesselTupleService.CreateTuples
+    ```
+3. Link the role binding to a role
+    ```bash
+    MESSAGE='{"tuples":[{"resource":{"id":"it_team_a","type":{"name":"role_binding","namespace":"rbac"}},"relation":"role","subject":{"subject":{"id":"inventory_hosts_admin","type":{"name":"role","namespace":"rbac"}}}}]}'
+    grpcurl -plaintext -d $MESSAGE \
+	localhost:9000 \
+	kessel.relations.v1beta1.KesselTupleService.CreateTuples
+    ```
+4. Link the user sarah to the role binding
+    ```bash
+    MESSAGE='{"filter":{"resource_id":"it_team_a","resource_type":"role_binding","resource_namespace":"rbac","relation":"subject","subject_filter":{"subject_type":"principal","subject_namespace":"rbac","subject_id":"sarah"}}}'    
+    grpcurl -plaintext -d $MESSAGE \
+	localhost:9000 \
+	kessel.relations.v1beta1.KesselTupleService.ReadTuples
+    ```
 
-```bash
-
-# link workspace to role binding
-zed relationship touch rbac/workspace:a64d17d0-aec3-410a-acd0-e0b85b22c076 t_binding rbac/role_binding:it_team_a --endpoint "$SPICEDB_IP:50051" --token foobar --insecure 
-
-# grant permission to all principals
-zed relationship touch rbac/role:inventory_hosts_admin t_inventory_hosts_read "rbac/principal:sarah" --endpoint "$SPICEDB_IP:50051" --token foobar --insecure 
-
-# link the role binding to a role
-zed relationship touch rbac/role_binding:it_team_a t_role rbac/role:inventory_hosts_admin --endpoint "$SPICEDB_IP:50051" --token foobar --insecure
-
-# link the user sarah to the role binding
-zed relationship touch rbac/role_binding:it_team_a t_subject rbac/principal:sarah --endpoint "$SPICEDB_IP:50051" --token foobar --insecure
-
-```
+</Steps>
 
 ### Import a client
 
@@ -183,7 +194,10 @@ TODO: Add examples for all languages
 <Tabs syncKey="language">
   <TabItem label="grpcurl">
   ```bash
-  grpcurl -plaintext -d @ "localhost:9081" kessel.inventory.v1beta2.KesselInventoryService.ReportResource < data/testData/v1beta2/host.json
+  MESSAGE='{"type": "host", "reporterType": "hbi", "reporterInstanceId": "3088be62-1c60-4884-b133-9200542d0b3f","representations": {"metadata": {"localResourceId": "dd1b73b9-3e33-4264-968c-e3ce55b9afec","apiHref": "https://apiHref.com/","consoleHref": "https://www.console.com/","reporterVersion": "2.7.16"},"common": {"workspace_id": "a64d17d0-aec3-410a-acd0-e0b85b22c076"},"reporter": {"insights_inventory_id": "05707922-7b0a-4fe6-982d-6adbc7695b8f"}}}'
+  grpcurl -plaintext -d $MESSAGE \
+localhost:9081 \
+kessel.inventory.v1beta2.KesselInventoryService.ReportResource
   ```
   </TabItem>
   <TabItem label="curl">
@@ -216,8 +230,13 @@ TODO: Check access
 <Tabs syncKey="language">
   <TabItem label="grpcurl">
   ```bash
-  grpcurl -plaintext -d '{"object": {"resourceType": "host", "resourceId": "dd1b73b9-3e33-4264-968c-e3ce55b9afec", "reporter": {"type": "hbi", "instanceId": "3088be62-1c60-4884-b133-9200542d0b3f"}}, "relation": "t_workspace", "subject": {"resource": {"resourceType": "workspace", "resourceId": "a64d17d0-aec3-410a-acd0-e0b85b22c076", "reporter": {"type": "rbac", "instanceId": "3088be62-1c60-4884-b133-9200542d0b3f"}}}}' localhost:9081 kessel.inventory.v1beta2.KesselInventoryService.Check
+  MESSAGE=MESSAGE='{"object": {"resourceType": "host", "resourceId": "dd1b73b9-3e33-4264-968c-e3ce55b9afec", "reporter": {"type": "hbi", "instanceId": "3088be62-1c60-4884-b133-9200542d0b3f"}}, "relation": "t_workspace", "subject": {"resource": {"resourceType": "workspace", "resourceId": "a64d17d0-aec3-410a-acd0-e0b85b22c076", "reporter": {"type": "rbac", "instanceId": "3088be62-1c60-4884-b133-9200542d0b3f"}}}}'
+  grpcurl -plaintext -d $MESSAGE \                                                                   
+localhost:9081 \
+kessel.inventory.v1beta2.KesselInventoryService.Check
   ```
+  </TabItem>
+  <TabItem label="curl">
   </TabItem>
   <TabItem label="Python">
   ```python
