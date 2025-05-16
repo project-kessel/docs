@@ -117,10 +117,26 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
     <Aside title="Red Hatter?">
     TODO: If you need information on ephemeral cluster access, go here.
     </Aside>
+    <Steps>
+    1. Start Kessel Inventory
 
-    ```bash
-    bonfire bar
-    ```
+        ```bash
+        bonfire deploy kessel -C kessel-inventory
+        ```
+        
+    2. Load Schema
+
+        ```bash
+        oc apply -f https://gist.githubusercontent.com/akoserwal/a061a2959862caa653aa8c8836db874b/raw/7cd73fd045ed8f30c850349bb7ff3264b2d35c8e/spicedb-schema-configmap.yaml
+        ```
+    
+    3. Fetch the API URL and Credentials
+
+        ```bash
+        bonfire namespace describe
+        ```
+        
+    </Steps>
   </TabItem>
 </Tabs>
 
