@@ -135,6 +135,12 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
         ```bash
         bonfire namespace describe
         ```
+    4. Enable port forwarding to Kessel Inventory 
+
+        ```bash
+        oc port-forward svc/kessel-inventory-api <your local port>:9000 -n <Name of current project from step 3> 
+        oc port-forward svc/kessel-relations-api <your local port>:9000 -n <Name of current project from step 3> 
+        ```
         
     </Steps>
   </TabItem>
@@ -143,37 +149,35 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
 ### Set up access with RBAC
 
 <Steps>
-
-1. Link workspace to role binding
-    ```bash
-    MESSAGE='{"tuples":[{"resource":{"id":"a64d17d0-aec3-410a-acd0-e0b85b22c076","type":{"name":"workspace","namespace":"rbac"}},"relation":"binding","subject":{"subject":{"id":"it_team_a","type":{"name":"role_binding","namespace":"rbac"}}}}]}'
-    grpcurl -plaintext -d $MESSAGE \
-	localhost:9000 \
-	kessel.relations.v1beta1.KesselTupleService.CreateTuple
+    1. Link workspace to role binding
+        ```bash
+        MESSAGE='{"tuples":[{"resource":{"id":"a64d17d0-aec3-410a-acd0-e0b85b22c076","type":{"name":"workspace","namespace":"rbac"}},"relation":"binding","subject":{"subject":{"id":"it_team_a","type":{"name":"role_binding","namespace":"rbac"}}}}]}'
+        grpcurl -plaintext -d $MESSAGE \
+        localhost: <your local port for relations> \
+        kessel.relations.v1beta1.KesselTupleService.CreateTuples
         ```
-2. Grant permission to all principals
-    ```bash
-    MESSAGE='{"tuples":[{"resource":{"id":"inventory_hosts_admin","type":{"name":"role","namespace":"rbac"}},"relation":"inventory_hosts_read","subject":{"subject":{"id":"*","type":{"name":"principal","namespace":"rbac"}}}}]}'
-    grpcurl -plaintext -d $MESSAGE \
-	localhost:9000 \
-	kessel.relations.v1beta1.KesselTupleService.CreateTuples
-    ```
-3. Link the role binding to a role
-    ```bash
-    MESSAGE='{"tuples":[{"resource":{"id":"it_team_a","type":{"name":"role_binding","namespace":"rbac"}},"relation":"role","subject":{"subject":{"id":"inventory_hosts_admin","type":{"name":"role","namespace":"rbac"}}}}]}'
-    grpcurl -plaintext -d $MESSAGE \
-	localhost:9000 \
-	kessel.relations.v1beta1.KesselTupleService.CreateTuples
-    ```
-4. Link the user sarah to the role binding
-    ```bash
-    MESSAGE='{"filter":{"resource_id":"it_team_a","resource_type":"role_binding","resource_namespace":"rbac","relation":"subject","subject_filter":{"subject_type":"principal","subject_namespace":"rbac","subject_id":"sarah"}}}'    
-    grpcurl -plaintext -d $MESSAGE \
-	localhost:9000 \
-	kessel.relations.v1beta1.KesselTupleService.ReadTuples
-    ```
-
-</Steps>
+    2. Grant permission to all principals
+        ```bash
+        MESSAGE='{"tuples":[{"resource":{"id":"inventory_hosts_admin","type":{"name":"role","namespace":"rbac"}},"relation":"inventory_hosts_read","subject":{"subject":{"id":"*","type":{"name":"principal","namespace":"rbac"}}}}]}'
+        grpcurl -plaintext -d $MESSAGE \
+        localhost: <your local port for relations> \
+        kessel.relations.v1beta1.KesselTupleService.CreateTuples
+        ```
+     3. Link the role binding to a role
+        ```bash
+        MESSAGE='{"tuples":[{"resource":{"id":"it_team_a","type":{"name":"role_binding","namespace":"rbac"}},"relation":"role","subject":{"subject":{"id":"inventory_hosts_admin","type":{"name":"role","namespace":"rbac"}}}}]}'
+        grpcurl -plaintext -d $MESSAGE \
+        localhost: <your local port for relations> \
+        kessel.relations.v1beta1.KesselTupleService.CreateTuples
+        ```
+     4. Link the user sarah to the role binding
+        ```bash
+        MESSAGE='{"tuples":[{"resource":{"id":"it_team_a","type":{"name":"role_binding","namespace":"rbac"}},"relation":"subject","subject":{"subject":{"id":"sarah","type":{"name":"principal","namespace":"rbac"}}}}]}'    
+        grpcurl -plaintext -d $MESSAGE \
+        localhost: <your local port for relations> \
+        kessel.relations.v1beta1.KesselTupleService.CreateTuples
+        ```
+    </Steps>
 
 ### Import a client
 
@@ -212,7 +216,7 @@ TODO: Add examples for all languages
   ```bash
   MESSAGE='{"type": "host", "reporterType": "hbi", "reporterInstanceId": "3088be62-1c60-4884-b133-9200542d0b3f","representations": {"metadata": {"localResourceId": "dd1b73b9-3e33-4264-968c-e3ce55b9afec","apiHref": "https://apiHref.com/","consoleHref": "https://www.console.com/","reporterVersion": "2.7.16"},"common": {"workspace_id": "a64d17d0-aec3-410a-acd0-e0b85b22c076"},"reporter": {"insights_inventory_id": "05707922-7b0a-4fe6-982d-6adbc7695b8f"}}}'
   grpcurl -plaintext -d $MESSAGE \
-localhost:9081 \
+localhost: <your local port for inventory> \
 kessel.inventory.v1beta2.KesselInventoryService.ReportResource
   ```
   </TabItem>
@@ -246,9 +250,9 @@ TODO: Check access
 <Tabs syncKey="language">
   <TabItem label="grpcurl">
   ```bash
-  MESSAGE=MESSAGE='{"object": {"resourceType": "host", "resourceId": "dd1b73b9-3e33-4264-968c-e3ce55b9afec", "reporter": {"type": "hbi", "instanceId": "3088be62-1c60-4884-b133-9200542d0b3f"}}, "relation": "t_workspace", "subject": {"resource": {"resourceType": "workspace", "resourceId": "a64d17d0-aec3-410a-acd0-e0b85b22c076", "reporter": {"type": "rbac", "instanceId": "3088be62-1c60-4884-b133-9200542d0b3f"}}}}'
+  MESSAGE='{"object": {"resourceType": "host", "resourceId": "dd1b73b9-3e33-4264-968c-e3ce55b9afec", "reporter": {"type": "hbi", "instanceId": "3088be62-1c60-4884-b133-9200542d0b3f"}}, "relation": "workspace", "subject": {"resource": {"resourceType": "workspace", "resourceId": "a64d17d0-aec3-410a-acd0-e0b85b22c076", "reporter": {"type": "rbac", "instanceId": "3088be62-1c60-4884-b133-9200542d0b3f"}}}}'
   grpcurl -plaintext -d $MESSAGE \                                                                   
-localhost:9081 \
+localhost: <your local port for inventory> \
 kessel.inventory.v1beta2.KesselInventoryService.Check
   ```
   </TabItem>
