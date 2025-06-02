@@ -4,4 +4,223 @@ sidebar:
   order: 65
 ---
 
-TODO: How to guide for migrating from RBAC v1 to RBAC v2
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+<Aside title="Under Construction">We are working on improving the documentation</Aside>
+
+This is a guide for the first phase of migration of existing Insights applications from RBACv1 to Kessel.
+In this initial phase, the goal is to start using Kessel for authorization enforcement while keeping parity with the current behaviors.
+Further “workspacification” (i.e. making assets other than hosts workspace-aware) is out of scope for the initial phase and this guide.
+
+Questions? Please raise them in \#mgmt-fabric-insights-integrations
+
+## Identify the patterns
+
+We start the migration process by identifying the patterns used by our application.
+Refer to [KSL-016: Migrating host and organization level permissions](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.r4s1xymr6mwu) for more information about the patterns.
+
+Note that an application may fall under more than one of these patterns.
+For example, an application may use a combination of:
+
+* permission protecting access to an org-wide setting
+* permission protecting access to inventory group aware assets (e.g. host vulnerabilities)
+
+The patterns identified for each application are tracked in [Insights | Kessel Requirements - Service Resource & Permissions Data](https://docs.google.com/spreadsheets/d/1xfMXqHf3R44L-d9lIXJhl7HfSyf3cN9V35C_nRtTWXQ/edit?gid=1723212125#gid=1723212125)
+
+## Model the permissions
+
+Afterwards, we need to convert permission definitions from [the legacy format](https://github.com/RedHatInsights/rbac-config/tree/master/configs/prod/permissions) to permission definitions expressed using the ksl language.
+More information about modeling permissions with the ksl language can be found in [Design permissions schema](/docs/building-with-kessel/how-to/design-permissions/).
+
+Example definition of permissions that follow the [Root workspace pattern](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.z8kd70uc9ad5) (protecting org-wide settings):
+
+```
+version 0.1
+namespace config_manager
+
+import rbac
+
+@rbac.add_v1_based_permission(app:'config_manager', resource:'profile', verb:'read', v2_perm:'config_manager_profile_view');
+@rbac.add_v1_based_permission(app:'config_manager', resource:'profile', verb:'write', v2_perm:'config_manager_profile_edit');
+```
+
+Example definition of permissions that follow the [Native, workspace-level list](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.17ytnrwi9six) pattern (protecting patches applicable to a host, which are workspace-aware assets)
+
+```
+version 0.1
+namespace patch
+
+import rbac
+import hbi
+
+@rbac.add_v1_based_permission(app:'patch', resource:'system', verb:'read', v2_perm:'patch_system_view_assigned');
+@rbac.add_contingent_permission(first: 'inventory_host_view', second: 'patch_system_view_assigned', contingent: 'patch_system_view');
+@hbi.expose_host_permission(v2_perm: 'patch_system_view', host_perm: 'patch_system_view');
+
+@rbac.add_v1_based_permission(app:'patch', resource:'system', verb:'write', v2_perm:'patch_system_edit_assigned');
+@rbac.add_contingent_permission(first: 'inventory_host_view', second: 'patch_system_edit_assigned', contingent: 'patch_system_edit');
+@hbi.expose_host_permission(v2_perm: 'patch_system_edit', host_perm: 'patch_system_edit');
+```
+
+The permission definitions from ksl files are [transpiled into a zed schema](https://github.com/RedHatInsights/rbac-config?tab=readme-ov-file#building-the-kessel-schema).
+
+<Aside type="tip" title="Tip: Play with the schema">
+A good way to understand the resulting schema is by tinkering and evaluating different scenarios and test data is by loading the generated schema into [SpiceDB Playground](https://play.authzed.com/schema).
+</Aside>
+
+<Aside type="note" title="Role definitions do not change">
+Note that the way these new permissions are associated with a role remains the same, i.e. via [role files](https://github.com/RedHatInsights/rbac-config/tree/master/configs/prod/roles).
+</Aside>
+
+## Implement the changes in the application code
+
+The implementation part typically consists of the following steps:
+
+1. Import the Kessel client library
+1. Implement the authorization check in the application code
+1. Add tests
+1. Add configuration options for the Kessel client
+
+### Importing the client library
+
+Kessel client libraries are available for these languages:
+
+* [Java](https://github.com/project-kessel/inventory-client-java)
+* [golang](https://github.com/project-kessel/inventory-client-go)
+* [Python](https://github.com/project-kessel/inventory-client-python)
+
+### Implement the authorization check in the application code
+
+The authorization check is typically implemented at the middleware layer.
+The actual implementation differs based on the selected pattern(s).
+
+#### Root/Default workspace pattern
+
+The implementation of [root workspace pattern](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.z8kd70uc9ad5) and [default workspace pattern](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.llalb2knp7t) starts with a lookup of the default/root workspace id for the given organization.
+
+The workspace ID can be obtained from the RBAC service via a REST call:
+
+```
+GET /v2/workspaces?type=root
+GET /v2/workspaces?type=default
+```
+
+The default/root workspace for a given organization is guaranteed to never change and is therefore easily cacheable.
+However, in the future the need to look up the default/root workspace ID will be resolved transparently on the Kessel side.
+There is therefore no need to implement the caching code in the application code at this time.
+
+With the workspace id resolved, the authorization check call can be made to Kessel.
+The actual method called depends on the nature of the operation.
+
+Use [CheckForUpdate](https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.KesselInventoryService.CheckForUpdate) for performing authorization check for
+
+* any write operations
+* highly-sensitive read operations (e.g. access to read credentials for connecting to a customer’s cluster)
+
+In all other cases, use [Check](https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.KesselInventoryService.Check).
+
+The parameters provided for the Check/CheckForUpdate request for the Root/Default workspace pattern should be structured as follows:
+
+```go
+object := &kesselv2.ResourceReference{
+	ResourceType: "workspace",
+	ResourceId:   defaultOrRootWorkspaceID,
+	Reporter: &kesselv2.ReporterReference{
+		Type: "rbac",
+	},
+}
+
+relation = // the permission to check for
+
+subject := &kesselv2.SubjectReference{
+	Resource: &kesselv2.ResourceReference{
+		ResourceType: "principal",
+		ResourceId:   principalId,
+		Reporter: &kesselv2.ReporterReference{
+			Type: "rbac",
+		},
+	},
+}
+```
+
+<Aside type="note" title="Supporting all principal types">
+Note that the principal id will differ based on the type of the principal:
+
+* user principal \- `identity.User.Username`
+* service account \- `identity.ServiceAccount.Username`
+</Aside>
+
+
+Default workspace pattern implementations and PoCs:
+* [Config Manager](https://github.com/RedHatInsights/config-manager/pull/242)
+* [Resource Optimization Service](https://github.com/josejulio/ros-backend/pull/1/files)
+
+See [Default workspace](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.llalb2knp7t) for additional information.
+
+#### Native, workspace-level list
+
+The [Native, workspace-level list pattern](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.17ytnrwi9six) is typically implemented by resolving the ids of all the workspaces for which the given principal possesses the given permission and then using these workspace ids to filter the assets in application database query.
+
+The workspace ids are obtained using the [StreamedListObjects](https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.KesselInventoryService.StreamedListObjects) method and its parameters should be defined as follows:
+
+```go
+objectType := &kesselv2.RepresentationType{
+	ResourceType: "workspace",
+	ReporterType: "rbac",
+},
+
+relation = // the permission to check for
+
+subject := &kesselv2.SubjectReference{
+	Resource: &kesselv2.ResourceReference{
+		ResourceType: "principal",
+		ResourceId:   principalId,
+		Reporter: &kesselv2.ReporterReference{
+			Type: "rbac",
+		},
+	},
+}
+```
+
+<Aside type="note" title="Supporting all principal types">
+Note that the principal id will differ based on the type of the principal:
+
+* user principal \- `identity.User.Username`
+* service account \- `identity.ServiceAccount.Username`
+</Aside>
+
+Native, workspace-level list pattern implementations and PoCs:
+* [Digital Roadmap](https://github.com/RedHatInsights/digital-roadmap-backend/pull/182)
+* [Resource Optimization Service](https://github.com/josejulio/ros-backend/pull/1/files)
+
+See [Native, workspace-level list](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.17ytnrwi9six) for additional information.
+
+### Adding tests
+
+TBD
+
+[Example of a testcase for Kessel integration](https://github.com/RedHatInsights/config-manager/blob/a937c5f283fb3acb2931cf2713173f220cd1bd11/internal/http/middleware/authorization/kessel_test.go)
+
+### Add configuration options for the Kessel client
+
+The application should add the following configuration options for Kessel:
+
+* `KESSEL_ENABLED`
+* `KESSEL_URL`
+* `KESSEL_AUTH_ENABLED`
+* `KESSEL_AUTH_CLIENT_ID`
+* `KESSEL_AUTH_CLIENT_SECRET`
+* `KESSEL_AUTH_OIDC_ISSUER`
+* `KESSEL_INSECURE`
+
+The ClowdApp template should also be updated accordingly to enable environment-specific configuration.
+See [Config Manager’s configuration](https://github.com/RedHatInsights/config-manager/pull/242/commits/a937c5f283fb3acb2931cf2713173f220cd1bd11#diff-55823110ec960277fef2e07ee7d7c8f310baff0bd789e5b27160a1ccb6b4a81e) for an example.
+
+## Validate the changes
+
+* see [Ephemeral Deployments with Kessel Inventory API](https://cuddly-tribble-gq7r66v.pages.github.io/using-kessel/inventory-api/ephemeral/) for information on how to deploy Kessel in the ephemeral environment.
+* [insights-service-deployer] is a feature-rich script for end-to-end deployment and configuration of Kessel related services in the ephemeral environment.
+
+## Deploy the changes
+
+Follow [Using Kessel in production](https://github.com/project-kessel/docs-internal/blob/a7e66c32d491880958c399584725267efbb678f6/src/content/docs/using-kessel/in-production.mdx) to set up your service to use Kessel in stage and prod.
