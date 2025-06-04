@@ -68,9 +68,14 @@ The permission definitions from ksl files are [transpiled into a zed schema](htt
 A good way to understand the resulting schema is by tinkering and evaluating different scenarios and test data is by loading the generated schema into [SpiceDB Playground](https://play.authzed.com/schema).
 </Aside>
 
-<Aside type="note" title="Role definitions do not change">
-Note that the way these new permissions are associated with a role remains the same, i.e. via [role files](https://github.com/RedHatInsights/rbac-config/tree/master/configs/prod/roles).
-</Aside>
+### Role definitions
+
+Note that the way these permissions are associated with a role remains the same, i.e. via [role files](https://github.com/RedHatInsights/rbac-config/tree/master/configs/prod/roles).
+
+In some cases a completely new permission may be defined in the process of onboarding to Kessel.
+In that case, consider defining this permission in RHEL persona-based roles (e.g. RHEL Viewer) in addition to application-specific roles (e.g. Advisor Viewer).
+See [RHCLOUD-35891](https://issues.redhat.com/browse/RHCLOUD-35891) for additional details.
+
 
 ## Implement the changes in the application code
 
@@ -88,6 +93,10 @@ Kessel client libraries are available for these languages:
 * [Java](https://github.com/project-kessel/inventory-client-java)
 * [golang](https://github.com/project-kessel/inventory-client-go)
 * [Python](https://github.com/project-kessel/inventory-client-python)
+
+<Aside type="note" title="Why gRPC and not REST?">
+In case you are wondering why the Kessel clients use gRPC to communicate with Kessel services instead of REST, take a look at [AUTHZ-005: gRPC vs. REST for platform RBAC Relation API calls](https://docs.google.com/document/d/1KkVii7dU-p86rkj5HA8RXcI4Y3WcMgcoaIFpcigWP3I/edit?tab=t.0)
+</Aside>
 
 ### Implement the authorization check in the application code
 
@@ -154,6 +163,7 @@ Note that the principalID will differ based on the type of the principal:
 Default workspace pattern implementations and PoCs:
 * [Config Manager](https://github.com/RedHatInsights/config-manager/pull/242)
 * [Resource Optimization Service](https://github.com/josejulio/ros-backend/pull/1/files)
+* [Advisor](https://gitlab.cee.redhat.com/ahenning/advisor-backend/-/blob/8fadd8565f4445f9cfa2392708bc0b3accfaf7f0/api/advisor/api/permissions.py#L325)
 
 See [Default workspace](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.llalb2knp7t) for additional information.
 
@@ -192,6 +202,8 @@ Note that the principalID will differ based on the type of the principal:
 Native, workspace-level list pattern implementations and PoCs:
 * [Digital Roadmap](https://github.com/RedHatInsights/digital-roadmap-backend/pull/182)
 * [Resource Optimization Service](https://github.com/josejulio/ros-backend/pull/1/files)
+* [Malware](https://gitlab.cee.redhat.com/ahenning/malware-detection-backend/-/commit/69d9965de4236566345eb296622c08ce782019a8)
+* [Advisor](https://gitlab.cee.redhat.com/ahenning/advisor-backend/-/blob/8fadd8565f4445f9cfa2392708bc0b3accfaf7f0/api/advisor/api/permissions.py#L325)
 
 See [Native, workspace-level list](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.17ytnrwi9six) for additional information.
 
