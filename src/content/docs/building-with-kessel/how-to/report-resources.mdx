@@ -92,3 +92,51 @@ Interleaved database writes could lead to
 [write skew issues](https://www.cockroachlabs.com/blog/what-write-skew-looks-like/), where concurrent application 
 read-modify-write cycles could be operating on stale data causing silent corruption. It's advisable to take this into 
 consideration when designing your outbox and event processing logic.
+
+## Synchronizing Async Events with Postgres Listen/Notify
+
+For services that will produce asynchronous events downstream from a request handler and subsequently consume them as 
+apart of their replication pattern, a mechanism may be needed to signal when the event processing is complete. This 
+allows the initial request handler to wait for the outcome of the event consumption (e.g. replicating to kessel) before 
+proceeding or returning to the client. Postgres's [LISTEN](https://www.postgresql.org/docs/current/sql-listen.html)/[NOTIFY](https://www.postgresql.org/docs/current/sql-notify.html) 
+features provide a lightweight solution for this synchronization.
+
+### How it works
+
+The process is fairly straightforward:
+
+* **Produce & Listen:** The request handler produces an event to a Kafka topic (directly or via an outbox table) and then begins LISTENing on a Postgres channel.
+* **Consume & Notify:** A separate consumer process parses the event. Upon completion, it issues a NOTIFY command to the same channel the request handler is listening on.
+* **Synchronize:** The LISTENing request handler receives this notification, confirming that the event has been successfully consumed. This allows the handler to then continue its execution, for example, by returning a response to the client.
+
+This approach effectively creates a synchronous workflow over an asynchronous workflow, ensuring that request handlers can await the completion of downstream event processing.
+
+### Examples
+
+#### Listening on a Postgres channel
+To listen for notifications on a specific Postgres channel, you can use the `LISTEN` command. The example below listens 
+on the `host-replication` channel. Channels are arbitrarily defined strings that you can use to group related notifications.
+```sql
+LISTEN "host-replication";
+```
+
+#### Notifying a Postgres channel
+The SQL below sends a notification to all listeners on the `host-replication` channel. The payload can be any string,
+but in this example, it is a UUID that could be used to identify the specific event or request.
+```sql
+NOTIFY "host-replication", 'c0740fcd-c2a3-4767-b2d2-fd21cd12e31a';
+```
+
+### Considerations
+- LISTEN/NOTIFY may not be supported by all database drivers, you should double-check that your current postgres driver 
+can handle it.
+- Postgres channels are not durable, meaning that if the request handler is not actively listening when the NOTIFY is
+sent, it will miss the notification. Listening should be one of the first things you do in your request handler.
+- Postgres channels are not meant to be ephemeral, so you should not create and drop channels frequently. Instead, use a
+ consistent channel name for each type of event you want to listen for. This means that you may have many listeners on 
+ the same channel and your event/notification payloads should have some identifier to distinguish which event the 
+ listener is interested in.
+- LISTEN/NOTIFY should use it's own pg connection, separate from the one used for your application logic. This is 
+because LISTEN/NOTIFY is a long-lived operation that can block other operations on the same connection. You should also 
+aim to minimize connections in a way that each new LISTEN does not produce a new connection, but rather reuses an 
+existing one.
