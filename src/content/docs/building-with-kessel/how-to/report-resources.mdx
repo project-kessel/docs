@@ -151,6 +151,23 @@ some high level strategies for building a robust solution.
 
 We built our consumer in Go using the [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go) client library.
 
+### Considerations
+For your own consideration in building a consumer there were a few guarantees that we wanted to hold true and may be relevant.
+
+1. **Messages must be processed in order:**
+  If messages are not processed in the order in which they are received we risk applying changes in a manner
+  that causes unexpected consequences for the management fabric and service providers.
+
+2. **Guarantee At-least-once processing:**
+  A consumer must never "lose" a message. In other words, we should not be continuing 
+  to process the next message until the current one has been confirmed to be processed. 
+  Without this guarantee we risk losing data and will have permanent inconsistency for the “skipped” event.
+
+3. **Retry indefinitely on failure:**
+  Similar to the above, we cannot risk skipping events because it creates a permanent inconsistency.
+  Stuck messages that cannot be successfully processed for some reason may require manual intervention 
+  but that is more affordable than data integrity issues in an authz system. 
+
 ### Authentication
 To read from a secured Kafka cluster, a consumer must first authenticate itself with the brokers.
 This is configured in the consumer's properties. For our setup we use SASL with the SCRAM-SHA-512 mechanism.
@@ -174,7 +191,7 @@ processing.
 Our implementation uses two retry systems to handle message failures, prioritizing 
 message durability over pure throughput.
 
-1. **Operation-level Retry**
+1. **Operation-level Retry:**
 For transient failures within a specific task, a blocking `Retry` function is used.
 
 ```go
@@ -196,7 +213,7 @@ func (i *InventoryConsumer) Retry(operation func() (string, error)) (string, err
 This function synchronously retries a failing operation with an exponential backoff upto a configured maximum. 
 Because it uses `time.Sleep`, it blocks the consumer's main processing loop. 
 
-2. **Consumer-Level Retry**
+2. **Consumer-Level Retry:**
 If a message fails processing in a way that the Consume loop cannot recover from (indicated by `consumer.ErrClosed`),
 a more drastic retry strategy is engaged.
 
