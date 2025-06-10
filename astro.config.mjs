@@ -81,19 +81,11 @@ export default defineConfig({
             {
               label: "Installation",
               autogenerate: { directory: 'running-kessel/installation' }
-            }
-          ]
-        },
-        {
-          label: "Monitoring Kessel",
-          collapsed: true,
-          items: [
-            {
-              label: "Inventory API",
-              items: [
-                'monitoring-kessel/inventory-api/monitoring-data-replication-inventory-api',
-              ]
             },
+            {
+              label: "Monitoring Kessel",
+              autogenerate: { directory: 'running-kessel/monitoring-kessel' }
+            }
           ]
         },
         {
