@@ -142,9 +142,14 @@ aim to minimize connections in a way that each new LISTEN does not produce a new
 existing one.
 
 ## Kafka Consumer Strategies
-When using the outbox pattern with Kafka, a consumer is required to process events published by Debezium. 
-A consumer reads messages from Kafka topics by subscribing to topic partitions. The consuming application then processes the message
-to accomplish some task.
+When replicating data, you need a reliable way to process the stream of data changes. A Kafka consumer is one way to solve this
+problem. A consumer reads messages from Kafka topics by subscribing to topic partitions. The consuming application then processes
+the messages to apply those changes.
+
+This guide outlines the key challenges your consumer should address and provides
+some high level strategies for building a robust solution.
+
+We built our consumer in Go using the [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go) client library.
 
 ### Authentication
 To read from a secured Kafka cluster, a consumer must first authenticate itself with the brokers.
@@ -159,7 +164,7 @@ sasl-password: <PASSWORD>
 ```
 
 Your consumer configuration must include properties like `security.protocol`, `sasl.mechanism`, 
-and other related settings to provide the necessary credentials for a sucessful connection to Kafka.
+and other related settings to provide the necessary credentials for a successful connection to Kafka.
 
 ### Retry logic
 Message processing can fail for many reasons. Some failures are transient (e.g. a temporary network failure), 
@@ -232,9 +237,9 @@ func (i *InventoryConsumer) RebalanceCallback(consumer *kafka.Consumer, event ka
 ``` 
 The critical logic is within the `kafka.RevokedPartitions` case. When the consumer is notified
 that it is about to lose ownership of its partitions, it calls `commitStoredOffsets()`. This
-is essential to guarantee that all sucessfully processed messages before this point have been marked as complete.
-This prevents the next consumer that receives the parition from reprocessing messages, ensuring at-least-once
-processing is maintaned.
+is essential to guarantee that all successfully processed messages before this point have been marked as complete.
+This prevents the next consumer that receives the partition from reprocessing messages, ensuring at-least-once
+processing is maintained.
 
 
 ### Leveraging Client Statistics
