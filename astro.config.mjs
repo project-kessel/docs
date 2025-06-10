@@ -85,6 +85,18 @@ export default defineConfig({
           ]
         },
         {
+          label: "Monitoring Kessel",
+          collapsed: true,
+          items: [
+            {
+              label: "Inventory API",
+              items: [
+                'monitoring-kessel/inventory-api/monitoring-data-replication-inventory-api',
+              ]
+            },
+          ]
+        },
+        {
           label: "Contributing",
           collapsed: true,
           autogenerate: { directory: 'contributing' }
