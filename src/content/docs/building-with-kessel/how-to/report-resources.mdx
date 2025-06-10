@@ -142,21 +142,29 @@ aim to minimize connections in a way that each new LISTEN does not produce a new
 existing one.
 
 ## Kafka Consumer Strategies
-When replicating data, you need a reliable way to process the stream of data changes. A Kafka consumer is one way to solve this
-problem. A consumer reads messages from Kafka topics by subscribing to topic partitions. The consuming application then processes
-the messages to apply those changes.
+As a service provider, you need a reliable way to replicate data changes from your systems to the Fabric. 
+A Kafka consumer offers a robust and scalable pattern to solve this problem. A consumer reads messages from Kafka topics by subscribing to topic partitions. 
+The consuming application then processes the messages to apply those changes.
 
 This guide outlines the key challenges your consumer should address and provides
-some high level strategies for building a robust solution.
+some high-level strategies for building a robust solution.
 
 We built our consumer in Go using the [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go) client library.
 
-### Considerations
-For your own consideration in building a consumer there were a few guarantees that we wanted to hold true and may be relevant.
+### Why Use a Kafka Consumer for Replication?
+When replicating data, a Kafka consumer solves the core problem of reliably processing asynchronous messages.
+It decouples your primary service from the replication process, meaning an issue in the replication pipeline won't 
+directly impact your main application's performance.
+
+### Key Guarantees for Data Integrity
+To maintain data consistency between your service and the management fabric, your consumer implementation 
+should prioritize data integrity. Below are three guarantees that we aim to enforce with our own consumer
+that you should too.
 
 1. **Messages must be processed in order:**
   If messages are not processed in the order in which they are received we risk applying changes in a manner
-  that causes unexpected consequences for the management fabric and service providers.
+  that causes unexpected consequences. For example, processing an `update` event before a `create` event for the 
+  same record would fail and cause data issues. 
 
 2. **Guarantee At-least-once processing:**
   A consumer must never "lose" a message. In other words, we should not be continuing 
@@ -176,14 +184,14 @@ A typical configuration would look like this:
 ```yaml
 security-protocol: sasl_plaintext
 sasl-mechanism: SCRAM-SHA-512
-sasl-username: my-genric-consumer
+sasl-username: my-generic-consumer
 sasl-password: <PASSWORD>
 ```
 
 Your consumer configuration must include properties like `security.protocol`, `sasl.mechanism`, 
 and other related settings to provide the necessary credentials for a successful connection to Kafka.
 
-### Retry logic
+### Retry Logic
 Message processing can fail for many reasons. Some failures are transient (e.g. a temporary network failure), 
 while others are permanent (e.g. a malformed message). A robust consumer must handle these failures without halting all
 processing.
@@ -210,7 +218,7 @@ func (i *InventoryConsumer) Retry(operation func() (string, error)) (string, err
     // ...
 }
 ```
-This function synchronously retries a failing operation with an exponential backoff upto a configured maximum. 
+This function synchronously retries a failing operation with an exponential backoff up to a configured maximum. 
 Because it uses `time.Sleep`, it blocks the consumer's main processing loop. 
 
 2. **Consumer-Level Retry:**
@@ -235,6 +243,9 @@ This strategy ensures a failed message is re-attempted from scratch by forcing a
 committed offset, preventing potential message loss.
 
 ### Rebalances
+Rebalances are critical to handle, as if your consumer loses a partition without first saving its progress
+the next consumer will start processing from the last saved point, leading to duplicate processing.
+
 Our consumer handles partition reassignments from the Kafka cluster by registering a `RebalanceCallback`. This
 ensures its processing state is committed before partitions are lost.
 ```go
@@ -252,11 +263,10 @@ func (i *InventoryConsumer) RebalanceCallback(consumer *kafka.Consumer, event ka
     return nil
 }
 ``` 
-The critical logic is within the `kafka.RevokedPartitions` case. When the consumer is notified
-that it is about to lose ownership of its partitions, it calls `commitStoredOffsets()`. This
+When the consumer is notified that it is about to lose ownership of its partitions, it calls `commitStoredOffsets()`. This
 is essential to guarantee that all successfully processed messages before this point have been marked as complete.
-This prevents the next consumer that receives the partition from reprocessing messages, ensuring at-least-once
-processing is maintained.
+This prevents the next consumer that receives the partition from reprocessing messages, maintaining the at-least-once
+processing guarantee.
 
 
 ### Leveraging Client Statistics
@@ -276,7 +286,7 @@ or build your own to track the health of the consumer.
 ### Deployment 
 How you deploy your consumer has a few key considerations, with 3 main ways to do so.
 
-1. **In process thread (used by the Kessel team)**
+1. **In-process thread (used by the Kessel team)**
   - Consumer logic runs as a thread within the main application process.
   - Simple to deploy and manage without any network overhead for communication.
   - Tightly coupled resources. A CPU and memory intensive task in the main application can
