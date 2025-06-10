@@ -65,4 +65,6 @@ While there is no shortage of ways to get metrics data from Kafka-related servic
 
 ## Alerting
 
-// TODO
+Our alerting strategy for monitoring data consistency and replication is to ensure our alerts directly align with our KPI's, plus some platform related monitoring (Database disk usage, Kubernetes metrics, etc).
+
+For Red Hat Service Provider teams implementing a similar CDC/Outbox setup, the Management Fabric Kessel team can provide some resources, templates, and tooling that may simplify some of this monitoring work for you. See our [Internal Guide](https://docs-internal-project-kessel-8b6149c673ff0ed030e64b614e2ee9fd39.pages.redhat.com/running-kessel/monitoring-kessel/monitoring-data-replication-inventory-api) for more info (requires Red Hat VPN to access).
