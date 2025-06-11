@@ -29,7 +29,7 @@ Kafka will publish errors related to the broker or interrelated components as ev
 
 Consumer lag is the difference between the last offset stored by the broker and the last committed offset for that partition. Lag can occur for a few reasons: network congestion, slow processing of events, errors in processing events, or Kafka-related errors to address are just some examples. Its a critical metric for understanding the performance of your data replication and knowing when problems arise or when its time to scale these components to keep up with the number of events to process.
 
-End-to-End Lag takes this a step further and captures the gap between when events are written to the outbox table to the consumer processing and commiting the event. The goal here being to capture if there are any bottle necks in the entire CDC/Outbox flow from start to finish.
+End-to-End Lag takes this a step further and captures the gap between when events are written to the outbox table to the consumer processing and committing the event. The goal here being to capture if there are any bottle necks in the entire CDC/Outbox flow from start to finish.
 
 ## Metrics Sources
 
@@ -49,7 +49,7 @@ Inventory API leverages Kafka Connect related metrics to understand the state of
 
 ### Kafka Lag Exporter
 
-The [Kafka Lag Exporter](https://docs.redhat.com/en/documentation/red_hat_streams_for_apache_kafka/2.9/html/deploying_and_managing_streams_for_apache_kafka_on_openshift/assembly-metrics-str#con-metrics-kafka-exporter-lag-str) extracts additional metrics data from Kafka brokers related to offsets, consumer groups, consumer lag, and topics. It can also be configured through Streams for Apache Kafka and offers supplmental data similar to the librdkafka metrics.
+The [Kafka Lag Exporter](https://docs.redhat.com/en/documentation/red_hat_streams_for_apache_kafka/2.9/html/deploying_and_managing_streams_for_apache_kafka_on_openshift/assembly-metrics-str#con-metrics-kafka-exporter-lag-str) extracts additional metrics data from Kafka brokers related to offsets, consumer groups, consumer lag, and topics. It can also be configured through Streams for Apache Kafka and offers supplemental data similar to the librdkafka metrics.
 
 Inventory API leverages the Kafka Lag exporter to monitor lag between our consumer client process and message queue.
 
@@ -67,4 +67,4 @@ While there is no shortage of ways to get metrics data from Kafka-related servic
 
 Our alerting strategy for monitoring data consistency and replication is to ensure our alerts directly align with our KPI's, plus some platform related monitoring (Database disk usage, Kubernetes metrics, etc).
 
-For Red Hat Service Provider teams implementing a similar CDC/Outbox setup, the Management Fabric Kessel team can provide some resources, templates, and tooling that may simplify some of this monitoring work for you. See our [Internal Guide](https://docs-internal-project-kessel-8b6149c673ff0ed030e64b614e2ee9fd39.pages.redhat.com/running-kessel/monitoring-kessel/monitoring-data-replication-inventory-api) for more info (requires Red Hat VPN to access).
+For Red Hat Service Provider teams implementing a similar CDC/Outbox setup, the Management Fabric Kessel team can provide some resources, templates, and tooling that may simplify some of this monitoring work for you. See our [Internal Guide](https://project-kessel.pages.redhat.com/docs-internal/running-kessel/monitoring-kessel/monitoring-data-replication-inventory-api/) for more info (requires Red Hat VPN to access).
