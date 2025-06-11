@@ -142,3 +142,166 @@ sent, it will miss the notification. Listening should be one of the first things
 because LISTEN/NOTIFY is a long-lived operation that can block other operations on the same connection. You should also
 aim to minimize connections in a way that each new LISTEN does not produce a new connection, but rather reuses an
 existing one.
+
+## Kafka Consumer Strategies
+As a service provider, you need a reliable way to replicate data changes from your systems to the Fabric. 
+A Kafka consumer offers a robust and scalable pattern to solve this problem. A consumer reads messages from Kafka topics by subscribing to topic partitions. 
+The consuming application then processes the messages to apply those changes.
+
+This guide outlines the key challenges your consumer should address and provides
+some high-level strategies for building a robust solution.
+
+We built our consumer in Go using the [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go) client library.
+
+### Why Use a Kafka Consumer for Replication?
+When replicating data, a Kafka consumer solves the core problem of reliably processing asynchronous messages.
+It decouples your primary service from the replication process, meaning an issue in the replication pipeline won't 
+directly impact your main application's performance.
+
+### Key Guarantees for Data Integrity
+To maintain data consistency between your service and the management fabric, your consumer implementation 
+should prioritize data integrity. Below are three guarantees that we aim to enforce with our own consumer
+that you should too.
+
+1. **Messages must be processed in order:**
+  If messages are not processed in the order in which they are received we risk applying changes in a manner
+  that causes unexpected consequences. For example, processing an `update` event before a `create` event for the 
+  same record would fail and cause data issues. 
+
+2. **Guarantee At-least-once processing:**
+  A consumer must never "lose" a message. In other words, we should not be continuing 
+  to process the next message until the current one has been confirmed to be processed. 
+  Without this guarantee we risk losing data and will have permanent inconsistency for the “skipped” event.
+
+3. **Retry indefinitely on failure:**
+  Similar to the above, we cannot risk skipping events because it creates a permanent inconsistency.
+  Stuck messages that cannot be successfully processed for some reason may require manual intervention 
+  but that is more affordable than data integrity issues in an authz system. 
+
+### Authentication
+To read from a secured Kafka cluster, a consumer must first authenticate itself with the brokers.
+This is configured in the consumer's properties. For our setup we use SASL with the SCRAM-SHA-512 mechanism.
+
+A typical configuration would look like this:
+```yaml
+security-protocol: sasl_plaintext
+sasl-mechanism: SCRAM-SHA-512
+sasl-username: my-generic-consumer
+sasl-password: <PASSWORD>
+```
+
+Your consumer configuration must include properties like `security.protocol`, `sasl.mechanism`, 
+and other related settings to provide the necessary credentials for a successful connection to Kafka.
+
+### Retry Logic
+Message processing can fail for many reasons. Some failures are transient (e.g. a temporary network failure), 
+while others are permanent (e.g. a malformed message). A robust consumer must handle these failures without halting all
+processing.
+
+Our implementation uses two retry systems to handle message failures, prioritizing 
+message durability over pure throughput.
+
+1. **Operation-level Retry:**
+For transient failures within a specific task, a blocking `Retry` function is used.
+
+```go
+// Retry executes the given function and will retry on failure with backoff until max retries is reached
+func (i *InventoryConsumer) Retry(operation func() (string, error)) (string, error) {
+    // ...
+    for i.RetryOptions.OperationMaxRetries == -1 || attempts < i.RetryOptions.OperationMaxRetries {
+        resp, err = operation()
+        if err != nil {
+            // ... logs error, increments metric
+            time.Sleep(backoff) // Blocks here
+            continue
+        }
+        return fmt.Sprintf("%s", resp), nil
+    }
+    // ...
+}
+```
+This function synchronously retries a failing operation with an exponential backoff up to a configured maximum. 
+Because it uses `time.Sleep`, it blocks the consumer's main processing loop. 
+
+2. **Consumer-Level Retry:**
+If a message fails processing in a way that the Consume loop cannot recover from (indicated by `consumer.ErrClosed`),
+a more drastic retry strategy is engaged.
+
+```go
+// Outer consumer loop
+for consumerOptions.RetryOptions.ConsumerMaxRetries == -1 || retries < consumerOptions.RetryOptions.ConsumerMaxRetries {
+    // ... recreates the entire consumer connection
+    inventoryConsumer, err = consumer.New(...)
+    err = inventoryConsumer.Consume()
+    if e.Is(err, consumer.ErrClosed) {
+        // ... backs off and retries by re-entering the loop
+        continue
+    }
+    // ...
+}
+```
+
+This strategy ensures a failed message is re-attempted from scratch by forcing a re-read from the last
+committed offset, preventing potential message loss.
+
+### Rebalances
+Rebalances are critical to handle, as if your consumer loses a partition without first saving its progress
+the next consumer will start processing from the last saved point, leading to duplicate processing.
+
+Our consumer handles partition reassignments from the Kafka cluster by registering a `RebalanceCallback`. This
+ensures its processing state is committed before partitions are lost.
+```go
+func (i *InventoryConsumer) RebalanceCallback(consumer *kafka.Consumer, event kafka.Event) error {
+    switch ev := event.(type) {
+    // ...
+    case kafka.RevokedPartitions:
+        i.Logger.Warnf("consumer rebalance event: %d partition(s) revoked: %v\n",
+            len(ev.Partitions), ev.Partitions)
+
+        // Commits stored offsets before partition is lost
+        err := i.commitStoredOffsets() 
+        // ...
+    }
+    return nil
+}
+``` 
+When the consumer is notified that it is about to lose ownership of its partitions, it calls `commitStoredOffsets()`. This
+is essential to guarantee that all successfully processed messages before this point have been marked as complete.
+This prevents the next consumer that receives the partition from reprocessing messages, maintaining the at-least-once
+processing guarantee.
+
+
+### Leveraging Client Statistics
+In addition to application level metrics (e.g. "events processed"), most Kafka client libraries
+can be configured to emit internal performance statistics, often as JSON. These "stats messages" provide a deep, 
+real-time view into the health and performance of the consumer client itself. 
+
+To enable this you typically set a configuration property like `statistics.interval.ms` to a non-zero value 
+(e.g. 60000 for every 60 seconds). The client will then periodically provide a detailed report containing metrics such as:
+
+- **Round-trip time (rtt)** 
+- **Total messages consumed (rxmsgs)** 
+
+These stats messages metrics are invaluable for debugging. You can use these metrics in dashboards and alerts we offer
+or build your own to track the health of the consumer. 
+
+### Deployment 
+How you deploy your consumer has a few key considerations, with 3 main ways to do so.
+
+1. **In-process thread (used by the Kessel team)**
+  - Consumer logic runs as a thread within the main application process.
+  - Simple to deploy and manage without any network overhead for communication.
+  - Tightly coupled resources. A CPU and memory intensive task in the main application can
+  starve the consumer thread and vice versa. 
+  - Cannot scale the consumer independently from the main application.
+2. **Sidecar container**
+  - Consumer logic runs in its own container within the same pod as the main application.
+  - Decouples resources. The consumer and application have their own CPU and memory limits.
+  - Allows for independent scaling and focused monitoring and logging. 
+  - Higher operational complexity than an in-process thread. Communication between the application
+  and consumer incurs some network overhead.  
+3. **Standalone pod** 
+  - Consumer logic runs as a completely separate deployment/service.
+  - Maximum decoupling of resources, scaling, and lifecycle.
+  - Highest operational complexity. Requires a separate deployment definition, monitoring, and alerting setup.
+  - Can be overkill if the consumer's logic is tightly coupled to the domain of a single application.
