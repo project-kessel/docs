@@ -5,15 +5,16 @@ sidebar:
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import { LinkCard } from '@astrojs/starlight/components';
 
 <Aside title="Under Construction">We are working on improving this documentation</Aside>
 
 ## Using an Outbox
 Writing to your database and publishing events to a message broker are two distinct operations on external systems that
-cannot happen in an atomic manner (aka Dual Write Problem). This means that if your application crashes after writing 
-to the database but before publishing an asynchronous event, your database and any message consumers may become 
+cannot happen in an atomic manner (aka Dual Write Problem). This means that if your application crashes after writing
+to the database but before publishing an asynchronous event, your database and any message consumers may become
 permanently out of sync. The outbox pattern helps solve this problem by writing resource aggregates and messaging events
-within the same database transaction using an outbox table. When coupled with something like 
+within the same database transaction using an outbox table. When coupled with something like
 [Debezium](https://debezium.io/), the outbox table can be used to publish events to a message broker, ensuring that the
 database and messages are always (eventually) in sync.
 
@@ -34,23 +35,23 @@ CREATE TABLE outbox (
 **Column Breakdown:**
 
 - **id:** A unique identifier for each event, your primary key
-- **aggregatetype:** Describes the type of business entity that an event relates to, for example, customer or order. 
+- **aggregatetype:** Describes the type of business entity that an event relates to, for example, customer or order.
   This is used by Debezium to determine the destination topic.
 - **aggregateid:** The unique identifier of the specific entity instance, like the customer's ID or order number.
-- **payload:** The actual content of the event message, typically stored as JSON or JSONB for flexibility. This is what 
+- **payload:** The actual content of the event message, typically stored as JSON or JSONB for flexibility. This is what
   message consumers will receive.
 
 Additional columns can be added as needed, such as a `timestamp` for event creation or `operation` to indicate the type
-of operation (e.g., create, update, delete). There are [additional configurations](https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html#emitting-messages-with-additional-fields) 
-that need to be added to the debezium configuration if you'd like these fields to be mapped to headers or the payload 
+of operation (e.g., create, update, delete). There are [additional configurations](https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html#emitting-messages-with-additional-fields)
+that need to be added to the debezium configuration if you'd like these fields to be mapped to headers or the payload
 when producing messages.
 
 ### Writing to the Outbox
 
-With the outbox table in place, you'll need to modify your application's business logic to write to it within the same 
+With the outbox table in place, you'll need to modify your application's business logic to write to it within the same
 transaction as your primary data changes.
 
-For example, if you're creating a new customer and want to publish an event about it, you could consider your 
+For example, if you're creating a new customer and want to publish an event about it, you could consider your
 transaction looking something like this:
 
 ```sql
@@ -84,21 +85,22 @@ If you need to retain history for auditing, debugging, or recovery purposes, con
 
 **Outbox Event Creation**: Tracking the rate of event creation in combination with the rate of event consumption can help identify end-to-end lag in your system. If the outbox is filling up faster than it can be processed, you may need to scale your consumers or optimize your event processing logic.
 
-See [Monitoring Replication](/404) for more details on how to monitor your replication processes.
+See our **Monitoring Data Replication** guide for more details on how to monitor your replication processes.
+<LinkCard title="Monitoring Data Replication in Inventory API" href="/running-kessel/monitoring-kessel/monitoring-data-replication-inventory-api" />
 
 ### Beware: Write Skew
 
-Interleaved database writes could lead to 
-[write skew issues](https://www.cockroachlabs.com/blog/what-write-skew-looks-like/), where concurrent application 
-read-modify-write cycles could be operating on stale data causing silent corruption. It's advisable to take this into 
+Interleaved database writes could lead to
+[write skew issues](https://www.cockroachlabs.com/blog/what-write-skew-looks-like/), where concurrent application
+read-modify-write cycles could be operating on stale data causing silent corruption. It's advisable to take this into
 consideration when designing your outbox and event processing logic.
 
 ## Synchronizing Async Events with Postgres Listen/Notify
 
-For services that will produce asynchronous events downstream from a request handler and subsequently consume them as 
-apart of their replication pattern, a mechanism may be needed to signal when the event processing is complete. This 
-allows the initial request handler to wait for the outcome of the event consumption (e.g. replicating to kessel) before 
-proceeding or returning to the client. Postgres's [LISTEN](https://www.postgresql.org/docs/current/sql-listen.html)/[NOTIFY](https://www.postgresql.org/docs/current/sql-notify.html) 
+For services that will produce asynchronous events downstream from a request handler and subsequently consume them as
+apart of their replication pattern, a mechanism may be needed to signal when the event processing is complete. This
+allows the initial request handler to wait for the outcome of the event consumption (e.g. replicating to kessel) before
+proceeding or returning to the client. Postgres's [LISTEN](https://www.postgresql.org/docs/current/sql-listen.html)/[NOTIFY](https://www.postgresql.org/docs/current/sql-notify.html)
 features provide a lightweight solution for this synchronization.
 
 ### How it works
@@ -114,7 +116,7 @@ This approach effectively creates a synchronous workflow over an asynchronous wo
 ### Examples
 
 #### Listening on a Postgres channel
-To listen for notifications on a specific Postgres channel, you can use the `LISTEN` command. The example below listens 
+To listen for notifications on a specific Postgres channel, you can use the `LISTEN` command. The example below listens
 on the `host-replication` channel. Channels are arbitrarily defined strings that you can use to group related notifications.
 ```sql
 LISTEN "host-replication";
@@ -128,15 +130,15 @@ NOTIFY "host-replication", 'c0740fcd-c2a3-4767-b2d2-fd21cd12e31a';
 ```
 
 ### Considerations
-- LISTEN/NOTIFY may not be supported by all database drivers, you should double-check that your current postgres driver 
+- LISTEN/NOTIFY may not be supported by all database drivers, you should double-check that your current postgres driver
 can handle it.
 - Postgres channels are not durable, meaning that if the request handler is not actively listening when the NOTIFY is
 sent, it will miss the notification. Listening should be one of the first things you do in your request handler.
 - Postgres channels are not meant to be ephemeral, so you should not create and drop channels frequently. Instead, use a
- consistent channel name for each type of event you want to listen for. This means that you may have many listeners on 
- the same channel and your event/notification payloads should have some identifier to distinguish which event the 
+ consistent channel name for each type of event you want to listen for. This means that you may have many listeners on
+ the same channel and your event/notification payloads should have some identifier to distinguish which event the
  listener is interested in.
-- LISTEN/NOTIFY should use it's own pg connection, separate from the one used for your application logic. This is 
-because LISTEN/NOTIFY is a long-lived operation that can block other operations on the same connection. You should also 
-aim to minimize connections in a way that each new LISTEN does not produce a new connection, but rather reuses an 
+- LISTEN/NOTIFY should use it's own pg connection, separate from the one used for your application logic. This is
+because LISTEN/NOTIFY is a long-lived operation that can block other operations on the same connection. You should also
+aim to minimize connections in a way that each new LISTEN does not produce a new connection, but rather reuses an
 existing one.

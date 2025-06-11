@@ -1,0 +1,70 @@
+---
+title: "Monitoring Data Replication in Inventory API"
+description: "Metrics, Monitoring, and Alerting methods for Data Replication in Inventory API"
+---
+
+## How Inventory API Ensures Data Consistency
+
+Inventory API uses a combination of [CDC](https://www.geeksforgeeks.org/change-data-capture-cdc/) and the [Outbox Pattern](https://www.geeksforgeeks.org/outbox-pattern-for-reliable-messaging-system-design/) to ensure internal data consistency, as well as consistent replication of Relations changes to SpiceDB. It does so by leveraging [Streams for Apache Kafka](https://developers.redhat.com/products/streams-for-apache-kafka/overview) and [Debezium](https://debezium.io/) to monitor changes in an outbox table in the Inventory API's database, and publish those events to a Kafka Topic. The events are then consumed by a Kafka Consumer client embedded in the Inventory API service, which handles creating or replicating changes to Relationships defined in SpiceDB for the given resource. Since events are ordered, they are processed in order, ensuring concurrent resource updates or failures do not create inconsistencies between Inventory and SpiceDB.
+
+The processes to ensure consistency means the addition of critical KPI's to monitor to ensure a stable and reliable service. For services that are planning to integrate with Kessel Inventory, the CDC/Outbox Pattern is an excellent way to ensure replication of changes to Inventory API. If you are looking to embark on your own CDC/Outbox journey, this guide should provide a good primer on the monitoring components critical to data consistency and replication between other services.
+
+## Key Performance Indicators (KPIs)
+
+Below are some of the key metrics we monitor to ensure consistency and replication aspects of Inventory API are functioning and healthy. This data is aggregated from a few data sources, including custom metrics defined in our service. Those leveraging a similar pattern using Kafka and Debezium would also benefit from monitoring these critical metrics.
+
+#### Message Processing Failure Rate:
+
+We compare the number of messages processed by Inventory API to the number of message processing errors to determine our failure rate. Note that processed messages are not just messages consumed from Kafka, but are processed by the application and then committed with Kafka as completed.
+
+#### Consumer Error Rate:
+
+Consumer Errors are errors related to the function of the Consumer client itself and its ability to interact with the Kafka broker. We monitor the rate of Consumer errors for higher-than-normal growth to ensure we are aware when the consumer client cannot process messages. When the consumer cannot process events, data replication is not occurring which could impact services/users relying on those changes.
+
+#### Kafka Error Rate:
+
+Kafka will publish errors related to the broker or interrelated components as events. We monitor the increase in Kafka error messages for the same reason we monitor consumer errors as it has direct impact on data replication.
+
+#### Consumer Lag and End-to-End Lag:
+
+Consumer lag is the difference between the last offset stored by the broker and the last committed offset for that partition. Lag can occur for a few reasons: network congestion, slow processing of events, errors in processing events, or Kafka-related errors to address are just some examples. Its a critical metric for understanding the performance of your data replication and knowing when problems arise or when its time to scale these components to keep up with the number of events to process.
+
+End-to-End Lag takes this a step further and captures the gap between when events are written to the outbox table to the consumer processing and committing the event. The goal here being to capture if there are any bottle necks in the entire CDC/Outbox flow from start to finish.
+
+## Metrics Sources
+
+Inventory API leverages the following data sources for monitoring various components of the consistency flow. These metrics are aggregated into Prometheus for monitoring using Grafana for dashboards and alerting through Alertmanager.
+
+### librdkafka Internal Metrics
+
+librdkafka is a C library implementation of the Apache Kafka protocol, providing Producer, Consumer and Admin clients in numerous [languages](https://github.com/confluentinc/librdkafka/tree/master?tab=readme-ov-file#language-bindings). librdkafka-based clients can be configured to emit [internal metrics](https://github.com/confluentinc/librdkafka/blob/master/STATISTICS.md) as events, in which a service can capture and record these metrics in an external monitoring service, such as Prometheus.
+
+Inventory API leverages the Statistics metrics from our Kafka Consumer client to capture metrics on the client itself, as well as Kafka related components the client interacts with (topics, brokers, consumer groups, etc).
+
+### Streams for Apache Kafka Prometheus Configuration
+
+Streams for Apache Kafka can be [configured to expose metrics](https://docs.redhat.com/en/documentation/red_hat_streams_for_apache_kafka/2.9/html/deploying_and_managing_streams_for_apache_kafka_on_openshift/assembly-metrics-str#proc-metrics-kafka-deploy-options-str) for various Kafka related components, including the Kafka Connect cluster (where the Debezium connector runs) using the Prometheus JMX Exporter. These metrics provide more in-depth data about the Kafka infrastructure that we rely on as part of the CDC/Outbox pattern flow.
+
+Inventory API leverages Kafka Connect related metrics to understand the state of our Debezium connector and monitor its health.
+
+### Kafka Lag Exporter
+
+The [Kafka Lag Exporter](https://docs.redhat.com/en/documentation/red_hat_streams_for_apache_kafka/2.9/html/deploying_and_managing_streams_for_apache_kafka_on_openshift/assembly-metrics-str#con-metrics-kafka-exporter-lag-str) extracts additional metrics data from Kafka brokers related to offsets, consumer groups, consumer lag, and topics. It can also be configured through Streams for Apache Kafka and offers supplemental data similar to the librdkafka metrics.
+
+Inventory API leverages the Kafka Lag exporter to monitor lag between our consumer client process and message queue.
+
+### Custom Metrics
+
+While there is no shortage of ways to get metrics data from Kafka-related services, none are indicators of how your service is functioning with regards to publishing and processing events to ensure consistency and replication. Below are the custom metrics we have defined that help fill in the gaps.
+
+* **Messages Processed**: Counter that tracks events that are consumed and processed by the application and committed as completed. Used as part of capturing message processing failure rate
+* **Message Process Failures**: Counter to track whenever processing a message fails for any reason. Used as part of capturing message processing failure rate
+* **Consumer Errors**: Counter to track when the Consumer client fails for any reason. Used to calculate consumer error rates.
+* **Kafka Error Events**: Counter to track whenever a Kafka Error event is consumed for any reason. Used to calculate kafka error rates.
+* **Outbox Event Writes**: Counter to track when an event is written to the outbox table. Used for calculating end-to-end lag.
+
+## Alerting
+
+Our alerting strategy for monitoring data consistency and replication is to ensure our alerts directly align with our KPI's, plus some platform related monitoring (Database disk usage, Kubernetes metrics, etc).
+
+For Red Hat Service Provider teams implementing a similar CDC/Outbox setup, the Management Fabric Kessel team can provide some resources, templates, and tooling that may simplify some of this monitoring work for you. See our [Internal Guide](https://project-kessel.pages.redhat.com/docs-internal/running-kessel/monitoring-kessel/monitoring-data-replication-inventory-api/) for more info (requires Red Hat VPN to access).
