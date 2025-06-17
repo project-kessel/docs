@@ -7,7 +7,14 @@ sidebar:
 import { Aside } from '@astrojs/starlight/components';
 import { LinkCard } from '@astrojs/starlight/components';
 
-<Aside title="Under Construction">We are working on improving this documentation</Aside>
+<Aside title="Under Construction">We are working on improving this documentation, some sections may be missing or incomplete</Aside>
+
+This guide provides service providers with general recommendations for reliably replicating data into Kessel. Successful
+integration requires navigating the complexities of distributed systems by selecting appropriate strategies that solve
+for consistency, resiliency, and durability. Depending on what guarantees your system needs, you can expect to face some
+challenges such as the [dual-write problem](https://www.confluent.io/blog/dual-write-problem/), 
+[write skew](https://www.cockroachlabs.com/blog/what-write-skew-looks-like/), and more. This guide should help you 
+understand how to address these challenges and implement a replication strategy that suits your application.
 
 ## Using an Outbox
 Writing to your database and publishing events to a message broker are two distinct operations on external systems that
@@ -64,7 +71,7 @@ COMMIT;
 
 This ensures that both the customer record and the outbox event are created atomically. If the transaction fails, neither the customer nor the outbox entry will be written, maintaining consistency between your business entity data and downstream consumers.
 
-### Culling the Outbox
+### Pruning the Outbox
 
 To prevent the outbox table from growing indefinitely, you will need to implement a cleanup strategy.
 
@@ -79,7 +86,10 @@ DELETE FROM outbox WHERE id = '456';
 COMMIT;
 ```
 
-If you need to retain history for auditing, debugging, or recovery purposes, consider implementing a retention policy or reconciler that archives old events to a separate table, long-term data store, or even delete them entirely.
+If you need to retain history for auditing, debugging, or recovery purposes, consider implementing a retention policy or
+reconciler that archives old events to a separate table, long-term data store, or even deletes them entirely. It's
+important to note that any retained events will not be ordered by transaction commit order inherently. You may need
+additional mechanisms in your application or database to ensure outbox ordering, such as using a serial primary key.
 
 ### Monitoring
 
@@ -95,13 +105,13 @@ Interleaved database writes could lead to
 read-modify-write cycles could be operating on stale data causing silent corruption. It's advisable to take this into
 consideration when designing your outbox and event processing logic.
 
-## Synchronizing Async Events with Postgres Listen/Notify
+## Immediate Write Visibility with Asynchronous Messaging
 
-For services that will produce asynchronous events downstream from a request handler and subsequently consume them as
-apart of their replication pattern, a mechanism may be needed to signal when the event processing is complete. This
-allows the initial request handler to wait for the outcome of the event consumption (e.g. replicating to kessel) before
-proceeding or returning to the client. Postgres's [LISTEN](https://www.postgresql.org/docs/current/sql-listen.html)/[NOTIFY](https://www.postgresql.org/docs/current/sql-notify.html)
-features provide a lightweight solution for this synchronization.
+For use cases where immediate visibility of data changes are required, but are bound by the nature of asynchronous event
+processing, you can consider using Postgres [LISTEN](https://www.postgresql.org/docs/current/sql-listen.html) 
+and [NOTIFY](https://www.postgresql.org/docs/current/sql-notify.html) features. This can afford your request handler to 
+wait for a notification related to the outcome of event consumption (e.g. replicating to kessel) before proceeding 
+or returning to the client.
 
 ### How it works
 
@@ -134,10 +144,10 @@ NOTIFY "host-replication", 'c0740fcd-c2a3-4767-b2d2-fd21cd12e31a';
 can handle it.
 - Postgres channels are not durable, meaning that if the request handler is not actively listening when the NOTIFY is
 sent, it will miss the notification. Listening should be one of the first things you do in your request handler.
-- Postgres channels are not meant to be ephemeral, so you should not create and drop channels frequently. Instead, use a
- consistent channel name for each type of event you want to listen for. This means that you may have many listeners on
- the same channel and your event/notification payloads should have some identifier to distinguish which event the
- listener is interested in.
+- You may run into limitations if your Postgres channels are ephemeral, so it is not advised to create and drop channels 
+frequently. Instead, use a consistent channel name for each type of event you want to listen for. This means that you 
+may have many listeners on the same channel and your event/notification payloads should have some identifier to
+distinguish which event the listener is interested in.
 - LISTEN/NOTIFY should use it's own pg connection, separate from the one used for your application logic. This is
 because LISTEN/NOTIFY is a long-lived operation that can block other operations on the same connection. You should also
 aim to minimize connections in a way that each new LISTEN does not produce a new connection, but rather reuses an
@@ -159,7 +169,7 @@ It decouples your primary service from the replication process, meaning an issue
 directly impact your main application's performance.
 
 ### Key Guarantees for Data Integrity
-To maintain data consistency between your service and the management fabric, your consumer implementation 
+To maintain data consistency between your service and Kessel, your consumer implementation 
 should prioritize data integrity. Below are three guarantees that we aim to enforce with our own consumer
 that you should too.
 
@@ -173,10 +183,11 @@ that you should too.
   to process the next message until the current one has been confirmed to be processed. 
   Without this guarantee we risk losing data and will have permanent inconsistency for the “skipped” event.
 
-3. **Retry indefinitely on failure:**
-  Similar to the above, we cannot risk skipping events because it creates a permanent inconsistency.
-  Stuck messages that cannot be successfully processed for some reason may require manual intervention 
-  but that is more affordable than data integrity issues in an authz system. 
+3. **Processing should be idempotent:**
+  If a message is processed more than once, it should not cause any side effects or data corruption. 
+  This means that if a message is reprocessed due to a failure or retry, the outcome should be the same as if it were 
+  processed only once. This comes with a caveat that if a "historical" message is replayed, all messages after it also 
+  be reprocessed in order to ensure no data loss.
 
 ### Authentication
 To read from a secured Kafka cluster, a consumer must first authenticate itself with the brokers.
@@ -298,8 +309,6 @@ How you deploy your consumer has a few key considerations, with 3 main ways to d
   - Consumer logic runs in its own container within the same pod as the main application.
   - Decouples resources. The consumer and application have their own CPU and memory limits.
   - Allows for independent scaling and focused monitoring and logging. 
-  - Higher operational complexity than an in-process thread. Communication between the application
-  and consumer incurs some network overhead.  
 3. **Standalone pod** 
   - Consumer logic runs as a completely separate deployment/service.
   - Maximum decoupling of resources, scaling, and lifecycle.

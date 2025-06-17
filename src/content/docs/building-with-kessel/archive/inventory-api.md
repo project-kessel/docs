@@ -11,9 +11,9 @@ This document does not supersede any information in the API specification. This 
 
 ## Reporting a New Resource to Asset Inventory
 
-A management service creates, modifies or deletes a managed resource in its local inventory. To aid in the integration of the Red Hat Hybrid Cloud Management solution, they will report all of these operations to the management fabric via the Asset Inventory APIs. With the Asset Inventory APIs, these services are referenced as Reporters.
+A management service creates, modifies or deletes a managed resource in its local inventory. To aid in the integration of the Red Hat Hybrid Cloud Management solution, they will report all of these operations to the Kessel via the Asset Inventory APIs. With the Asset Inventory APIs, these services are referenced as Reporters.
 
-When a new resource is created in the Reporter’s private inventory, the Reporter will issue a POST to the management fabric. The endpoint is structured as follows: `/api/inventory/{api-version}/resources/{resource-type}`.
+When a new resource is created in the Reporter’s private inventory, the Reporter will issue a POST to Kessel. The endpoint is structured as follows: `/api/inventory/{api-version}/resources/{resource-type}`.
 
 An example would be: `/api/inventory/v1beta1/resources/k8s-clusters`.
 
@@ -121,7 +121,7 @@ In addition to maintaining metadata about managed resources, Asset Inventory mai
 
 For example, there is a _k8s-policy_ (foo) in Asset Inventory with its set of attributes. In addition, there is a _k8s-cluster_ (bar) in Asset Inventory with its own set of attributes. One can create a relationship between foo and bar, including such attributes as _status=compliant_.
 
-When a new resource relationship is created in the Reporter’s private inventory, the Reporter will issue a POST to the management fabric. The endpoint are structured as follows:
+When a new resource relationship is created in the Reporter’s private inventory, the Reporter will issue a POST to Kessel. The endpoint are structured as follows:
 
 `/api/inventory/{api-version}/resource-relationships/{relationship-type}` where _relationship-type_ is defined as “subject_relationship_object”.
 
