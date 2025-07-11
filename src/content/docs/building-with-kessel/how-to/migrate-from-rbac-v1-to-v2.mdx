@@ -17,23 +17,67 @@ Questions? Please raise them in \#mgmt-fabric-insights-integrations
 ## Identify the patterns
 
 We start the migration process by identifying the patterns used by our application.
-Refer to [KSL-016: Migrating host and organization level permissions](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.r4s1xymr6mwu) for more information about the patterns.
-
-Note that an application may fall under more than one of these patterns.
+The patterns should be identified individually for each asset type managed by the application.
+Different asset types may fall under different patterns and hence an application may use a combination of patterns.
 For example, an application may use a combination of:
 
 * permission protecting access to an org-wide setting
 * permission protecting access to inventory group aware assets (e.g. host vulnerabilities)
 
+The following patterns are supported:
+* [Native](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.fxctn4xy427v)
+* [Native, workspace-level list](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.17ytnrwi9six)
+* [Default workspace](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.llalb2knp7t)
+* [Root workspace](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.z8kd70uc9ad5)
+* [Organization-level](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.622lk0gd5b8p)
+
+For the initial migration of RBACv1 applications to Kessel, the following simplified decision tree can be used to identify the appropriate pattern:
+* Is the asset related to a host (vulnerability, advisory, compliance report, etc.) and the service already workspace-aware? Use [Native, workspace-level list](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.17ytnrwi9six)
+* Can the resource be conceptualized as an "asset" (customer manages CRUD; we can imagine it as being placed in a Workspace)? --> Use [Default workspace](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.llalb2knp7t)
+* Is the resource "the organization" as a whole (e.g. managing an organization-wide setting) and the operation is "asset-centric" (we could imagine it being Workspace level in the future)? --> Use [Root workspace](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.z8kd70uc9ad5)
+* Is the resource "the organization" as a whole (e.g. managing an organization-wide setting) and the operation is not "asset-centric" (would never belong at a Workspace level)? --> Use [Organization-level](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.622lk0gd5b8p)
+
+See the Pattern Summary section in [KSL-016: Migrating host and organization level permissions](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.dtb0qssiad9s) for more information about the patterns.
+
 The patterns identified for each application are tracked in [Management Fabric Integrations](https://docs.google.com/spreadsheets/d/1V3mH2pDgXOcxeyxt0fH8RnzzmDsKRDxKzDxxmuaP1mk/edit?gid=0#gid=0)
 
 ## Model the permissions
 
-Afterwards, we need to convert permission definitions from [the legacy format](https://github.com/RedHatInsights/rbac-config/tree/master/configs/prod/permissions) to permission definitions expressed using the ksl language.
-More information about modeling permissions with the ksl language can be found in [Design permissions schema](/docs/building-with-kessel/how-to/design-permissions/).
+Afterwards, we need to convert permission definitions from [the legacy RBACv1 format](https://github.com/RedHatInsights/rbac-config/tree/master/configs/prod/permissions) to permission definitions expressed using the ksl language.
+These permission definitions are stored in `.ksl` files in the [rbac-config](https://github.com/RedHatInsights/rbac-config/tree/master/configs/stage/schemas/src) repository.
 
-Example definition of permissions that follow the [Root workspace pattern](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.z8kd70uc9ad5) (protecting org-wide settings):
+The `@rbac.add_v1_based_permission()` extension simplifies the process of converting the legacy RBACv1 permission definitions to Kessel permissions by incorporating support for wildcard permissions.
 
+<Aside type="note" title="Wildcard permissions">
+In RBACv1, wildcard permissions are used to grant access to all resources of a given resource type (`config_manager:*:read`), all operations on a given resource type (`config_manager:profile:*`), or a combination of both (`config_manager:*:*`).
+When using RBACv1 for access control, the wildcard permissions need to be evaluated (in addition to the specific permissions) on the client (application) side.
+
+With Kessel, the wildcard permissions can be implemented natively on the Kessel side.
+The `@rbac.add_v1_based_permission` extension adds the following permissions to the Kessel schema:
+
+* a Kessel equivalent of the RBACv1 permission - e.g. `config_manager_profile_read` for `config_manager:profile:read`
+* all wildcard permutations of the permission - `config_manager_profile_all`, `config_manager_all_read`, `config_manager_all_all`, `all_all_all` (`all` is used instead of `*` in Kessel)
+* a compound permission (`config_manager_profile_view`) that combines the permissions above in the following way (metalanguage used for illustration purposes):
+  ```
+  config_manager_profile_view = config_manager_profile_read OR config_manager_profile_all OR config_manager_all_read OR config_manager_all_all OR all_all_all
+  ```
+
+The compound permission should be used to check for access to the resource.
+
+
+</Aside>
+
+
+The following rules apply to the `@rbac.add_v1_based_permission()` extension:
+
+* The `app` parameter should be the name of the application.
+* The `resource` parameter should be the **singular** name of the resource type.
+* The `verb` parameter should be the the verb.
+* The `v2_perm` parameter should be the name of the compound permission in Kessel. Note that the last segment of the v2 permission name will differ from the verb of the v1 permission. The following naming convention should be used:
+  * `read` -> `view`
+  * `write` -> `edit`
+
+Example of a permission definition using the `@rbac.add_v1_based_permission()` extension:
 ```
 version 0.1
 namespace config_manager
@@ -44,8 +88,31 @@ import rbac
 @rbac.add_v1_based_permission(app:'config_manager', resource:'profile', verb:'write', v2_perm:'config_manager_profile_edit');
 ```
 
-Example definition of permissions that follow the [Native, workspace-level list](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.17ytnrwi9six) pattern (protecting patches applicable to a host, which are workspace-aware assets)
+### Permissions that apply to host-centric assets
 
+Certain RBACv1 permissions apply to host-centric assets.
+These permissions are typically used to protect access to host-specific data, such as host vulnerabilities, advisories, etc.
+
+In RBACv1, these permissions are evaluated in conjunction with the `inventory:host:read` permission, which can be restricted to specific workspaces (inventory groups) using attribute filters.
+
+In Kessel, this logic can be implemented natively by combining the compound permission with the `inventory:host:read` permission.
+The `rbac.add_contingent_permission()` extension simplifies this process.
+
+```
+@rbac.add_v1_based_permission(app:'patch', resource:'system', verb:'read', v2_perm:'patch_system_view_assigned');
+@rbac.add_contingent_permission(first: 'inventory_host_view', second: 'patch_system_view_assigned', contingent: 'patch_system_view');
+```
+
+which is equivalent to (metalanguage used for illustration purposes):
+
+```
+patch_system_view_assigned = patch_system_read OR patch_system_all OR patch_system_all_read OR patch_system_all_all OR all_all_all
+patch_system_view = inventory_host_view AND patch_system_view_assigned
+```
+
+Notice that the `_assigned` suffix is used for the compound permission, which distinguishes it from the contingent permission that incorporates the inventory permission and which should be used for access checks.
+
+Full example:
 ```
 version 0.1
 namespace patch
@@ -61,12 +128,16 @@ import hbi
 @rbac.add_contingent_permission(first: 'inventory_host_view', second: 'patch_system_edit_assigned', contingent: 'patch_system_edit');
 @hbi.expose_host_permission(v2_perm: 'patch_system_edit', host_perm: 'patch_system_edit');
 ```
-
-The permission definitions from ksl files are [transpiled into a zed schema](https://github.com/RedHatInsights/rbac-config?tab=readme-ov-file#building-the-kessel-schema).
-
 <Aside type="tip" title="Tip: Play with the schema">
-A good way to understand the resulting schema is by tinkering and evaluating different scenarios and test data is by loading the generated schema into [SpiceDB Playground](https://play.authzed.com/schema).
+A good way to understand the resulting schema is by tinkering and evaluating different scenarios and test data is by [transpiling the ksl files into a zed schema](https://github.com/RedHatInsights/rbac-config?tab=readme-ov-file#building-the-kessel-schema) and loading it into [SpiceDB Playground](https://play.authzed.com/schema).
 </Aside>
+
+### Checking in the permission definitions
+
+Once the `.ksl` file(s) are ready, they need to be added to the [rbac-config](https://github.com/RedHatInsights/rbac-config/tree/master) repository by opening a PR.
+Note that a separate config exists for each environment ([stage](https://github.com/RedHatInsights/rbac-config/tree/master/configs/stage), [prod](https://github.com/RedHatInsights/rbac-config/tree/master/configs/prod)), allowing the change to be tested in stage before being released to prod.
+
+There is no need to include the modified zed schema in the PR as an automated job will transpile the new/modified ksl files into a zed schema.
 
 ### Role definitions
 
