@@ -1,0 +1,8 @@
+module: "{service}.{version}"
+description: gRPC client API
+classes:
+  - name: ClientBuilder
+    description: Builds a client for the {service} API.
+    constructors:
+      - description: Create a new client builder.
+        name: withDefaults

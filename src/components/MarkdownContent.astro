@@ -1,0 +1,9 @@
+---
+import DefaultMarkdownContent from "@astrojs/starlight/components/MarkdownContent.astro";
+
+const props = Astro.props;
+---
+
+<DefaultMarkdownContent {...props}>
+  <slot />
+</DefaultMarkdownContent>

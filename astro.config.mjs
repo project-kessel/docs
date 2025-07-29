@@ -97,6 +97,9 @@ export default defineConfig({
           },
         }
       ],
+      components: {
+        MarkdownContent: './src/components/MarkdownContent.astro',
+      },  
       customCss: ["./src/tailwind.css", "./src/custom.css"],
 
     }),

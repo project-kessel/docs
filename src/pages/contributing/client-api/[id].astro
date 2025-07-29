@@ -1,0 +1,156 @@
+---
+import { getCollection, render } from "astro:content";
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+
+export async function getStaticPaths() {
+  const packages = await getCollection("clientApi");
+  return packages.map((pkg) => ({
+    params: { id: pkg.data.module.toLowerCase() },
+    props: { pkg },
+  }));
+}
+
+const { pkg } = Astro.props;
+const data = pkg.data;
+
+const frontmatter = {
+  title: data.module,
+  description: data.description,
+};
+---
+
+<StarlightPage frontmatter={frontmatter}>
+  {data.description && <p>{data.description}</p>}
+
+  {
+    data.types && (
+      <>
+        <h2 id="types">Types</h2>
+        {data.types.map((t) => (
+          <section id={`type-${t.enum}`} class="mb-4">
+            <h3>{t.enum}</h3>
+            {t.description && <p>{t.description}</p>}
+            <ul>
+              {t.values.map((v) => (
+                <li>{v}</li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </>
+    )
+  }
+
+  {
+    data.classes && (
+      <>
+        <h2 id="classes">Classes</h2>
+        {data.classes.map((c) => (
+          <section id={`class-${c.name}`} class="mb-4">
+            <h3>{c.name}</h3>
+            {c.description && <p>{c.description}</p>}
+
+            {c.properties && (
+              <>
+                <h4>Properties</h4>
+                <ul>
+                  {c.properties.map((p) => (
+                    <li>
+                      <code>{p.name}</code>: <code>{p.type}</code>
+                      {p.readonly ? " (readonly)" : ""}
+                      {p.description && <> — {p.description}</>}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {c.methods && (
+              <>
+                <h4>Methods</h4>
+                <ul>
+                  {c.methods.map((m) => (
+                    <li>
+                      <code>{m.name}</code>
+                      {m.async ? " async" : ""}(
+                      {m.params?.map((param, idx) => (
+                        <>
+                          {idx > 0 && ", "}
+                          {param.name}: {param.type}
+                        </>
+                      ))}
+                      ){m.returns ? <>: {m.returns}</> : ""}
+                      {m.description && <> — {m.description}</>}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {c.statics && (
+              <>
+                <h4>Static Methods</h4>
+                <ul>
+                  {c.statics.map((s) => (
+                    <li>
+                      <code>{s.name}</code>
+                      {s.async ? " async" : ""}(
+                      {s.params?.map((param, idx) => (
+                        <>
+                          {idx > 0 && ", "}
+                          {param.name}: {param.type}
+                        </>
+                      ))}
+                      ){s.returns ? <>: {s.returns}</> : ""}
+                      {s.description && <> — {s.description}</>}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+        ))}
+      </>
+    )
+  }
+
+  {
+    data.functions && (
+      <>
+        <h2 id="functions">Functions</h2>
+        <ul>
+          {data.functions.map((f) => (
+            <li>
+              <code>{f.name}</code>
+              {f.async ? " async" : ""}(
+              {f.params?.map((param, idx) => (
+                <>
+                  {idx > 0 && ", "}
+                  {param.name}: {param.type}
+                </>
+              ))}
+              ){f.returns ? <>: {f.returns}</> : ""}
+              {f.description && <> — {f.description}</>}
+            </li>
+          ))}
+        </ul>
+      </>
+    )
+  }
+
+  {
+    data.errors && (
+      <>
+        <h2 id="errors">Errors</h2>
+        <ul>
+          {data.errors.map((e) => (
+            <li>
+              <code>{e.name}</code>
+              {e.description && <> — {e.description}</>}
+            </li>
+          ))}
+        </ul>
+      </>
+    )
+  }
+</StarlightPage>

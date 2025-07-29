@@ -1,0 +1,11 @@
+module: grpc
+description: gRPC client API
+classes:
+  - name: OAuth2ClientCredentials
+    description: Encapsulates credentials for a gRPC channel.
+    constructors:
+      - description: gRPC client constructor
+        params:
+          - name: Token URL
+            description: The URL for the token endpoint.
+            type: string
