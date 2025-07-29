@@ -81,6 +81,10 @@ export default defineConfig({
             {
               label: "Installation",
               autogenerate: { directory: 'running-kessel/installation' }
+            },
+            {
+              label: "Monitoring Kessel",
+              autogenerate: { directory: 'running-kessel/monitoring-kessel' }
             }
           ]
         },
