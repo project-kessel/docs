@@ -1,13 +1,15 @@
 import { defineCollection } from 'astro:content';
 import { docsSchema } from '@astrojs/starlight/schema';
-import { glob, file } from 'astro/loaders'
+import { z } from 'astro:content';
 import { ClientPackageSchema } from './schemas/client-package';
 
-const docs = defineCollection({ schema: docsSchema() });
-
-const clientApi = defineCollection({
-  loader: glob({ pattern: "**/*.yaml", base: "./src/pages/contributing/client-api/" }),
-  schema: ClientPackageSchema,
+const docs = defineCollection({
+  schema: docsSchema({
+    extend: z.object({
+      docType: z.enum(["doc", "client-package"]).optional(),
+      package: ClientPackageSchema.optional(),
+    })
+  })
 });
 
-export const collections = { docs, clientApi };
+export const collections = { docs };

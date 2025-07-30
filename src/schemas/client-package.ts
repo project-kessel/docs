@@ -77,7 +77,7 @@ const ErrorsArraySchema = z.array(ErrorSchema);
 
 export const ClientPackageSchema = z
   .object({
-    module: z.string(),
+    name: z.string(),
     description: Description,
     types: TypesArraySchema.optional(),
     classes: ClassesArraySchema.optional(),

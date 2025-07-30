@@ -103,9 +103,9 @@ export default defineConfig({
       ],
       components: {
         MarkdownContent: './src/components/MarkdownContent.astro',
-      },  
+      },
+      routeMiddleware: './src/middleware/client-package-toc.ts',
       customCss: ["./src/tailwind.css", "./src/custom.css"],
-
     }),
   ],
   vite: {

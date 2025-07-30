@@ -1,9 +1,22 @@
 ---
 import DefaultMarkdownContent from "@astrojs/starlight/components/MarkdownContent.astro";
+import ClientPackageDescription from "./ClientPackageDescription.astro";
 
+// Access all properties passed to this component, including `frontmatter` which
+// contains the page's front-matter data supplied by Starlight/Astro.
 const props = Astro.props;
+const frontmatter = Astro.locals.starlightRoute.entry.data;
+
 ---
 
 <DefaultMarkdownContent {...props}>
-  <slot />
+  {
+    frontmatter?.docType === "client-package" && frontmatter.package ? (
+      /* Render our custom client-package docs */
+      <ClientPackageDescription package={frontmatter.package} />
+    ) : (
+      /* Fallback to the original Markdown content */
+      <slot />
+    )
+  }
 </DefaultMarkdownContent>
