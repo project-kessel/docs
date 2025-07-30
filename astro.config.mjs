@@ -91,7 +91,14 @@ export default defineConfig({
         {
           label: "Contributing",
           collapsed: true,
-          autogenerate: { directory: 'contributing' }
+          items: [
+            'contributing/documentation',
+            'contributing/client-libraries',
+            {
+              label: "Client API Reference",
+              autogenerate: { directory: 'contributing/client-api' }
+            }
+          ]
         },
         {
           label: "For Red Hatters",
@@ -101,8 +108,13 @@ export default defineConfig({
           },
         }
       ],
+      components: {
+        // Overridden to template out client package descriptions based on frontmatter.
+        // Otherwise this is the default MarkdownContent component.
+        MarkdownContent: './src/components/MarkdownContent.astro',
+      },
+      routeMiddleware: './src/middleware/client-package-toc.ts',
       customCss: ["./src/tailwind.css", "./src/custom.css"],
-
     }),
   ],
   vite: {

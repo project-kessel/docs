@@ -1,0 +1,33 @@
+---
+import type { ClientPackage } from "../schemas/client-package";
+import ClassesSection, {
+  generateClassesSectionHeadings,
+} from "./client-package/ClassesSection.astro";
+import FunctionsSection, {
+  generateFunctionsHeadings,
+} from "./client-package/FunctionsSection.astro";
+import type { MarkdownHeading } from "astro";
+
+interface Props {
+  package: ClientPackage;
+}
+
+const { package: pkg } = Astro.props;
+
+// Export main heading generation function for TOC middleware
+export function generatePackageHeadings(pkg: ClientPackage): MarkdownHeading[] {
+  const headings: MarkdownHeading[] = [];
+
+  // Generate headings from each section
+  headings.push(...generateClassesSectionHeadings(pkg.classes));
+  headings.push(...generateFunctionsHeadings(pkg.functions));
+
+  return headings;
+}
+---
+
+<!-- Main Package Description from slot content -->
+<slot />
+{(pkg.classes || pkg.functions) && <hr />}
+<ClassesSection classes={pkg.classes} />
+<FunctionsSection functions={pkg.functions} />

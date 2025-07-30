@@ -1,0 +1,46 @@
+---
+import ClassItem, { generateClassHeadings } from "./ClassItem.astro";
+import type { Class } from "../../schemas/client-package";
+import type { MarkdownHeading } from "astro";
+
+interface Props {
+  classes?: Class[];
+}
+
+const { classes } = Astro.props;
+
+// Export heading generation function for TOC middleware
+export function generateClassesSectionHeadings(
+  classes?: Class[]
+): MarkdownHeading[] {
+  if (!classes || classes.length === 0) {
+    return [];
+  }
+
+  const headings: MarkdownHeading[] = [
+    {
+      depth: 2,
+      slug: "classes",
+      text: "Classes",
+    },
+  ];
+
+  // Add individual class headings
+  for (const classData of classes) {
+    headings.push(...generateClassHeadings(classData));
+  }
+
+  return headings;
+}
+---
+
+{
+  classes && (
+    <>
+      <h2 id="classes">Classes</h2>
+      {classes.map((classItem) => (
+        <ClassItem classData={classItem} />
+      ))}
+    </>
+  )
+}

@@ -1,0 +1,15 @@
+---
+interface Props {
+  description?: string;
+}
+
+const { description } = Astro.props;
+---
+
+{
+  description && (
+    <div class="mt-1 ml-4 text-sm text-gray-600 dark:text-gray-400">
+      {description}
+    </div>
+  )
+}

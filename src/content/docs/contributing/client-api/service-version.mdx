@@ -1,0 +1,56 @@
+---
+title: "Package: {service}.{major_version}"
+docType: client-package
+package:
+  classes:
+    - name: ExampleClass
+      description: Example description.
+      constructors:
+        - description: Example constructor description.
+          name: withDefaultsSecure
+          params:
+            - name: target
+              type: string
+              description: The target URI for routing and discovery.
+        - description: Creates a ClientBuilder from a Configuration object
+          params:
+            - name: config
+              type: Configuration
+              description: Configuration object with common settings (server address, auth, etc.)
+      methods:
+        - name: exampleMethod
+          description: Does exampley things.
+          params:
+            - name: aParam
+              type: string
+              description: It's a parameter.
+---
+
+import { Aside } from "@astrojs/starlight/components"
+
+Package for code specific to service and API version, where `{service}` is the separately versioned service (e.g. "inventory" or "rbac") and `{major_version}` is the major revision of the API (e.g. v1beta2, v1, v2), such as generated client code.
+
+<Aside>
+This import may be controlled by the layout, package, or options declared in the proto spec of gRPC APIs. This means the proto needs to define these accordingly based on the proto's own package or option declarations.
+</Aside>
+
+Hand-written code MAY be added to these package(s), if it is version-specific.
+
+- This MAY depend on peer packages.
+- For example, middleware or utilities which integrate with this version can be placed here (such as `{prefix}.rbac.v2` for easy Workspace lookups).
+
+`.rbac` (or any other `{service}`) may be nested for RBAC/service-specific utilities which are also specific to that service-API version.
+
+- For example, `{prefix}.inventory.v1beta2.rbac` for creating SubjectReferences, ResourceReferences, etc, following RBAC's well-known schema).
+
+## ClientBuilder
+
+SHOULD expose a `ClientBuilder` for constructing channels and stubs using best practices and available middleware (e.g. authentication) specific to that service & major version.
+
+- This SHOULD have a notion of "[default](../../client-libraries/#defaults-across-all-languages)" configuration which incorporates best practices generally, specific to that language, and which apply to that service-version. Different constructor permutations should allow applying these "defaults" easily.
+  - For example, in the Python reference implementation, the "default" configuration, when not using asyncio, uses single-threaded unary streams for a performance improvement.
+- This SHOULD have a constructor which accepts a `Configuration` object which reads common configuration values, consistent from language to language (e.g. with the same common keys, same environment variables, etc).
+- This SHOULD expose `build` methods which construct stubs for that API version.
+- This MAY delegate or inherit from generic gRPC code in the `grpc` package.
+- **Note:** Not all languages are consistent in their treatment of `Channels`, `ChannelOptions`, and Stub configuration. The `ClientBuilder` is meant to be consistent despite these differences, within reason.
+  - For example, in some languages (Python, Go), everything meaningful is configured on the Channel itself. In some languages (Java), the stub contains CallOptions. In some languages, the Channel provides built-in methods for configuring it. In other languages, you have to provide CallOptions yourself, etc.

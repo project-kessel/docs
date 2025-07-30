@@ -1,0 +1,37 @@
+---
+import ConstructorsList from "./ConstructorsList.astro";
+import PropertiesList from "./PropertiesList.astro";
+import MethodsList from "./MethodsList.astro";
+import type { Class } from "../../schemas/client-package";
+import type { MarkdownHeading } from "astro";
+
+interface Props {
+  classData: Class;
+}
+
+const { classData } = Astro.props;
+
+// Export heading generation function for TOC middleware
+export function generateClassHeadings(classData: Class): MarkdownHeading[] {
+  return [
+    {
+      depth: 3,
+      slug: `class-${classData.name}`,
+      text: classData.name,
+    },
+  ];
+}
+---
+
+<section id={`class-${classData.name}`} class="mb-4">
+  <h3>{classData.name}</h3>
+  {classData.description && <p>{classData.description}</p>}
+
+  <ConstructorsList
+    constructors={classData.constructors}
+    className={classData.name}
+  />
+  <PropertiesList properties={classData.properties} />
+  <MethodsList methods={classData.methods} title="Methods" />
+  <MethodsList methods={classData.statics} title="Static Methods" />
+</section>

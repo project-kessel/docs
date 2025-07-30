@@ -1,0 +1,22 @@
+---
+// Import the default MarkdownContent component from Starlight
+import DefaultMarkdownContent from "@astrojs/starlight/components/MarkdownContent.astro";
+import ClientPackageDescription from "./ClientPackageDescription.astro";
+
+const props = Astro.props;
+const frontmatter = Astro.locals.starlightRoute.entry.data;
+---
+
+<DefaultMarkdownContent {...props}>
+  {
+    // If the page is a client-package, render our custom client-package docs
+    frontmatter?.docType === "client-package" && frontmatter.package ? (
+      <ClientPackageDescription package={frontmatter.package}>
+        <slot />
+      </ClientPackageDescription>
+    ) : (
+      // Otherwise, render the default Markdown content exactly as Starlight would normally do.
+      <slot />
+    )
+  }
+</DefaultMarkdownContent>
