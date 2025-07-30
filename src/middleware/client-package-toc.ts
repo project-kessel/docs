@@ -51,22 +51,6 @@ export async function clientPackageTocMiddleware(
 
   // Generate headings based on ClientPackageDescription structure
   // We cannot render the page here and use its headings, because route middleware
-  if (pkg.types && pkg.types.length > 0) {
-    headings.push({
-      depth: 2,
-      slug: 'types',
-      text: 'Types'
-    });
-
-    for (const type of pkg.types) {
-      headings.push({
-        depth: 3,
-        slug: `type-${type.enum}`,
-        text: type.enum
-      });
-    }
-  }
-
   if (pkg.classes && pkg.classes.length > 0) {
     headings.push({
       depth: 2,
@@ -88,14 +72,6 @@ export async function clientPackageTocMiddleware(
       depth: 2,
       slug: 'functions',
       text: 'Functions'
-    });
-  }
-
-  if (pkg.errors && pkg.errors.length > 0) {
-    headings.push({
-      depth: 2,
-      slug: 'errors',
-      text: 'Errors'
     });
   }
 

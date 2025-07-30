@@ -11,18 +11,9 @@ const ParamSchema = z.object({
   description: Description,
 });
 
-/* Possible error names referenced by operations */
-const ErrorNameSchema = z.string();
 
-/** ───────────────────── Types section ───────────────────── */
 
-const EnumSchema = z.object({
-  enum: z.string(),            // enum name
-  description: Description,
-  values: z.array(z.string()),
-});
 
-const TypesArraySchema = z.array(EnumSchema);
 
 /** ───────────────────── Class section ───────────────────── */
 
@@ -45,7 +36,6 @@ const MethodLikeSchema = z.object({
   params: z.array(ParamSchema).optional(),
   returns: z.string().optional(),
   async: z.boolean().optional(),
-  errors: z.array(ErrorNameSchema).optional(),
 });
 
 const ClassSchema = z.object({
@@ -64,24 +54,15 @@ const ClassesArraySchema = z.array(ClassSchema);
 const FunctionSchema = MethodLikeSchema; // shape is identical
 const FunctionsArraySchema = z.array(FunctionSchema);
 
-/** ───────────────────── Errors section ───────────────────── */
 
-const ErrorSchema = z.object({
-  name: z.string(),
-  description: Description,
-});
-
-const ErrorsArraySchema = z.array(ErrorSchema);
 
 /** ───────────────────── Root document ───────────────────── */
 
 export const ClientPackageSchema = z
   .object({
     description: Description,
-    types: TypesArraySchema.optional(),
     classes: ClassesArraySchema.optional(),
     functions: FunctionsArraySchema.optional(),
-    errors: ErrorsArraySchema.optional(),
   })
   .passthrough();
 

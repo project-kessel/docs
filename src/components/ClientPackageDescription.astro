@@ -38,26 +38,6 @@ const renderedMainDescription = pkg?.description
   renderedMainDescription && <Fragment set:html={renderedMainDescription} />
 }
 
-<!-- Types Section -->
-{
-  pkg.types && (
-    <>
-      <h2 id="types">Types</h2>
-      {pkg.types.map((type) => (
-        <section id={`type-${type.enum}`} class="mb-4">
-          <h3>{type.enum}</h3>
-          {type.description && <p>{type.description}</p>}
-          <ul>
-            {type.values.map((value) => (
-              <li>{value}</li>
-            ))}
-          </ul>
-        </section>
-      ))}
-    </>
-  )
-}
-
 <!-- Classes Section -->
 {
   pkg.classes && (
@@ -210,27 +190,6 @@ const renderedMainDescription = pkg?.description
             {func.description && (
               <div class="mt-1 ml-4 text-sm text-gray-600 dark:text-gray-400">
                 {func.description}
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
-    </>
-  )
-}
-
-<!-- Errors Section -->
-{
-  pkg.errors && (
-    <>
-      <h2 id="errors">Errors</h2>
-      <ul>
-        {pkg.errors.map((error) => (
-          <li>
-            <code>{error.name}</code>
-            {error.description && (
-              <div class="mt-1 ml-4 text-sm text-gray-600 dark:text-gray-400">
-                {error.description}
               </div>
             )}
           </li>
