@@ -16,6 +16,8 @@ permissions:
 
 jobs:
   build:
+    # Only run this job if the repository is the main docs repository
+    if: github.repository == 'project-kessel/docs'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout your repository using git
@@ -29,6 +31,8 @@ jobs:
 
   deploy:
     needs: build
+    # Extra protection: Only run this job if the repository is the main docs repository
+    if: github.repository == 'project-kessel/docs'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
