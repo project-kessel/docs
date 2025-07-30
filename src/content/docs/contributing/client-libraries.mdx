@@ -5,11 +5,11 @@ description: Guide to developing client libraries (SDKs) for Kessel.
 
 import { Aside } from '@astrojs/starlight/components';
 
-Client SDKs are libraries developers use to integrate their code with Kessel over a network. These are valuable. They help developers integrate easily by abstracting the complexity of remote procedure calls. They simplify the jobs of operators, who can expect more consistent and resilient client behavior.
+**Client SDKs are libraries developers use to integrate their code with Kessel over a network.** These are valuable. They help developers integrate easily by abstracting the complexity of remote procedure calls. They simplify the jobs of operators, who can expect more consistent and resilient client behavior.
 
-However, creating them comes at a steep cost because they have to be maintained for as many languages as we support. To reduce this cost, client SDKs should be developed with utmost consistency in mind, from language to language. This consistency in turn also benefits the developer experience: each client SDK, well designed, is easier to understand across multiple languages.
+**However, creating them comes at a steep cost because they have to be maintained for as many languages as we support.** To reduce this cost, client SDKs should be developed with utmost consistency in mind, from language to language. This consistency in turn also benefits the developer experience: each client SDK, well designed, is easier to understand across multiple languages.
 
-This document outlines the standard which we expect all client SDKs to follow. If you are contributing to a client SDK, please follow this standard. If you wish to introduce a new API to the clients, please first update this standard with multiple languages in mind. Then, implement the new API in the language(s) you need.
+**This document outlines the standard which we expect all client SDKs to follow.** If you are contributing to a client SDK, please follow this standard. If you wish to introduce a new API to the clients, please first update this standard with multiple languages in mind. Then, implement the new API in the language(s) you need.
 
 ## Specification
 
@@ -68,7 +68,7 @@ Most languages have some concept of a module or package hierarchy for imports, u
 
 The `prefix` of these imports may be language specific but MUST at least include "kessel" somewhere. It can simply be "kessel" unless that would violate language convention (e.g. Java or Go). Prefix SHOULD NOT include a specific service given the [scope](#scope) of libraries is not service specific. The prefix MUST be the same for all imports.
 
-The _suffixes_ of these imports SHOULD be consistent from language to language (aside from language-specific delimiters). These packages are documented in detail following the links to API reference:
+The _suffixes_ of these imports SHOULD be consistent from language to language (aside from language-specific delimiters). These packages are documented in detail following the links to [API reference](../client-api/guide):
 
 - [`{prefix}.{service}.{major_version}`](../client-api/service-version): Package for code specific to service and API version, where `{service}` is the separately versioned service (e.g. "inventory" or "rbac") and `{major_version}` is the major revision of the API (e.g. v1beta2, v1, v2), such as generated client code.
 - [`{prefix}.grpc`](../client-api/grpc): Package for utility methods or middleware specific to gRPC and are therefore only coupled to gRPC versions, not to a service API version (e.g. generic gRPC authentication middleware code goes here).
@@ -100,3 +100,7 @@ The _suffixes_ of these imports SHOULD be consistent from language to language (
 
 - Each client library MUST be versioned independently, following SemVer and the conventions of that language's packaging ecosystem. This is because there is no one server or API version to correlate them too, and languages may have their own reasons for changes (e.g. CVE, API change, etc).
 - Each client library's release MUST be published to the central registry for that language
+
+## Updating this specification
+
+**This is a living specification, expected to change over time.** To ensure updates are implementable and maintainable, it is necessary to FIRST _prototype_ the desired updates in at least one (ideally two) SDKs to get an understanding of what contract will actually work in practice. Once satisified, THEN propose an update to the spec, which may undergo revision both in the specification and prototypes. The final implementation then follows the refined spec, and may or may not be based off of the prototypes.
