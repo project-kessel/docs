@@ -1,6 +1,7 @@
 import type { APIContext } from 'astro';
 import type { MarkdownHeading } from 'astro';
 import type { ClientPackage } from '../schemas/client-package';
+import { generatePackageHeadings } from '../components/ClientPackageDescription.astro';
 
 // TOC generation logic based on Starlight's generateToC function
 // We'd use the real thing but it's not exported.
@@ -47,33 +48,10 @@ export async function clientPackageTocMiddleware(
   }
 
   const pkg = frontmatter.package as ClientPackage;
-  const headings: MarkdownHeading[] = [];
 
-  // Generate headings based on ClientPackageDescription structure
-  // We cannot render the page here and use its headings, because route middleware
-  if (pkg.classes && pkg.classes.length > 0) {
-    headings.push({
-      depth: 2,
-      slug: 'classes',
-      text: 'Classes'
-    });
-
-    for (const cls of pkg.classes) {
-      headings.push({
-        depth: 3,
-        slug: `class-${cls.name}`,
-        text: cls.name
-      });
-    }
-  }
-
-  if (pkg.functions && pkg.functions.length > 0) {
-    headings.push({
-      depth: 2,
-      slug: 'functions',
-      text: 'Functions'
-    });
-  }
+  // Generate headings using component functions
+  // This makes it easier to keep heading generation logic in sync with the component.
+  const headings = generatePackageHeadings(pkg);
 
   // Replace the headings in the route data
   starlightRoute.headings = headings;

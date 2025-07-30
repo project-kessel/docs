@@ -4,14 +4,30 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
-import ClassesSection from "./client-package/ClassesSection.astro";
-import FunctionsSection from "./client-package/FunctionsSection.astro";
+import ClassesSection, {
+  generateClassesSectionHeadings,
+} from "./client-package/ClassesSection.astro";
+import FunctionsSection, {
+  generateFunctionsHeadings,
+} from "./client-package/FunctionsSection.astro";
+import type { MarkdownHeading } from "astro";
 
 interface Props {
   package: ClientPackage;
 }
 
 const { package: pkg } = Astro.props;
+
+// Export main heading generation function for TOC middleware
+export function generatePackageHeadings(pkg: ClientPackage): MarkdownHeading[] {
+  const headings: MarkdownHeading[] = [];
+
+  // Generate headings from each section
+  headings.push(...generateClassesSectionHeadings(pkg.classes));
+  headings.push(...generateFunctionsHeadings(pkg.functions));
+
+  return headings;
+}
 
 // Helper function to render markdown descriptions
 const renderDescription = async (description: string) => {
