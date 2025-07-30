@@ -11,10 +11,6 @@ const ParamSchema = z.object({
   description: Description,
 });
 
-
-
-
-
 /** ───────────────────── Class section ───────────────────── */
 
 const ConstructorSchema = z.object({
@@ -53,8 +49,6 @@ const ClassesArraySchema = z.array(ClassSchema);
 
 const FunctionSchema = MethodLikeSchema; // shape is identical
 const FunctionsArraySchema = z.array(FunctionSchema);
-
-
 
 /** ───────────────────── Root document ───────────────────── */
 
