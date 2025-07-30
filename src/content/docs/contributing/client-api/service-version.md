@@ -2,16 +2,11 @@
 title: "Package: {service}.{major_version}"
 docType: client-package
 package:
-  description: >
-    Package for code specific to service and API version. Contains generated client code and version-specific utilities.
-
-    ## Testing
   classes:
-    - name: StubBuilder
-      description: >
-        Builder for constructing a stub following best practices and defaults. Constructors reference an explicit "default" configuration which clients are recommended to use.
+    - name: ExampleClass
+      description: Example description.
       constructors:
-        - description: Creates a new ClientBuilder with default configuration for secure endpoints. Requires credentials.
+        - description: Example constructor description.
           name: withDefaultsSecure
           params:
             - name: target
@@ -23,47 +18,19 @@ package:
               type: Configuration
               description: Configuration object with common settings (server address, auth, etc.)
       methods:
-        - name: withAuthentication
-          description: Configures authentication method for the client
+        - name: exampleMethod
+          description: Does exampley things.
           params:
-            - name: authMethod
+            - name: aParam
               type: string
-              description: Authentication method to use
-            - name: credentials
-              type: any
-              description: Authentication credentials
-          returns: ClientBuilder
-        - name: withKeepAlive
-          description: Configures HTTP/2 keepalive settings
-          params:
-            - name: keepAliveTime
-              type: number
-              description: Keepalive time in seconds
-            - name: keepAliveTimeout
-              type: number
-              description: Keepalive timeout in seconds
-          returns: ClientBuilder
-        - name: build
-          description: Constructs the service client stub for this API version
-          returns: "{ServiceName}Client"
-          errors:
-            - ConfigurationError
-            - ConnectionError
-        - name: buildChannel
-          description: Constructs the underlying gRPC channel
-          returns: Channel
-          errors:
-            - ConfigurationError
-    - name: Configuration
-      description: Configuration object for common client settings with consistent keys across languages
-      constructors:
-        - description: Creates configuration from environment variables and defaults
-        - description: Creates configuration with explicit values
-          params:
-            - name: serverAddress
-              type: string
-              description: The server address to connect to
-            - name: authConfig
-              type: AuthConfig
-              description: Authentication configuration
+              description: It's a parameter.
 ---
+
+Package for code specific to service and API version, where `{service}` is the separately versioned service (e.g. "inventory" or "rbac") and `{major_version}` is the major revision of the API (e.g. v1beta2, v1, v2), such as generated client code.
+
+- **Note:** this import may be controlled by the layout, package, or options declared in the proto spec of gRPC APIs. This means the proto needs to define these accordingly based on the proto's own package or option declarations.
+- Hand-written code MAY be added to these package(s), if it is version-specific.
+  - This MAY depend on peer packages.
+  - For example, middleware or utilities which integrate with this version can be placed here (such as `{prefix}.rbac.v2` for easy Workspace lookups).
+- `.rbac` (or any other `{service}`) may be nested for RBAC/service-specific utilities which are also specific to that service-API version.
+  - For example, `{prefix}.inventory.v1beta2.rbac` for creating SubjectReferences, ResourceReferences, etc, following RBAC's well-known schema).
