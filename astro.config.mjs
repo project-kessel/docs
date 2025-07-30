@@ -2,6 +2,7 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import starlightOpenAPI, { openAPISidebarGroups } from 'starlight-openapi'
 import tailwindcss from "@tailwindcss/vite";
+import { internalSidebarItems } from "./sidebar-internal.mjs";
 
 // https://astro.build/config
 export default defineConfig({
@@ -100,13 +101,7 @@ export default defineConfig({
             }
           ]
         },
-        {
-          label: "For Red Hatters",
-          link: "./for-red-hatters/",
-          attrs: {
-            class: "red-hat",
-          },
-        }
+        ...internalSidebarItems
       ],
       components: {
         // Overridden to template out client package descriptions based on frontmatter.
