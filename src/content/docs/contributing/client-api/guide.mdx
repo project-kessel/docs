@@ -1,0 +1,22 @@
+---
+title: How to use this reference
+description: A guide to using this reference to implement SDKs in multiple languages.
+sidebar:
+  order: 0
+---
+
+**This reference describes the specific structure and contract of the SDKs such that different languages can be implemented consistently.** The reference aims for a balanced amount of specificity in accordance to the following goals:
+
+- Minumum developer judgement required to implement an SDK
+- Minimum incremental learning required to use another language if you're already familiar with one
+
+**The reference is broken down by *package*.** A "package" is a language agnostic way of organizing imports and scope of visibility. In some languages it may be natural or required to break down these imports into several files. How this happens is unspecified and up to programmer judgement.
+
+## Implementing a package
+
+| Rule | Description |
+|------|-------------|
+| Use the description | The full nuance of the API contract is not always specified method by method, and this description is necessary to understand what a compliant implementation looks like.|
+| Case (`camelCase` vs `snake_case`, etc) | Package descriptions use JavaScript conventions for case. These should be transformed according to the language's specific conventions. For example, in Python, method names should follow `snake_case`. |
+| Public contract is exhaustive | Within reason, no MORE should be added to a client library for a type or package that is already well specified, unless specifically noted. Adding more can lead to inconsistency and conflicts later. If more is desired, first [update the spec](../client-libraries/#updating-this-specification).
+| Private implementation details are unspecified | Unless otherwise noted, implementation details which are not exposed (whether enforced by the language or merely documented as internal) are left as an exercise for the reader. Usual judgement applies. |

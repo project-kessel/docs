@@ -1,0 +1,35 @@
+---
+import ParameterList from "./ParameterList.astro";
+import DescriptionBlock from "./DescriptionBlock.astro";
+import type { MethodLike } from "../../schemas/client-package";
+
+interface Props {
+  methods?: MethodLike[];
+  title: string;
+}
+
+const { methods, title } = Astro.props;
+---
+
+{
+  methods && (
+    <>
+      <h4>{title}</h4>
+      <ul>
+        {methods.map((method) => (
+          <li>
+            <code>{method.name}</code>
+            {method.async && <code> async</code>}
+            (<ParameterList params={method.params} />)
+            {method.returns && (
+              <>
+                : <code>{method.returns}</code>
+              </>
+            )}
+            <DescriptionBlock description={method.description} />
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+}

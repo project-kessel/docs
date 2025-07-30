@@ -1,0 +1,33 @@
+---
+import ParameterList from "./ParameterList.astro";
+import DescriptionBlock from "./DescriptionBlock.astro";
+import type { Constructor } from "../../schemas/client-package";
+
+interface Props {
+  constructors?: Constructor[];
+  className: string;
+}
+
+const { constructors, className } = Astro.props;
+---
+
+{
+  constructors && (
+    <>
+      <h4>Constructors</h4>
+      <ul>
+        {constructors.map((constructor) => (
+          <li>
+            <code>
+              {constructor.name
+                ? `${className}.${constructor.name}`
+                : className}
+            </code>
+            (<ParameterList params={constructor.params} />)
+            <DescriptionBlock description={constructor.description} />
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+}

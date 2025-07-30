@@ -2,6 +2,7 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import starlightOpenAPI, { openAPISidebarGroups } from 'starlight-openapi'
 import tailwindcss from "@tailwindcss/vite";
+import { internalSidebarItems } from "./sidebar-internal.mjs";
 
 // https://astro.build/config
 export default defineConfig({
@@ -91,18 +92,24 @@ export default defineConfig({
         {
           label: "Contributing",
           collapsed: true,
-          autogenerate: { directory: 'contributing' }
+          items: [
+            'contributing/documentation',
+            'contributing/client-libraries',
+            {
+              label: "Client API Reference",
+              autogenerate: { directory: 'contributing/client-api' }
+            }
+          ]
         },
-        {
-          label: "For Red Hatters",
-          link: "./for-red-hatters/",
-          attrs: {
-            class: "red-hat",
-          },
-        }
+        ...internalSidebarItems
       ],
+      components: {
+        // Overridden to template out client package descriptions based on frontmatter.
+        // Otherwise this is the default MarkdownContent component.
+        MarkdownContent: './src/components/MarkdownContent.astro',
+      },
+      routeMiddleware: './src/middleware/client-package-toc.ts',
       customCss: ["./src/tailwind.css", "./src/custom.css"],
-
     }),
   ],
   vite: {

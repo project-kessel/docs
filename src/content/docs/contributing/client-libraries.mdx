@@ -5,11 +5,11 @@ description: Guide to developing client libraries (SDKs) for Kessel.
 
 import { Aside } from '@astrojs/starlight/components';
 
-Client SDKs are libraries developers use to integrate their code with Kessel over a network. These are valuable. They help developers integrate easily by abstracting the complexity of remote procedure calls. They simplify the jobs of operators, who can expect more consistent and resilient client behavior.
+**Client SDKs are libraries developers use to integrate their code with Kessel over a network.** These are valuable. They help developers integrate easily by abstracting the complexity of remote procedure calls. They simplify the jobs of operators, who can expect more consistent and resilient client behavior.
 
-However, creating them comes at a steep cost because they have to be maintained for as many languages as we support. To reduce this cost, client SDKs should be developed with utmost consistency in mind, from language to language. This consistency in turn also benefits the developer experience: each client SDK, well designed, is easier to understand across multiple languages.
+**However, creating them comes at a steep cost because they have to be maintained for as many languages as we support.** To reduce this cost, client SDKs should be developed with utmost consistency in mind, from language to language. This consistency in turn also benefits the developer experience: each client SDK, well designed, is easier to understand across multiple languages.
 
-This document outlines the standard which we expect all client SDKs to follow. If you are contributing to a client SDK, please follow this standard. If you wish to introduce a new API to the clients, please first update this standard with multiple languages in mind. Then, implement the new API in the language(s) you need.
+**This document outlines the standard which we expect all client SDKs to follow.** If you are contributing to a client SDK, please follow this standard. If you wish to introduce a new API to the clients, please first update this standard with multiple languages in mind. Then, implement the new API in the language(s) you need.
 
 ## Specification
 
@@ -68,44 +68,20 @@ Most languages have some concept of a module or package hierarchy for imports, u
 
 The `prefix` of these imports may be language specific but MUST at least include "kessel" somewhere. It can simply be "kessel" unless that would violate language convention (e.g. Java or Go). Prefix SHOULD NOT include a specific service given the [scope](#scope) of libraries is not service specific. The prefix MUST be the same for all imports.
 
-The _suffixes_ of these imports SHOULD be consistent from language to language (aside from language-specific delimiters):
+The _suffixes_ of these imports SHOULD be consistent from language to language (aside from language-specific delimiters). These packages are documented in detail following the links to [API reference](../client-api/guide):
 
-- `{prefix}.{service}.{major_version}`: Package for code specific to service and API version, where `{service}` is the separately versioned service (e.g. "inventory" or "rbac") and `{major_version}` is the major revision of the API (e.g. v1beta2, v1, v2), such as generated client code.
-  - **Note:** this import may be controlled by the layout, package, or options declared in the proto spec of gRPC APIs. This means the proto needs to define these accordingly based on the proto's own package or option declarations.
-  - Hand-written code MAY be added to these package(s), if it is version-specific.
-    - This MAY depend on peer packages.
-    - For example, middleware or utilities which integrate with this version can be placed here (such as `{prefix}.rbac.v2` for easy Workspace lookups).
-  - `.rbac` (or any other `{service}`) may be nested for RBAC/service-specific utilities which are also specific to that service-API version.
-    - For example, `{prefix}.inventory.v1beta2.rbac` for creating SubjectReferences, ResourceReferences, etc, following RBAC's well-known schema).
-- `{prefix}.grpc`: Package for utility methods or middleware specific to gRPC and are therefore only coupled to gRPC versions, not to a service API version (e.g. generic gRPC authentication middleware code goes here).
-  - MUST NOT import anything from the other defined peer packages
-- `{prefix}.http`: Package for utility methods or middleware specific to HTTP (whatever the library used) and therefore coupled to that library (or language runtime), not to a specific API version.
-  - MUST NOT import anything from the other defined peer packages
-- `{prefix}.middleware`: Package for reusable middleware or utilities not specific to transport (e.g. gRPC) or API version.
-  - It is okay to couple middleware to a specific API version internally. If the API of the middleware needs to change itself in a breaking way, bump the [package's version](#releases-and-versioning).
-  - `.{integration}`: can be further nested if the middleware is only relevant to a particular integration (e.g. `middleware.django` or `middleware.spring`). Note treatment of [dependencies](#dependencies).
+- [`{prefix}.{service}.{major_version}`](../client-api/service-version): Package for code specific to service and API version, where `{service}` is the separately versioned service (e.g. "inventory" or "rbac") and `{major_version}` is the major revision of the API (e.g. v1beta2, v1, v2), such as generated client code.
+- [`{prefix}.grpc`](../client-api/grpc): Package for utility methods or middleware specific to gRPC and are therefore only coupled to gRPC versions, not to a service API version (e.g. generic gRPC authentication middleware code goes here).
+- [`{prefix}.http`](../client-api/http): Package for utility methods or middleware specific to HTTP (whatever the library used) and therefore coupled to that library (or language runtime), not to a specific API version.
+- [`{prefix}.middleware`](../client-api/middleware): Package for reusable middleware or utilities not specific to transport (e.g. gRPC) or API version.
 
 **Occasionally, a piece of code is dependent on multiple boundaries** (such as RBAC _and_ a particular API version, or gRPC _and_ a particular integration). In these cases, use some language specific means to further delineate (such as sub-packages, files, classes, etc).
-
-#### `{service}.{major_version}` package
-
-- SHOULD expose a `ClientBuilder` for constructing channels and stubs using best practices and available middleware (e.g. authentication) specific to that service & major version.
-  - This SHOULD have a notion of "[default](<#defaults-(across-all-languages)>)" configuration which incorporates best practices generally, specific to that language, and which apply to that service-version. Different constructor permutations should allow applying these "defaults" easily.
-    - For example, in the Python reference implementation, the "default" configuration, when not using asyncio, uses single-threaded unary streams for a performance improvement.
-  - This SHOULD have a constructor which accepts a `Configuration` object which reads common configuration values, consistent from language to language (e.g. with the same common keys, same environment variables, etc).
-  - This SHOULD expose `build` methods which construct stubs for that API version.
-  - This MAY delegate or inherit from generic gRPC code in the `grpc` package.
-  - **Note:** Not all languages are consistent in their treatment of Channels, ChannelOptions, and Stub configuration. The `ClientBuilder` is meant to be consistent despite these differences, within reason.
-    - For example, in some languages (Python, Go), everything meaningful is configured on the Channel itself. In some languages (Java), the stub contains CallOptions. In some languages, the Channel provides built-in methods for configuring it. In other languages, you have to provide CallOptions yourself, etc.
 
 #### Defaults (across all languages)
 
 - Deadlines, retries, load balancing, and other network level behavior MUST NOT be specified by the client defaults, and instead defined by the server and discovered by the client through [service config](https://github.com/grpc/proposal/blob/master/A2-service-configs-in-dns.md). This keeps each client consistent, and allows this to be managed centrally.
+  - TODO: We may want to revisit this since we cannot easily add TXT records in all contexts
 - One possible exception is [HTTP/2 Keepalive](https://grpc.io/docs/guides/keepalive/). This requires explicitly configuring the channel or stub on the client and is not available through service config.
-
-#### `grpc` package
-
-- SHOULD expose utility methods to construct `CallCredentials` relevant to recommended Kessel authentication methods (e.g. OAuth), following the same pattern as gRPC / google-auth-\* libraries for that language.
 
 #### Exceptions
 
@@ -115,12 +91,16 @@ The _suffixes_ of these imports SHOULD be consistent from language to language (
 ### Object lifecycle
 
 - The lifecycle of stubs and channels SHOULD be managed by the application (e.g. through the application's DI container)
-- The `ClientBuilder` code documentation, as well as our website documentation, SHOULD instruct developers to reuse Channels and Stubs, per [gRPC performance best practices](https://grpc.io/docs/guides/performance/).
+- Library and website documentation SHOULD instruct developers to reuse Channels and Stubs, per [gRPC performance best practices](https://grpc.io/docs/guides/performance/). Library abstractions SHOULD guide users to best practices like these.
 - We MAY provide convenience facilities for this, but these are not required. [Dependency](#dependencies) rules apply. Possible approaches include:
-  - Basic, zero-dependency globals accessible via the `ClientBuilder`, if a `cacheKey` is provided. This should either create a channel or stub with the provided configuration, or retrieve a cached one using the same key value. It is assumed that the same key is always used with the same configuration.
+  - Basic, zero-dependency globals accessible via the [`ClientBuilder`](../client-api/service-version/#clientbuilder), if a `cacheKey` is provided. This should either create a channel or stub with the provided configuration, or retrieve a cached one using the same key value. It is assumed that the same key is always used with the same configuration.
   - Integrations with popular DI containers (e.g. Spring, CDI), either in separate branded libraries or with optional dependencies.
 
 ## Releases and versioning
 
 - Each client library MUST be versioned independently, following SemVer and the conventions of that language's packaging ecosystem. This is because there is no one server or API version to correlate them too, and languages may have their own reasons for changes (e.g. CVE, API change, etc).
 - Each client library's release MUST be published to the central registry for that language
+
+## Updating this specification
+
+**This is a living specification, expected to change over time.** To ensure updates are implementable and maintainable, it is necessary to FIRST _prototype_ the desired updates in at least one (ideally two) SDKs to get an understanding of what contract will actually work in practice. Once satisified, THEN propose an update to the spec, which may undergo revision both in the specification and prototypes. The final implementation then follows the refined spec, and may or may not be based off of the prototypes.
