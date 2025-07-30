@@ -20,6 +20,7 @@ function injectChild(items: TocItem[], item: TocItem): void {
 
 function generateToC(headings: MarkdownHeading[], title: string, minHeadingLevel: number, maxHeadingLevel: number) {
   const filteredHeadings = headings.filter(({ depth }) => depth >= minHeadingLevel && depth <= maxHeadingLevel);
+  // Include the top-level "Overview" heading
   const toc: Array<TocItem> = [{ depth: 2, slug: '_top', text: 'Overview', children: [] }];
   for (const heading of filteredHeadings) {
     injectChild(toc, { ...heading, children: [] });

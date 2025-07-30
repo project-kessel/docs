@@ -28,6 +28,6 @@ export function generatePackageHeadings(pkg: ClientPackage): MarkdownHeading[] {
 
 <!-- Main Package Description from slot content -->
 <slot />
-<hr />
+{(pkg.classes || pkg.functions) && <hr />}
 <ClassesSection classes={pkg.classes} />
 <FunctionsSection functions={pkg.functions} />
