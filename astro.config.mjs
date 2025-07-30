@@ -109,6 +109,8 @@ export default defineConfig({
         }
       ],
       components: {
+        // Overridden to template out client package descriptions based on frontmatter.
+        // Otherwise this is the default MarkdownContent component.
         MarkdownContent: './src/components/MarkdownContent.astro',
       },
       routeMiddleware: './src/middleware/client-package-toc.ts',

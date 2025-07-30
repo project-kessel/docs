@@ -1,5 +1,5 @@
 ---
-import type { Param } from '../../schemas/client-package';
+import type { Param } from "../../schemas/client-package";
 
 interface Props {
   params?: Param[];
@@ -8,9 +8,11 @@ interface Props {
 const { params } = Astro.props;
 ---
 
-{params?.map((param, idx) => (
-  <>
-    {idx > 0 && ", "}
-    <code>{param.name}</code>: <code>{param.type}</code>
-  </>
-))}
+{
+  params?.map((param, idx) => (
+    <>
+      {idx > 0 && ", "}
+      <code>{param.name}</code>: <code>{param.type}</code>
+    </>
+  ))
+}

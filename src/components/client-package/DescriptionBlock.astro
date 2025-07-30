@@ -6,8 +6,10 @@ interface Props {
 const { description } = Astro.props;
 ---
 
-{description && (
-  <div class="mt-1 ml-4 text-sm text-gray-600 dark:text-gray-400">
-    {description}
-  </div>
-)}
+{
+  description && (
+    <div class="mt-1 ml-4 text-sm text-gray-600 dark:text-gray-400">
+      {description}
+    </div>
+  )
+}
