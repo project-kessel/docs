@@ -1,21 +1,10 @@
 ---
 import ParameterList from './ParameterList.astro';
 import DescriptionBlock from './DescriptionBlock.astro';
-
-interface Method {
-  name: string;
-  description?: string;
-  params?: Array<{
-    name: string;
-    type: string;
-    description?: string;
-  }>;
-  returns?: string;
-  async?: boolean;
-}
+import type { MethodLike } from '../../schemas/client-package';
 
 interface Props {
-  methods?: Method[];
+  methods?: MethodLike[];
   title: string;
 }
 

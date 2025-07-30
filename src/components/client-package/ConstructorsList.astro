@@ -1,16 +1,7 @@
 ---
 import ParameterList from './ParameterList.astro';
 import DescriptionBlock from './DescriptionBlock.astro';
-
-interface Constructor {
-  description?: string;
-  name?: string;
-  params?: Array<{
-    name: string;
-    type: string;
-    description?: string;
-  }>;
-}
+import type { Constructor } from '../../schemas/client-package';
 
 interface Props {
   constructors?: Constructor[];

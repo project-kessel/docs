@@ -1,12 +1,6 @@
 ---
 import DescriptionBlock from './DescriptionBlock.astro';
-
-interface Property {
-  name: string;
-  type: string;
-  readonly?: boolean;
-  description?: string;
-}
+import type { Property } from '../../schemas/client-package';
 
 interface Props {
   properties?: Property[];

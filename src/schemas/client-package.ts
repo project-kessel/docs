@@ -66,5 +66,10 @@ export const ClientPackageSchema = z
   })
   .passthrough();
 
-/* Helper TypeScript type if you want strongly-typed objects in code */
+/* Helper TypeScript types exported for component use */
 export type ClientPackage = z.infer<typeof ClientPackageSchema>;
+export type Param = z.infer<typeof ParamSchema>;
+export type Constructor = z.infer<typeof ConstructorSchema>;
+export type Property = z.infer<typeof PropertySchema>;
+export type MethodLike = z.infer<typeof MethodLikeSchema>;
+export type Class = z.infer<typeof ClassSchema>;

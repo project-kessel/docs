@@ -2,51 +2,10 @@
 import ConstructorsList from './ConstructorsList.astro';
 import PropertiesList from './PropertiesList.astro';
 import MethodsList from './MethodsList.astro';
-
-interface ClassData {
-  name: string;
-  description?: string;
-  constructors?: Array<{
-    description?: string;
-    name?: string;
-    params?: Array<{
-      name: string;
-      type: string;
-      description?: string;
-    }>;
-  }>;
-  properties?: Array<{
-    name: string;
-    type: string;
-    readonly?: boolean;
-    description?: string;
-  }>;
-  methods?: Array<{
-    name: string;
-    description?: string;
-    params?: Array<{
-      name: string;
-      type: string;
-      description?: string;
-    }>;
-    returns?: string;
-    async?: boolean;
-  }>;
-  statics?: Array<{
-    name: string;
-    description?: string;
-    params?: Array<{
-      name: string;
-      type: string;
-      description?: string;
-    }>;
-    returns?: string;
-    async?: boolean;
-  }>;
-}
+import type { Class } from '../../schemas/client-package';
 
 interface Props {
-  classData: ClassData;
+  classData: Class;
 }
 
 const { classData } = Astro.props;
