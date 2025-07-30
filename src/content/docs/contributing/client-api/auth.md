@@ -3,10 +3,10 @@ title: "Package: auth"
 docType: client-package
 package:
   name: auth
-  description: Package for utility methods or middleware specific to gRPC and therefore only coupled to gRPC versions, not to a service API version.
+  description: Package for authentication abstractions not specific to protocol.
   classes:
     - name: OAuth2ClientCredentials
-      description: Encapsulates OAuth2 client credentials for gRPC channel authentication following google-auth-* library patterns.
+      description: Encapsulates OAuth2 client credentials, following google-auth-* library patterns.
       constructors:
         - description: Creates OAuth2 client credentials for gRPC authentication
           params:
@@ -19,9 +19,6 @@ package:
             - name: clientSecret
               type: string
               description: The OAuth2 client secret
-            - name: scopes
-              type: string[]
-              description: Optional list of OAuth2 scopes to request
       methods:
         - name: getCallCredentials
           description: Returns gRPC CallCredentials configured with OAuth2 authentication

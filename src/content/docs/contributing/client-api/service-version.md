@@ -1,20 +1,22 @@
 ---
-title: "{service}.{major_version}"
+title: "Package: {service}.{major_version}"
 docType: client-package
 package:
-  name: "{service}.{major_version}"
-  description: Package for code specific to service and API version. Contains generated client code and version-specific utilities.
+  description: >
+    Package for code specific to service and API version. Contains generated client code and version-specific utilities.
+
+    ## Testing
   classes:
     - name: StubBuilder
       description: >
         Builder for constructing a stub following best practices and defaults. Constructors reference an explicit "default" configuration which clients are recommended to use.
       constructors:
-        - description: Creates a new ClientBuilder with default configuration
+        - description: Creates a new ClientBuilder with default configuration for secure endpoints. Requires credentials.
           name: withDefaultsSecure
           params:
             - name: target
               type: string
-
+              description: The target URI for routing and discovery.
         - description: Creates a ClientBuilder from a Configuration object
           params:
             - name: config
@@ -64,27 +66,4 @@ package:
             - name: authConfig
               type: AuthConfig
               description: Authentication configuration
-      properties:
-        - name: serverAddress
-          type: string
-          description: The gRPC server address
-        - name: authConfig
-          type: AuthConfig
-          description: Authentication configuration
-          readonly: true
-        - name: tlsEnabled
-          type: boolean
-          description: Whether TLS is enabled for the connection
-  types:
-    - enum: AuthMethod
-      description: Supported authentication methods
-      values:
-        - oauth2
-        - bearer
-        - none
-  errors:
-    - name: ConfigurationError
-      description: Thrown when client configuration is invalid
-    - name: ConnectionError
-      description: Thrown when unable to establish connection to the server
 ---

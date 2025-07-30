@@ -1,26 +1,55 @@
 ---
 import type { ClientPackage } from "../schemas/client-package";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkRehype from "remark-rehype";
+import rehypeStringify from "rehype-stringify";
 
 interface Props {
   package: ClientPackage;
 }
 
 const { package: pkg } = Astro.props;
+
+// Helper function to render markdown descriptions
+const renderDescription = async (description: string) => {
+  try {
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkRehype)
+      .use(rehypeStringify);
+
+    const result = await processor.process(description);
+    return String(result);
+  } catch (error) {
+    // Fallback to plain text if markdown rendering fails
+    console.warn("Failed to render markdown:", error);
+    return `<p>${description}</p>`;
+  }
+};
+
+// Pre-render main description only
+const renderedMainDescription = pkg?.description
+  ? await renderDescription(pkg.description)
+  : undefined;
 ---
 
-{pkg?.description && <p>{pkg.description}</p>}
+<!-- Main Package Description -->{
+  renderedMainDescription && <Fragment set:html={renderedMainDescription} />
+}
 
+<!-- Types Section -->
 {
   pkg.types && (
     <>
       <h2 id="types">Types</h2>
-      {pkg.types.map((t) => (
-        <section id={`type-${t.enum}`} class="mb-4">
-          <h3>{t.enum}</h3>
-          {t.description && <p>{t.description}</p>}
+      {pkg.types.map((type) => (
+        <section id={`type-${type.enum}`} class="mb-4">
+          <h3>{type.enum}</h3>
+          {type.description && <p>{type.description}</p>}
           <ul>
-            {t.values.map((v) => (
-              <li>{v}</li>
+            {type.values.map((value) => (
+              <li>{value}</li>
             ))}
           </ul>
         </section>
@@ -29,36 +58,40 @@ const { package: pkg } = Astro.props;
   )
 }
 
+<!-- Classes Section -->
 {
   pkg.classes && (
     <>
       <h2 id="classes">Classes</h2>
-      {pkg.classes.map((c) => (
-        <section id={`class-${c.name}`} class="mb-4">
-          <h3>{c.name}</h3>
-          {c.description && <p>{c.description}</p>}
+      {pkg.classes.map((classItem) => (
+        <section id={`class-${classItem.name}`} class="mb-4">
+          <h3>{classItem.name}</h3>
+          {classItem.description && <p>{classItem.description}</p>}
 
-          {c.constructors && (
+          {/* Constructors */}
+          {classItem.constructors && (
             <>
               <h4>Constructors</h4>
               <ul>
-                {c.constructors.map((constructor) => (
+                {classItem.constructors.map((constructor) => (
                   <li>
                     <code>
                       {constructor.name
-                        ? `${c.name}.${constructor.name}`
-                        : c.name}
+                        ? `${classItem.name}.${constructor.name}`
+                        : classItem.name}
                     </code>
                     (
                     {constructor.params?.map((param, idx) => (
                       <>
                         {idx > 0 && ", "}
-                        {param.name}: {param.type}
+                        <code>{param.name}</code>: <code>{param.type}</code>
                       </>
                     ))}
                     )
                     {constructor.description && (
-                      <> — {constructor.description}</>
+                      <div class="mt-1 ml-4 text-sm text-gray-600 dark:text-gray-400">
+                        {constructor.description}
+                      </div>
                     )}
                   </li>
                 ))}
@@ -66,59 +99,82 @@ const { package: pkg } = Astro.props;
             </>
           )}
 
-          {c.properties && (
+          {/* Properties */}
+          {classItem.properties && (
             <>
               <h4>Properties</h4>
               <ul>
-                {c.properties.map((p) => (
+                {classItem.properties.map((property) => (
                   <li>
-                    <code>{p.name}</code>: <code>{p.type}</code>
-                    {p.readonly ? " (readonly)" : ""}
-                    {p.description && <> — {p.description}</>}
+                    <code>{property.name}</code>: <code>{property.type}</code>
+                    {property.readonly && " (readonly)"}
+                    {property.description && (
+                      <div class="mt-1 ml-4 text-sm text-gray-600 dark:text-gray-400">
+                        {property.description}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
             </>
           )}
 
-          {c.methods && (
+          {/* Methods */}
+          {classItem.methods && (
             <>
               <h4>Methods</h4>
               <ul>
-                {c.methods.map((m) => (
+                {classItem.methods.map((method) => (
                   <li>
-                    <code>{m.name}</code>
-                    {m.async ? " async" : ""}(
-                    {m.params?.map((param, idx) => (
+                    <code>{method.name}</code>
+                    {method.async && <code> async</code>}(
+                    {method.params?.map((param, idx) => (
                       <>
                         {idx > 0 && ", "}
-                        {param.name}: {param.type}
+                        <code>{param.name}</code>: <code>{param.type}</code>
                       </>
                     ))}
-                    ){m.returns ? <>: {m.returns}</> : ""}
-                    {m.description && <> — {m.description}</>}
+                    {method.returns && (
+                      <>
+                        : <code>{method.returns}</code>
+                      </>
+                    )}
+                    {method.description && (
+                      <div class="mt-1 ml-4 text-sm text-gray-600 dark:text-gray-400">
+                        {method.description}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
             </>
           )}
 
-          {c.statics && (
+          {/* Static Methods */}
+          {classItem.statics && (
             <>
               <h4>Static Methods</h4>
               <ul>
-                {c.statics.map((s) => (
+                {classItem.statics.map((staticMethod) => (
                   <li>
-                    <code>{s.name}</code>
-                    {s.async ? " async" : ""}(
-                    {s.params?.map((param, idx) => (
+                    <code>{staticMethod.name}</code>
+                    {staticMethod.async && <code> async</code>}(
+                    {staticMethod.params?.map((param, idx) => (
                       <>
                         {idx > 0 && ", "}
-                        {param.name}: {param.type}
+                        <code>{param.name}</code>: <code>{param.type}</code>
                       </>
                     ))}
-                    ){s.returns ? <>: {s.returns}</> : ""}
-                    {s.description && <> — {s.description}</>}
+                    {staticMethod.returns && (
+                      <>
+                        : <code>{staticMethod.returns}</code>
+                      </>
+                    )}
+                    {staticMethod.description && (
+                      <div class="mt-1 ml-4 text-sm text-gray-600 dark:text-gray-400">
+                        {staticMethod.description}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -130,23 +186,32 @@ const { package: pkg } = Astro.props;
   )
 }
 
+<!-- Functions Section -->
 {
   pkg.functions && (
     <>
       <h2 id="functions">Functions</h2>
       <ul>
-        {pkg.functions.map((f) => (
+        {pkg.functions.map((func) => (
           <li>
-            <code>{f.name}</code>
-            {f.async ? " async" : ""}(
-            {f.params?.map((param, idx) => (
+            <code>{func.name}</code>
+            {func.async && <code> async</code>}(
+            {func.params?.map((param, idx) => (
               <>
                 {idx > 0 && ", "}
-                {param.name}: {param.type}
+                <code>{param.name}</code>: <code>{param.type}</code>
               </>
             ))}
-            ){f.returns ? <>: {f.returns}</> : ""}
-            {f.description && <> — {f.description}</>}
+            {func.returns && (
+              <>
+                : <code>{func.returns}</code>
+              </>
+            )}
+            {func.description && (
+              <div class="mt-1 ml-4 text-sm text-gray-600 dark:text-gray-400">
+                {func.description}
+              </div>
+            )}
           </li>
         ))}
       </ul>
@@ -154,15 +219,20 @@ const { package: pkg } = Astro.props;
   )
 }
 
+<!-- Errors Section -->
 {
   pkg.errors && (
     <>
       <h2 id="errors">Errors</h2>
       <ul>
-        {pkg.errors.map((e) => (
+        {pkg.errors.map((error) => (
           <li>
-            <code>{e.name}</code>
-            {e.description && <> — {e.description}</>}
+            <code>{error.name}</code>
+            {error.description && (
+              <div class="mt-1 ml-4 text-sm text-gray-600 dark:text-gray-400">
+                {error.description}
+              </div>
+            )}
           </li>
         ))}
       </ul>

@@ -91,7 +91,14 @@ export default defineConfig({
         {
           label: "Contributing",
           collapsed: true,
-          autogenerate: { directory: 'contributing' }
+          items: [
+            'contributing/documentation',
+            'contributing/client-libraries',
+            {
+              label: "Client API Reference",
+              autogenerate: { directory: 'contributing/client-api' }
+            }
+          ]
         },
         {
           label: "For Red Hatters",
