@@ -1,0 +1,20 @@
+---
+interface Param {
+  name: string;
+  type: string;
+  description?: string;
+}
+
+interface Props {
+  params?: Param[];
+}
+
+const { params } = Astro.props;
+---
+
+{params?.map((param, idx) => (
+  <>
+    {idx > 0 && ", "}
+    <code>{param.name}</code>: <code>{param.type}</code>
+  </>
+))}

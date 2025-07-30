@@ -1,0 +1,31 @@
+---
+import DescriptionBlock from './DescriptionBlock.astro';
+
+interface Property {
+  name: string;
+  type: string;
+  readonly?: boolean;
+  description?: string;
+}
+
+interface Props {
+  properties?: Property[];
+}
+
+const { properties } = Astro.props;
+---
+
+{properties && (
+  <>
+    <h4>Properties</h4>
+    <ul>
+      {properties.map((property) => (
+        <li>
+          <code>{property.name}</code>: <code>{property.type}</code>
+          {property.readonly && " (readonly)"}
+          <DescriptionBlock description={property.description} />
+        </li>
+      ))}
+    </ul>
+  </>
+)}

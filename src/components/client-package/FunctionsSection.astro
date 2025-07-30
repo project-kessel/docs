@@ -1,0 +1,30 @@
+---
+import ParameterList from './ParameterList.astro';
+import DescriptionBlock from './DescriptionBlock.astro';
+import type { ClientPackage } from '../../schemas/client-package';
+
+interface Props {
+  functions?: ClientPackage['functions'];
+}
+
+const { functions } = Astro.props;
+---
+
+{functions && (
+  <>
+    <h2 id="functions">Functions</h2>
+    <ul>
+      {functions.map((func) => (
+        <li>
+          <code>{func.name}</code>
+          {func.async && <code> async</code>}
+          (<ParameterList params={func.params} />)
+          {func.returns && (
+            <>: <code>{func.returns}</code></>
+          )}
+          <DescriptionBlock description={func.description} />
+        </li>
+      ))}
+    </ul>
+  </>
+)}
