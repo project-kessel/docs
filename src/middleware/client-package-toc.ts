@@ -20,7 +20,7 @@ function injectChild(items: TocItem[], item: TocItem): void {
 
 function generateToC(headings: MarkdownHeading[], title: string, minHeadingLevel: number, maxHeadingLevel: number) {
   const filteredHeadings = headings.filter(({ depth }) => depth >= minHeadingLevel && depth <= maxHeadingLevel);
-  const toc: Array<TocItem> = [{ depth: 2, slug: 'overview', text: title, children: [] }];
+  const toc: Array<TocItem> = [{ depth: 2, slug: '_top', text: 'Overview', children: [] }];
   for (const heading of filteredHeadings) {
     injectChild(toc, { ...heading, children: [] });
   }
@@ -29,7 +29,7 @@ function generateToC(headings: MarkdownHeading[], title: string, minHeadingLevel
 
 /**
  * Middleware to generate table of contents headings for client-package pages.
- * This replaces the default markdown headings with structured headings based on
+ * This augments the default markdown headings with structured headings based on
  * the ClientPackageDescription component's output.
  */
 export async function clientPackageTocMiddleware(
@@ -51,16 +51,20 @@ export async function clientPackageTocMiddleware(
 
   // Generate headings using component functions
   // This makes it easier to keep heading generation logic in sync with the component.
-  const headings = generatePackageHeadings(pkg);
+  const packageHeadings = generatePackageHeadings(pkg);
 
-  // Replace the headings in the route data
-  starlightRoute.headings = headings;
+  // Combine existing headings (from markdown content) with package headings
+  const existingHeadings = starlightRoute.headings || [];
+  const combinedHeadings = [...existingHeadings, ...packageHeadings];
 
-  // Regenerate the TOC with the new headings
-  if (starlightRoute.toc && headings.length > 0) {
+  // Update the headings in the route data with combined headings
+  starlightRoute.headings = combinedHeadings;
+
+  // Regenerate the TOC with the combined headings
+  if (starlightRoute.toc && combinedHeadings.length > 0) {
     const title = frontmatter.title;
     const newToc = generateToC(
-      headings,
+      combinedHeadings,
       title,
       starlightRoute.toc.minHeadingLevel,
       starlightRoute.toc.maxHeadingLevel

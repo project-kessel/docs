@@ -54,7 +54,6 @@ const FunctionsArraySchema = z.array(FunctionSchema);
 
 export const ClientPackageSchema = z
   .object({
-    description: Description,
     classes: ClassesArraySchema.optional(),
     functions: FunctionsArraySchema.optional(),
   })

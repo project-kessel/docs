@@ -1,9 +1,5 @@
 ---
 import type { ClientPackage } from "../schemas/client-package";
-import { unified } from "unified";
-import remarkParse from "remark-parse";
-import remarkRehype from "remark-rehype";
-import rehypeStringify from "rehype-stringify";
 import ClassesSection, {
   generateClassesSectionHeadings,
 } from "./client-package/ClassesSection.astro";
@@ -28,33 +24,10 @@ export function generatePackageHeadings(pkg: ClientPackage): MarkdownHeading[] {
 
   return headings;
 }
-
-// Helper function to render markdown descriptions
-const renderDescription = async (description: string) => {
-  try {
-    const processor = unified()
-      .use(remarkParse)
-      .use(remarkRehype)
-      .use(rehypeStringify);
-
-    const result = await processor.process(description);
-    return String(result);
-  } catch (error) {
-    // Fallback to plain text if markdown rendering fails
-    console.warn("Failed to render markdown:", error);
-    return `<p>${description}</p>`;
-  }
-};
-
-// Pre-render main description only
-const renderedMainDescription = pkg?.description
-  ? await renderDescription(pkg.description)
-  : undefined;
 ---
 
-<!-- Main Package Description -->{
-  renderedMainDescription && <Fragment set:html={renderedMainDescription} />
-}
-
+<!-- Main Package Description from slot content -->
+<slot />
+<hr />
 <ClassesSection classes={pkg.classes} />
 <FunctionsSection functions={pkg.functions} />
