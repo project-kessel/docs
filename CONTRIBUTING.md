@@ -40,3 +40,9 @@ All commands are run from the root of the project, from a terminal:
 ## Writing documentation
 
 See [Writing documentation](src/content/docs/contributing/documentation.mdx).
+
+## Internal documentation
+
+This repository can be forked to augment with internal deployment documentation. [config-overlay.mjs](config-overlay.mjs) is designed to be overridden by forks in order to modify the sidebar for the inclusion of e.g. internal documentation.
+
+Keep this in mind when making changes to this repository–note which repository you are working in. Inside the fork, you MUST not modify files which come from the public docs repository. In the public docs repository, care must be taken when modifying explicitly shared and overriden files, like `config-overlay.mjs`.
