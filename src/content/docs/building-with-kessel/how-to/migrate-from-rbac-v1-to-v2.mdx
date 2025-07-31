@@ -359,12 +359,12 @@ The following steps enable authentication with Kessel so that it can be validate
    Run `oc edit cm inventory-api-config` to edit the kessel-inventory configuration ConfigMap and in the editor update the authn section like this:
 
 	```yaml
-			authn:
-				oidc:
-					authn-server-url: https://sso.stage.redhat.com/auth/realms/redhat-external
-					client-id: foo
-					skip-client-id-check: true
-					insecure-client: false
+	    authn:
+	      oidc:
+	        authn-server-url: https://sso.stage.redhat.com/auth/realms/redhat-external
+	        client-id: foo
+	        skip-client-id-check: true
+	        insecure-client: false
 	```
 
 
