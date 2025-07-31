@@ -7,30 +7,31 @@ package:
       description: >-
         Credentials class implementing the OAuth 2.0 *Client Credentials* grant.
         Retrieves and refreshes access tokens from a **direct** OAuth 2.0 token
-        endpoint (`token_url`) using the *Client Credentials* grant. Designed to
-        integrate with `google-auth`’s credentials interface.
+        endpoint (`token_url`) using the *Client Credentials* grant. 
       constructors:
         - description: Initialize the credential helper.
           params:
             - { name: client_id,     type: string, description: OAuth 2.0 client identifier }
             - { name: client_secret, type: string, description: OAuth 2.0 client secret }
-            - { name: token_url, type: string, description: OAuth 2.0 token endpoint URL }
-      properties:
-        - { name: token,  type: string,   description: Access token returned by the IdP }
-        - { name: expiry, type: datetime, description: UTC expiry timestamp of the current token }
+            - { name: token_endpoint, type: string, description: OAuth 2.0 token endpoint URL }
       methods:
+        - name: getToken
+          description: |
+            Preferred method for obtaining a token. Returns the cached token if it does not expire
+            in the next 5 minutes (300 seconds) or loads a new one, caching it prior to returning it.
+            It must be thread safe.
         - name: refresh
-          description: Fetch a fresh access token and update `token` / `expiry`.
-          params:
-            - { name: request, type: google.auth.transport.requests.Request, description: Unused transport request object required by google-auth }
+          description: Fetch a new access token.
+          returns: RefreshTokenResponse
+    - name: RefreshTokenResponse
+      description: Parsed token data
+      properties:
+        - { name: access_token, type: string, description: OAuth 2.0 token }
+        - { name: expire_in, type: integer, description: Number of seconds the token will be valid for }
     - name: OIDCDiscoveryMetadata
       description: Parsed OIDC discovery document exposing useful endpoints.
       properties:
         - { name: token_endpoint, type: string, description: OAuth 2.0 token endpoint URL advertised by the provider }
-
-  errors:
-    - { name: ValueError, description: Raised when required configuration is missing or malformed }
-    - { name: IOError,   description: Raised when OIDC discovery fails due to network issues }
 
   # ──────────────────── OIDC discovery helpers ────────────────────
 
