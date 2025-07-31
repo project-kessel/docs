@@ -301,10 +301,96 @@ The application should add the following configuration options for Kessel:
 The ClowdApp template should also be updated accordingly to enable environment-specific configuration.
 See [Config Manager’s configuration](https://github.com/RedHatInsights/config-manager/pull/242/commits/a937c5f283fb3acb2931cf2713173f220cd1bd11#diff-55823110ec960277fef2e07ee7d7c8f310baff0bd789e5b27160a1ccb6b4a81e) for an example.
 
-## Validate the changes
+## Validate the changes in the ephemeral environment
 
-[Recommended] [insights-service-deployer](https://github.com/project-kessel/insights-service-deployer/tree/main) is a feature-rich script for end-to-end deployment and configuration of Kessel and, optionally, HBI in the ephemeral environment with all of the required dependencies (e.g. Kafka), data setup, and configuration for RBAC integration..
-If for some reason you need something more minimal than the Insights Service Deployer, you can also just deploy the core Kessel Inventory component using bonfire. See [Ephemeral Deployments with Kessel Inventory API](https://project-kessel.pages.redhat.com/docs-internal/using-kessel/inventory-api/ephemeral/).
+The following section describes how to deploy Kessel and related services in an ephemeral environment and use them to validate the changes made to an integrating application.
+
+### Deploying Kessel and related services
+
+[insights-service-deployer](https://github.com/project-kessel/insights-service-deployer/tree/main) should be used to deploy Kessel and other related services in an ephemeral environment.
+Follow the instructions in the [README](https://github.com/project-kessel/insights-service-deployer/blob/main/README.md) to reserve a namespace and set up the environment variables and then run the following command to deploy Kessel and related services and seed them with sample data:
+
+	```shell
+	./deploy.sh deploy_with_hbi_demo
+	```
+
+### Enabling authentication
+
+Applications using Kessel for access control need to authenticate with Kessel and RBAC in stage/prod environments.
+The following steps enable authentication with Kessel so that it can be validated in the ephemeral environment.
+
+1. Navigate to [Identity & Access Management in Stage](https://console.stage.redhat.com/iam/service-accounts) to create a new service account and obtain the client ID and client secret.
+   This is a service account that our application will use to authenticate with Kessel and RBAC.
+
+1. Start a new shell and store the client ID and client secret as environment variables:
+
+	```shell
+	CLIENT_ID=<client_id>
+	CLIENT_SECRET=<client_secret>
+	```
+
+1. Next, we need to determine the subject (`sub` claim) for the service account:
+
+	```shell
+	SUB=$(curl -s https://sso.stage.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token -d grant_type=client_credentials -d client_id=${CLIENT_ID} -d client_secret=${CLIENT_SECRET} | jq -r '.access_token' | awk -F. '{print $2}' | base64 --decode 2>/dev/null | jq -r '.sub')
+	```
+
+1. Now, we'll update the configuration of the RBAC service to enable authentication.
+   With the RBAC service running in the ephemeral environment (see steps above), run the following command to grant unlimited access to the service account created in the first step:
+
+	```shell
+	oc create secret generic system-users --dry-run=client -o yaml --from-literal="system-users.json={
+	\"$SUB\": {
+		\"admin\": true,
+		\"is_service_account\": true,
+		\"allow_any_org\": true
+	}
+	}" | kubectl apply -f -
+	```
+
+1. Next, reconfigure the RBAC service to validate access tokens using Stage SSO:
+
+	```shell
+	oc get clowdapp rbac -o json | \
+		jq '(.spec.deployments[] | select(.name=="service") | .podSpec.env[] | select(.name=="IT_BYPASS_TOKEN_VALIDATION") | .value) = "False" |
+		(.spec.deployments[] | select(.name=="service") | .podSpec.env[] | select(.name=="IT_SERVICE_HOST") | .value) = "sso.stage.redhat.com"' | \
+		oc apply -f -
+	```
+
+1. Furthermore, we also need to update the Kessel Inventory service configuration to enable authentication.
+   Run `oc edit cm inventory-api-config` to edit the kessel-inventory configuration ConfigMap and in the editor update the authn section like this:
+
+	```yaml
+	    authn:
+	      oidc:
+	        authn-server-url: https://sso.stage.redhat.com/auth/realms/redhat-external
+	        client-id: foo
+	        skip-client-id-check: true
+	        insecure-client: false
+	```
+
+
+1. Finally, restart the Kessel service:
+
+	```shell
+	oc delete pod -l pod=kessel-inventory-api
+	```
+
+### Forwarding ports for local development
+
+With Kessel running in the ephemeral environment, you can forward the ports to enable the application running locally to connect to RBAC and Kessel.
+
+1. Use `oc port-forward svc/rbac-service 8000:8000` to forward port 8000 to the RBAC service
+1. Use `oc port-forward svc/kessel-inventory-api 9091:9000` to forward port 9091 to the Kessel Inventory service
+
+With port forwarding running, you can now configure your application to use the local Kessel and RBAC ports and start it.
+
+For example, for Config Manager, the command to configure and run the application looks like this:
+
+```shell
+go run main.go --log-level trace --kessel-enabled=true --kessel-url=localhost:9091 --kessel-auth-enabled=true --kessel-auth-client-id=${CLIENT_ID} --kessel-auth-client-secret=${CLIENT_SECRET} --kessel-auth-oidc-issuer=https://sso.stage.redhat.com/auth/realms/redhat-external --rbac-url=http://localhost:8000 http-api
+```
+
 
 ## Deploy the changes
 
