@@ -27,7 +27,7 @@ package:
       description: Parsed token data
       properties:
         - { name: access_token, type: string, description: OAuth 2.0 token }
-        - { name: expire_in, type: integer, description: Number of seconds the token will be valid for }
+        - { name: expires_in, type: integer, description: Number of seconds the token will be valid for }
     - name: OIDCDiscoveryMetadata
       description: Parsed OIDC discovery document exposing useful endpoints.
       properties:
