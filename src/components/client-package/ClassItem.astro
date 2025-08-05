@@ -2,6 +2,7 @@
 import ConstructorsList from "./ConstructorsList.astro";
 import PropertiesList from "./PropertiesList.astro";
 import MethodsList from "./MethodsList.astro";
+import MarkdownDescription from "./MarkdownDescription.astro";
 import type { Class } from "../../schemas/client-package";
 import type { MarkdownHeading } from "astro";
 
@@ -25,7 +26,7 @@ export function generateClassHeadings(classData: Class): MarkdownHeading[] {
 
 <section id={`class-${classData.name}`} class="mb-4">
   <h3>{classData.name}</h3>
-  {classData.description && <p>{classData.description}</p>}
+  <MarkdownDescription description={classData.description} />
 
   <ConstructorsList
     constructors={classData.constructors}

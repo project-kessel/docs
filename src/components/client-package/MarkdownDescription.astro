@@ -1,0 +1,20 @@
+---
+import { marked } from "marked";
+
+interface Props {
+  description?: string;
+}
+
+const { description } = Astro.props;
+
+const htmlContent = description ? await marked.parse(description) : "";
+---
+
+{
+  description && (
+    <div
+      class="mt-1 ml-4 text-sm text-gray-600 dark:text-gray-400"
+      set:html={htmlContent}
+    />
+  )
+}
