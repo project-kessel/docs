@@ -51,7 +51,8 @@ package:
           description: OAuth 2.0 token endpoint URL advertised by the provider
   functions:
     - name: fetchOIDCDiscovery
-      description: Retrieve and parse the OIDC discovery document for the given issuer. See https://openid.net/specs/openid-connect-discovery-1_0.html.
+      description: >
+        Retrieve and parse the OIDC discovery document for the given issuer. See: https://openid.net/specs/openid-connect-discovery-1_0.html
       params:
         - name: issuer_url
           type: string
