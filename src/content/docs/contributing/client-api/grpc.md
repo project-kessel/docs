@@ -1,6 +1,14 @@
 ---
 title: "Package: grpc"
 docType: client-package
+package:
+  functions:
+    - name: oauth2CallCredentials
+      description: Create gRPC `CallCredentials` which leverage the provided OAuth2 Client Credentials flow, for use inside gRPC channel construction. See: https://grpc.io/docs/guides/auth/#credential-types
+      params:
+        - name: credentials
+          type: OAuth2ClientCredentials
+      returns: grpc.CallCredentials
 ---
 
 Package for utility methods or middleware specific to gRPC and are therefore only coupled to gRPC versions, not to a service API version (e.g. generic gRPC authentication middleware code goes here).
