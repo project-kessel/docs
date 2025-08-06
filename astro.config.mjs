@@ -3,6 +3,8 @@ import starlight from "@astrojs/starlight";
 import starlightOpenAPI, { openAPISidebarGroups } from 'starlight-openapi'
 import tailwindcss from "@tailwindcss/vite";
 
+export const PUBLIC_BASE_URL = 'https://github.com/project-kessel/docs/edit/main/';
+
 // Import config overlay functions with fallback for when file doesn't exist
 let applyTopLevelOverlay, applyStarlightOverlay;
 try {
@@ -23,7 +25,7 @@ const baseStarlightConfig = {
   ],
   editLink: {
     // This enables the "edit" link on the bottom of each page which directly links to contribute
-    baseUrl: 'https://github.com/project-kessel/docs/edit/main/',
+    baseUrl: PUBLIC_BASE_URL,
   },
   plugins: [
     starlightOpenAPI([
