@@ -4,3 +4,35 @@ sidebar:
   order: 10
 ---
 
+Kessel is a platform for building integrated, multi-tenant services which share consistent resource organization and access semantics. It facilitates consistency through a common access model, resource correlation, resource relationships, service discovery, and events. In these explanations we'll break down what that means and how that is achieved.
+
+At its most basic level, Kessel is essentially a specialized database of resources and relationships between them. A <i>Resource</i> is any entity with a distinct identity that you can model with [JSON schema](https://json-schema.org/).
+
+Like a database, all Kessel knows about without schema is a <i>meta-model</i> of resource types. These are defined via schema. Schema specifies a resource type's valid representations, reporters, correlation keys, and relationships. We'll explain each of these in turn.
+
+## A resource, in multiple perspectives
+
+Consider a machine. Machines are managed or observed by many different services. Some services control the content available to the operating system. Some services observe or enforce security policies. Some services report metrics. Each of these services have their own state and their own identifiers for the machine. They may create their own objects in order to model different aspects of it.
+
+A <i>representation</i> is the state of a resource according to a particular services. A service that reports resource representations to Kessel is called a <i>reporter</i>.
+
+In the machine example, an observability tool could be one reporter, and a content management tool could be another reporter.
+
+When there are multiple representations of the same resource, we need some way to tell that two resource representations are _actually_ two representations about the _same_ resource. This is done with <i>correlation</i>–attributes which are used as keys to identify a resource. Sometimes, this is trivial. When a cloud provides a metadata document for a machine, the platform gives everyone a consistent and single identifier for a resource. We are not always so fortunate.
+
+Each representation has its own attribute schema, defined in JSON schema.
+
+Reporting representation updates is a kind of [event](../events). The other kind of event is a deletion. A delete event occurs when a reporter reports the resource deleted, either because they have deleted it themselves, or no longer wish it to be integrated.
+
+Schemas are also used to tell which JSON property refers to a [relationship](../relationships-permissions) with another resource.
+
+## Why share representations with Kessel?
+
+There are exactly and only three reasons to share attributes or relationships with Kessel:
+
+1. **You need them for access control**. The typical example of this is a [Workspace](../tenancy) relationship. But, attributes may also be used for access control (e.g. a role can grant access only to Kubernetes clusters of a certain status)  
+2. **You need them for correlation**. When there are multiple reporters about the same resource, there must be some way to correlate that these are the same resource (e.g. external cluster ID associated with an OpenShift cluster).  
+3. **Other services or users need them in events or queries for integration**. If a service needs to react to a change, including that state in inventory tracks and publishes its changes so other services can react to it e.g. by listening to a Kafka topic.
+
+
+
