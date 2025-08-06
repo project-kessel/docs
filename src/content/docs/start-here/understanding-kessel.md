@@ -11,7 +11,7 @@ In many such resource-based APIs, you often need to design for several things:
 
 - Organization of resources among customers, or departments or projects (or environments, etc) within a customer
 - Sharing of resources between users
-- Entilement of services or content to tenants (e.g. for paid features or content)
+- Entitlement of services or content to tenants (e.g. for paid features or content)
 - Tracking changes to resources over time, so users can query history
 - Publishing changes to resources, so integrated workloads can react to them and automate workflows
 
