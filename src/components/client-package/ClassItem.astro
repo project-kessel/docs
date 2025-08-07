@@ -25,7 +25,16 @@ export function generateClassHeadings(classData: Class): MarkdownHeading[] {
 ---
 
 <section id={`class-${classData.name}`} class="mb-4">
-  <h3>{classData.name}</h3>
+  <h3 id={`class-${classData.name}`} class="group">
+    {classData.name}
+    <a
+      href={`#class-${classData.name}`}
+      aria-label="Link to this heading"
+      class="ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-gray-600 no-underline hover:no-underline"
+    >
+      ¶
+    </a>
+  </h3>
   <MarkdownDescription description={classData.description} />
 
   <ConstructorsList
