@@ -12,9 +12,6 @@ const htmlContent = description ? await marked.parse(description) : "";
 
 {
   description && (
-    <div
-      class="mt-1 ml-4 text-sm text-gray-600 dark:text-gray-400"
-      set:html={htmlContent}
-    />
+    <div class="mt-1 text-gray-800 dark:text-gray-300" set:html={htmlContent} />
   )
 }
