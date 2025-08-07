@@ -5,7 +5,7 @@ package:
   classes:
     - name: ClientBuilder
       description: | 
-        A builder for constructing gRPC [stubs](https://en.wikipedia.org/wiki/Stub_(distributed_computing)) 
+        A builder for constructing [stubs](https://en.wikipedia.org/wiki/Stub_(distributed_computing)) 
         for the package's service and version with "out of the box" defaults. 
         These defaults configure recommending settings and integrations defined by the Kessel team.
 
@@ -31,15 +31,16 @@ package:
               description: | 
                 The target URI for routing and discovery.
 
-                The scheme of the URI determines how name resolution works. `dns://` will use
+                For gRPC< the scheme of the URI determines how name resolution works. `dns://` will use
                 DNS to resolve the host name to IPs and service configuration (from a TXT record).
 
                 Omitting a scheme is valid. In that case, "dns" is used.
 
-                For more information, see the gRPC docs.
+                For more information, see the [gRPC docs](https://grpc.io/docs/what-is-grpc/).
 
-                The builder should begin with the following defaults:
-                - test
+                **Implementation note:** There are currently no other defaults that should be set
+                outside of gRPC defaults, in general. Python should enable use of single-threaded
+                unary streams when asyncio is not used.
       methods:
         - name: oauth2ClientCredentials
           description: Configures CallCredentials using the OAuth2 Client Credentials grant.
@@ -57,6 +58,13 @@ package:
                 The gRPC `ChannelCredentials` to use for each channel connection. This authenticates the server (e.g. through TLS) and, optionally, your client (e.g. through mutual TLS).
 
                 If not explicitly provided, the ClientBuilder MUST default to using TLS to authenticate the server with the runtime's default trust bundle and TLS configuration.
+        - name: useAsyncio
+          languages: ["python"]
+          description: test thisasdfasdf
+        - name: build
+          description: Constructs the generated stub for the package's service and version.
+          returns:
+            name: "{Service}Stub"
 ---
 
 Package for code specific to service and API version, where `{service}` is the separately versioned service (e.g. "inventory" or "rbac") and `{major_version}` is the major revision of the API (e.g. v1beta2, v1, v2), such as generated client code.
