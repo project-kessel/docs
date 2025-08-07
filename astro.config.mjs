@@ -117,7 +117,7 @@ const baseStarlightConfig = {
     MarkdownContent: './src/components/MarkdownContent.astro',
   },
   routeMiddleware: './src/middleware/client-package-toc.ts',
-  customCss: ["./src/tailwind.css", "./src/custom.css"],
+  customCss: ["./src/styles/global.css"],
 };
 
 // Apply Starlight overlay to the Starlight configuration
