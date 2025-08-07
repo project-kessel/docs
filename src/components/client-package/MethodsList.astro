@@ -1,5 +1,6 @@
 ---
 import ParameterList from "./ParameterList.astro";
+import ParameterDetail from "./ParameterDetail.astro";
 import DescriptionBlock from "./DescriptionBlock.astro";
 import type { MethodLike } from "../../schemas/client-package";
 
@@ -27,6 +28,7 @@ const { methods, title } = Astro.props;
               </>
             )}
             <DescriptionBlock description={method.description} />
+            <ParameterDetail params={method.params} />
           </li>
         ))}
       </ul>

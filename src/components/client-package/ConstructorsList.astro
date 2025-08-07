@@ -1,5 +1,6 @@
 ---
 import ParameterList from "./ParameterList.astro";
+import ParameterDetail from "./ParameterDetail.astro";
 import DescriptionBlock from "./DescriptionBlock.astro";
 import type { Constructor } from "../../schemas/client-package";
 
@@ -25,6 +26,7 @@ const { constructors, className } = Astro.props;
             </code>
             (<ParameterList params={constructor.params} />)
             <DescriptionBlock description={constructor.description} />
+            <ParameterDetail params={constructor.params} />
           </li>
         ))}
       </ul>

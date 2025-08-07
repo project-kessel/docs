@@ -1,0 +1,38 @@
+---
+import type { Param } from "../../schemas/client-package";
+import DescriptionBlock from "./DescriptionBlock.astro";
+
+interface Props {
+  params?: Param[];
+}
+
+const { params } = Astro.props;
+---
+
+{
+  // Show details only for parameters that have a description or default value
+  params && params.some((p) => p.description || p.default) && (
+    <dl>
+      {params
+        .filter((param) => param.description || param.default)
+        .map((param) => (
+          <>
+            <dt>
+              <code>{param.name}</code>: <code>{param.type}</code>
+              {param.default && (
+                <>
+                  {" "}
+                  = <code>{param.default}</code>
+                </>
+              )}
+            </dt>
+            {param.description && (
+              <dd>
+                <DescriptionBlock description={param.description} />
+              </dd>
+            )}
+          </>
+        ))}
+    </dl>
+  )
+}

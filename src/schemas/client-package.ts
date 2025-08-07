@@ -9,6 +9,7 @@ const ParamSchema = z.object({
   name: z.string(),
   type: z.string(),
   description: Description,
+  optional: z.boolean().optional(),
 });
 
 /** ───────────────────── Class section ───────────────────── */

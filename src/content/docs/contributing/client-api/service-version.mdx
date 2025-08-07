@@ -3,20 +3,34 @@ title: "Package: {service}.{major_version}"
 docType: client-package
 package:
   classes:
-    - name: ExampleClass
-      description: Example description.
+    - name: ClientBuilder
+      description: > 
+        A builder for constructing gRPC stubs for the package's service and version.
+
+        `ClientBuilder`s have a set of `defaults` specific to the service version which configure
+        recommending settings defined by the Kessel team. It is recommended to use these defaults.
+        See the `withDefaults` constructor.
       constructors:
-        - description: Example constructor description.
-          name: withDefaultsSecure
+        - name: withDefaults
+          description: Start a builder with recommended defaults for the package.
           params:
             - name: target
               type: string
               description: The target URI for routing and discovery.
-        - description: Creates a ClientBuilder from a Configuration object
+            - name: callCredentials
+              type: CallCredentials
+              description: >
+                The gRPC `CallCredentials` to use for each RPC. `CallCredentials` authenticate your client to the Kessel server.
+                See `oauth2CallCredentials` in the `grpc` package.
+            - name: channelCredentials
+              type: ChannelCredentials
+              default: see description
+        - description: >
+            Start a builder with gRPC stock configuration settings. This is NOT recommended,
+            but available for power-users.
           params:
-            - name: config
-              type: Configuration
-              description: Configuration object with common settings (server address, auth, etc.)
+            - name: target
+              type: string
       methods:
         - name: exampleMethod
           description: Does exampley things.

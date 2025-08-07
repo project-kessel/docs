@@ -9,7 +9,7 @@ package:
       params:
         - name: credentials
           type: OAuth2ClientCredentials
-      returns: grpc.CallCredentials
+      returns: CallCredentials
 ---
 
 Package for utility methods or middleware specific to gRPC and are therefore only coupled to gRPC versions, not to a service API version (e.g. generic gRPC authentication middleware code goes here).

@@ -1,5 +1,6 @@
 ---
 import ParameterList from "./ParameterList.astro";
+import ParameterDetail from "./ParameterDetail.astro";
 import DescriptionBlock from "./DescriptionBlock.astro";
 import type { MethodLike } from "../../schemas/client-package";
 import type { MarkdownHeading } from "astro";
@@ -44,6 +45,7 @@ export function generateFunctionsHeadings(
               </>
             )}
             <DescriptionBlock description={func.description} />
+            <ParameterDetail params={func.params} />
           </li>
         ))}
       </ul>
