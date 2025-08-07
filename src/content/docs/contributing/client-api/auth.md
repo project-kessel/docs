@@ -32,7 +32,7 @@ package:
           params:
             - name: forceRefresh
               type: boolean
-              default: "false"
+              optional: true
               description: "Set to true to bypass the cache and fetch a new token (default: false). NOT RECOMMENDED. Force with caution!"
           returns: RefreshTokenResponse
     - name: RefreshTokenResponse

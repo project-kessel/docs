@@ -4,7 +4,7 @@ docType: client-package
 package:
   classes:
     - name: ClientBuilder
-      description: > 
+      description: | 
         A builder for constructing gRPC stubs for the package's service and version.
 
         `ClientBuilder`s have a set of `defaults` specific to the service version which configure
@@ -19,12 +19,17 @@ package:
               description: The target URI for routing and discovery.
             - name: callCredentials
               type: CallCredentials
-              description: >
+              description: |
                 The gRPC `CallCredentials` to use for each RPC. `CallCredentials` authenticate your client to the Kessel server.
+                
                 See `oauth2CallCredentials` in the `grpc` package.
             - name: channelCredentials
               type: ChannelCredentials
-              default: see description
+              optional: true
+              description: |
+                The gRPC `ChannelCredentials` to use for each channel connection. This authenticates the server (e.g. through TLS) and, optionally, your client (e.g. through mutual TLS).
+
+                If not explicitly provided, the ClientBuilder MUST default to using TLS to authenticate the server with the runtime's default trust bundle and TLS configuration.
         - description: >
             Start a builder with gRPC stock configuration settings. This is NOT recommended,
             but available for power-users.

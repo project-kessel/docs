@@ -12,7 +12,11 @@ const { params } = Astro.props;
   params?.map((param, idx) => (
     <>
       {idx > 0 && ", "}
-      <code>{param.name}</code>: <code>{param.type}</code>
+      <code>
+        {param.name}
+        {param.optional ? "?" : ""}
+      </code>
+      : <code>{param.type}</code>
     </>
   ))
 }

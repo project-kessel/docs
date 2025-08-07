@@ -11,20 +11,18 @@ const { params } = Astro.props;
 
 {
   // Show details only for parameters that have a description or default value
-  params && params.some((p) => p.description || p.default) && (
+  params && params.some((p) => p.description) && (
     <dl>
       {params
-        .filter((param) => param.description || param.default)
+        .filter((param) => param.description)
         .map((param) => (
           <>
             <dt>
-              <code>{param.name}</code>: <code>{param.type}</code>
-              {param.default && (
-                <>
-                  {" "}
-                  = <code>{param.default}</code>
-                </>
-              )}
+              <code>
+                {param.name}
+                {param.optional ? "?" : ""}
+              </code>
+              : <code>{param.type}</code>
             </dt>
             {param.description && (
               <dd>

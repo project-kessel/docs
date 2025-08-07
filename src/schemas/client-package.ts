@@ -6,10 +6,10 @@ const Description = z.string().optional();
 
 /* Parameter in a constructor, method, or function */
 const ParamSchema = z.object({
-  name: z.string(),
   type: z.string(),
+  name: z.string(),
   description: Description,
-  optional: z.boolean().optional(),
+  optional: z.boolean().optional().default(false),
 });
 
 /** ───────────────────── Class section ───────────────────── */
