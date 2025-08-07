@@ -22,7 +22,16 @@ const { params } = Astro.props;
                 {param.name}
                 {param.optional ? "?" : ""}
               </code>
-              : <code>{param.type}</code>
+              :{" "}
+              {typeof param.type === "string" ? (
+                <code>{param.type}</code>
+              ) : param.type.link ? (
+                <a href={param.type.link}>
+                  <code>{param.type.name}</code>
+                </a>
+              ) : (
+                <code>{param.type.name}</code>
+              )}
             </dt>
             {param.description && (
               <dd>

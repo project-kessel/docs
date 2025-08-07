@@ -12,13 +12,16 @@ package:
         - description: Initialize the credential helper.
           params:
             - name: clientId
-              type: string
+              type:
+                name: string
               description: OAuth 2.0 client identifier
             - name: clientSecret
-              type: string
+              type:
+                name: string
               description: OAuth 2.0 client secret
             - name: tokenEndpoint
-              type: string
+              type:
+                name: string
               description: OAuth 2.0 token endpoint URL
       methods:
         - name: getToken
@@ -31,24 +34,30 @@ package:
             Implementations must be thread-safe.
           params:
             - name: forceRefresh
-              type: boolean
+              type:
+                name: boolean
               optional: true
               description: "Set to true to bypass the cache and fetch a new token (default: false). NOT RECOMMENDED. Force with caution!"
-          returns: RefreshTokenResponse
+          returns:
+            name: RefreshTokenResponse
+            link: "#class-RefreshTokenResponse"
     - name: RefreshTokenResponse
       description: Parsed token data
       properties:
         - name: accessToken
-          type: string
+          type:
+            name: string
           description: OAuth 2.0 token
         - name: expiresAt
-          type: Datetime
+          type:
+            name: Datetime
           description: Token's expiration time.
     - name: OIDCDiscoveryMetadata
       description: Parsed OIDC discovery document exposing useful endpoints.
       properties:
         - name: tokenEndpoint
-          type: string
+          type:
+            name: string
           description: OAuth 2.0 token endpoint URL advertised by the provider
   functions:
     - name: fetchOIDCDiscovery
@@ -56,9 +65,12 @@ package:
         Retrieve and parse the OIDC discovery document for the given issuer. See: https://openid.net/specs/openid-connect-discovery-1_0.html
       params:
         - name: issuerUrl
-          type: string
+          type:
+            name: string
           description: Base URL of the OIDC issuer
-      returns: OIDCDiscoveryMetadata
+      returns:
+        name: OIDCDiscoveryMetadata
+        link: "#class-OIDCDiscoveryMetadata"
 ---
 
 The `auth` package defines generic authentication abstractions that are usable across multiple protocols.

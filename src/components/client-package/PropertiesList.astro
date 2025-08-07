@@ -16,7 +16,16 @@ const { properties } = Astro.props;
       <ul>
         {properties.map((property) => (
           <li>
-            <code>{property.name}</code>: <code>{property.type}</code>
+            <code>{property.name}</code>:{" "}
+            {typeof property.type === "string" ? (
+              <code>{property.type}</code>
+            ) : property.type.link ? (
+              <a href={property.type.link}>
+                <code>{property.type.name}</code>
+              </a>
+            ) : (
+              <code>{property.type.name}</code>
+            )}
             {property.readonly && " (readonly)"}
             <DescriptionBlock description={property.description} />
           </li>

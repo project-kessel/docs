@@ -5,44 +5,42 @@ package:
   classes:
     - name: ClientBuilder
       description: | 
-        A builder for constructing gRPC stubs for the package's service and version.
+        A builder for constructing gRPC [stubs](https://en.wikipedia.org/wiki/Stub_(distributed_computing)) for the package's service and version with "out of the box" 
+        defaults. These defaults configure recommending settings defined by the Kessel team.
 
-        `ClientBuilder`s have a set of `defaults` specific to the service version which configure
-        recommending settings defined by the Kessel team. It is recommended to use these defaults.
-        See the `withDefaults` constructor.
+        If you would like more control over channel or stub construction, use the gRPC API directly.
       constructors:
-        - name: withDefaults
-          description: Start a builder with recommended defaults for the package.
+        - description: Start a builder using the provided `target` URI.
           params:
             - name: target
-              type: string
-              description: The target URI for routing and discovery.
-            - name: callCredentials
-              type: CallCredentials
-              description: |
-                The gRPC `CallCredentials` to use for each RPC. `CallCredentials` authenticate your client to the Kessel server.
-                
-                See `oauth2CallCredentials` in the `grpc` package.
+              type:
+                name: string
+              description: | 
+                The target URI for routing and discovery.
+
+                The scheme of the URI determines how name resolution works. `dns://` will use
+                DNS to resolve the host name to IPs and service configuration (from a TXT record).
+
+                Omitting a scheme is valid. In that case, "dns" is used.
+
+                For more information, see the gRPC docs.
+      methods:
+        - name: oauth2ClientCredentials
+          description: Configures CallCredentials using the OAuth2 Client Credentials grant.
+          params:
+            - name: oauth2ClientCredentials
+              type:
+                name: OAuth2ClientCredentials
+                link: ../auth/#class-OAuth2ClientCredentials
             - name: channelCredentials
-              type: ChannelCredentials
+              type:
+                name: ChannelCredentials
+                link: https://grpc.io/docs/guides/auth/#credential-types
               optional: true
               description: |
                 The gRPC `ChannelCredentials` to use for each channel connection. This authenticates the server (e.g. through TLS) and, optionally, your client (e.g. through mutual TLS).
 
                 If not explicitly provided, the ClientBuilder MUST default to using TLS to authenticate the server with the runtime's default trust bundle and TLS configuration.
-        - description: >
-            Start a builder with gRPC stock configuration settings. This is NOT recommended,
-            but available for power-users.
-          params:
-            - name: target
-              type: string
-      methods:
-        - name: exampleMethod
-          description: Does exampley things.
-          params:
-            - name: aParam
-              type: string
-              description: It's a parameter.
 ---
 
 import { Aside } from "@astrojs/starlight/components"

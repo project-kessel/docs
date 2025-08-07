@@ -4,9 +4,16 @@ import { z } from "zod";
 
 const Description = z.string().optional();
 
+/* ───────────────────── Type representation ───────────────────── */
+
+const TypeSchema = z.object({
+  name: z.string(),
+  link: z.string().optional(),
+});
+
 /* Parameter in a constructor, method, or function */
 const ParamSchema = z.object({
-  type: z.string(),
+  type: TypeSchema,
   name: z.string(),
   description: Description,
   optional: z.boolean().optional().default(false),
@@ -22,7 +29,7 @@ const ConstructorSchema = z.object({
 
 const PropertySchema = z.object({
   name: z.string(),
-  type: z.string(),
+  type: TypeSchema,
   readonly: z.boolean().optional(),
   description: Description,
 });
@@ -31,7 +38,7 @@ const MethodLikeSchema = z.object({
   name: z.string(),
   description: Description,
   params: z.array(ParamSchema).optional(),
-  returns: z.string().optional(),
+  returns: TypeSchema.optional(),
   async: z.boolean().optional(),
 });
 
@@ -67,3 +74,4 @@ export type Constructor = z.infer<typeof ConstructorSchema>;
 export type Property = z.infer<typeof PropertySchema>;
 export type MethodLike = z.infer<typeof MethodLikeSchema>;
 export type Class = z.infer<typeof ClassSchema>;
+export type Type = z.infer<typeof TypeSchema>;

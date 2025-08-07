@@ -41,7 +41,16 @@ export function generateFunctionsHeadings(
             (<ParameterList params={func.params} />)
             {func.returns && (
               <>
-                : <code>{func.returns}</code>
+                :{" "}
+                {typeof func.returns === "string" ? (
+                  <code>{func.returns}</code>
+                ) : func.returns?.link ? (
+                  <a href={func.returns.link}>
+                    <code>{func.returns.name}</code>
+                  </a>
+                ) : (
+                  <code>{func.returns?.name}</code>
+                )}
               </>
             )}
             <DescriptionBlock description={func.description} />

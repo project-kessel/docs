@@ -24,7 +24,16 @@ const { methods, title } = Astro.props;
             (<ParameterList params={method.params} />)
             {method.returns && (
               <>
-                : <code>{method.returns}</code>
+                :{" "}
+                {typeof method.returns === "string" ? (
+                  <code>{method.returns}</code>
+                ) : method.returns?.link ? (
+                  <a href={method.returns.link}>
+                    <code>{method.returns.name}</code>
+                  </a>
+                ) : (
+                  <code>{method.returns?.name}</code>
+                )}
               </>
             )}
             <DescriptionBlock description={method.description} />
