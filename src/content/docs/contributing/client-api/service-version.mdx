@@ -16,7 +16,7 @@ package:
 
         ```python
         inventory = inventory.v1beta2.ClientBuilder(target)
-            .oauth2ClientCredentials(OAuth2ClientCredentials(
+            .oauth2ClientAuthenticated(OAuth2ClientCredentials(
                 client_id="example",
                 client_secret="example",
                 token_url="example.com/token))
