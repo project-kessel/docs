@@ -58,13 +58,23 @@ package:
                 The gRPC `ChannelCredentials` to use for each channel connection. This authenticates the server (e.g. through TLS) and, optionally, your client (e.g. through mutual TLS).
 
                 If not explicitly provided, the ClientBuilder MUST default to using TLS to authenticate the server with the runtime's default trust bundle and TLS configuration.
-        - name: useAsyncio
-          languages: ["python"]
-          description: test thisasdfasdf
         - name: build
-          description: Constructs the generated stub for the package's service and version.
+          description: Constructs the generated stub for the package's service and version following the builder's configuration.
           returns:
             name: "{Service}Stub"
+        - name: buildAsync
+          languages: ["Python", "JavaScript"]
+          returns:
+            name: "(Async) {Service}Stub"
+          description: | 
+            Like build, but constructs a stub with async primitives.
+
+            For JavaScript, this returns a Promise-based stub API.
+
+            For Python, this returns a stub using asyncio.
+
+            **Implementation note:** Wrapping the generated stubs is not ideal, but if it has to be done,
+            ensure the wrapper is consistent with the stub API.
 ---
 
 Package for code specific to service and API version, where `{service}` is the separately versioned service (e.g. "inventory" or "rbac") and `{major_version}` is the major revision of the API (e.g. v1beta2, v1, v2), such as generated client code.

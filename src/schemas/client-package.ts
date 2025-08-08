@@ -40,6 +40,9 @@ const MethodLikeSchema = z.object({
   params: z.array(ParamSchema).optional(),
   returns: TypeSchema.optional(),
   async: z.boolean().optional(),
+  // Optional list of languages this method/function applies to. If omitted,
+  // the method/function is considered applicable to all languages.
+  languages: z.array(z.string()).optional(),
 });
 
 const ClassSchema = z.object({

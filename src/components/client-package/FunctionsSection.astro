@@ -4,6 +4,7 @@ import ParameterDetail from "./ParameterDetail.astro";
 import DescriptionBlock from "./DescriptionBlock.astro";
 import type { MethodLike } from "../../schemas/client-package";
 import type { MarkdownHeading } from "astro";
+import { Badge } from "@astrojs/starlight/components";
 
 interface Props {
   functions?: MethodLike[];
@@ -52,6 +53,19 @@ export function generateFunctionsHeadings(
                   <code>{func.returns?.name}</code>
                 )}
               </>
+            )}
+            {func.languages && func.languages.length > 0 && (
+              <div
+                class="mt-1 flex items-center gap-2"
+                title="This function is implemented only in these SDK languages"
+              >
+                <span class="text-xs text-gray-600 dark:text-gray-400">
+                  Only in
+                </span>
+                {func.languages.map((lang) => (
+                  <Badge text={lang} size="small" />
+                ))}
+              </div>
             )}
             <DescriptionBlock description={func.description} />
             <ParameterDetail params={func.params} />
