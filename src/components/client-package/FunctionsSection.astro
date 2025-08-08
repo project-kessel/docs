@@ -1,8 +1,10 @@
 ---
 import ParameterList from "./ParameterList.astro";
+import ParameterDetail from "./ParameterDetail.astro";
 import DescriptionBlock from "./DescriptionBlock.astro";
 import type { MethodLike } from "../../schemas/client-package";
 import type { MarkdownHeading } from "astro";
+import LanguagesIndicator from "./LanguagesIndicator.astro";
 
 interface Props {
   functions?: MethodLike[];
@@ -40,10 +42,19 @@ export function generateFunctionsHeadings(
             (<ParameterList params={func.params} />)
             {func.returns && (
               <>
-                : <code>{func.returns}</code>
+                :{" "}
+                {func.returns.link ? (
+                  <a href={func.returns.link}>
+                    <code>{func.returns.name}</code>
+                  </a>
+                ) : (
+                  <code>{func.returns.name}</code>
+                )}
               </>
             )}
+            <LanguagesIndicator languages={func.languages} context="function" />
             <DescriptionBlock description={func.description} />
+            <ParameterDetail params={func.params} />
           </li>
         ))}
       </ul>

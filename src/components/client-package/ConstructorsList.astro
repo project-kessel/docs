@@ -1,7 +1,9 @@
 ---
 import ParameterList from "./ParameterList.astro";
+import ParameterDetail from "./ParameterDetail.astro";
 import DescriptionBlock from "./DescriptionBlock.astro";
 import type { Constructor } from "../../schemas/client-package";
+import LanguagesIndicator from "./LanguagesIndicator.astro";
 
 interface Props {
   constructors?: Constructor[];
@@ -24,7 +26,12 @@ const { constructors, className } = Astro.props;
                 : className}
             </code>
             (<ParameterList params={constructor.params} />)
+            <LanguagesIndicator
+              languages={constructor.languages}
+              context="constructor"
+            />
             <DescriptionBlock description={constructor.description} />
+            <ParameterDetail params={constructor.params} />
           </li>
         ))}
       </ul>

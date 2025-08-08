@@ -4,11 +4,19 @@ import { z } from "zod";
 
 const Description = z.string().optional();
 
+/* ───────────────────── Type representation ───────────────────── */
+
+const TypeSchema = z.object({
+  name: z.string(),
+  link: z.string().optional(),
+});
+
 /* Parameter in a constructor, method, or function */
 const ParamSchema = z.object({
+  type: TypeSchema,
   name: z.string(),
-  type: z.string(),
   description: Description,
+  optional: z.boolean().optional().default(false),
 });
 
 /** ───────────────────── Class section ───────────────────── */
@@ -17,11 +25,14 @@ const ConstructorSchema = z.object({
   description: Description,
   name: z.string().optional(),
   params: z.array(ParamSchema).optional(),
+  // Optional list of languages this constructor applies to. If omitted,
+  // the constructor is considered applicable to all languages.
+  languages: z.array(z.string()).optional(),
 });
 
 const PropertySchema = z.object({
   name: z.string(),
-  type: z.string(),
+  type: TypeSchema,
   readonly: z.boolean().optional(),
   description: Description,
 });
@@ -30,8 +41,11 @@ const MethodLikeSchema = z.object({
   name: z.string(),
   description: Description,
   params: z.array(ParamSchema).optional(),
-  returns: z.string().optional(),
+  returns: TypeSchema.optional(),
   async: z.boolean().optional(),
+  // Optional list of languages this method/function applies to. If omitted,
+  // the method/function is considered applicable to all languages.
+  languages: z.array(z.string()).optional(),
 });
 
 const ClassSchema = z.object({
@@ -66,3 +80,4 @@ export type Constructor = z.infer<typeof ConstructorSchema>;
 export type Property = z.infer<typeof PropertySchema>;
 export type MethodLike = z.infer<typeof MethodLikeSchema>;
 export type Class = z.infer<typeof ClassSchema>;
+export type Type = z.infer<typeof TypeSchema>;
