@@ -1,0 +1,86 @@
+---
+title: Authenticate with Python SDK
+description: How to configure OAuth 2.0 authentication with the kessel-sdk-py client library.
+---
+### TODO: Make generic for all SDKs
+
+The kessel-sdk-py supports OAuth 2.0 Client Credentials flow for authentication with Kessel services. The `OAuth2ClientCredentials` class provides automatic token management with built-in refreshing.
+
+:::note[Installation]
+To use authentication features, install the SDK with auth dependencies: `pip install "kessel-sdk[auth]"`
+:::
+
+## OAuth Configuration Options
+
+The SDK supports two ways to configure OAuth 2.0 authentication:
+
+### Option 1: OIDC Discovery
+
+Use this approach when your OAuth provider supports OIDC discovery. The SDK provides a `fetch_oidc_discovery` function to discover the token endpoint:
+
+```python
+import grpc
+import google.auth.transport.requests
+import google.auth.transport.grpc
+from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
+
+# network call occurs here
+discovery = fetch_oidc_discovery(ISSUER_URL)
+token_endpoint = discovery.token_endpoint
+
+# Create OAuth2 credentials with the discovered token endpoint
+auth_credentials = OAuth2ClientCredentials(
+    client_id="your-client-id",
+    client_secret="your-client-secret",
+    token_url=token_endpoint,
+)
+```
+
+### Option 2: Direct Token URL
+
+Use this approach when your OAuth provider doesn't support OIDC discovery, or when you want explicit control over the token endpoint:
+
+```python
+from kessel.auth import OAuth2ClientCredentials
+
+# Configure OAuth credentials with direct token URL
+auth_credentials = OAuth2ClientCredentials(
+    client_id="your-client-id", 
+    client_secret="your-client-secret",
+    token_url="https://auth.example.com/oauth/token",  # Direct token endpoint
+)
+```
+
+## Using OAuth Credentials with gRPC
+
+Once you have your credentials configured (using either approach above), create an authenticated gRPC channel:
+
+```python
+from kessel.grpc import oauth2_call_credentials
+
+call_credentials = oauth2_call_credentials(auth_credentials)
+
+# Combine with TLS for secure channel
+ssl_credentials = grpc.ssl_channel_credentials()
+channel_credentials = grpc.composite_channel_credentials(ssl_credentials, call_credentials)
+
+# Create secure authenticated channel
+with grpc.secure_channel("localhost:9000", channel_credentials) as channel:
+    stub = inventory_service_pb2_grpc.KesselInventoryServiceStub(channel)
+    # authentication is handled automatically
+    response = stub.Check(request)
+```
+
+## OAuth Features
+
+- **Automatic Token Management**: Tokens are automatically fetched and refreshed
+- **Flexible Configuration**: Support for both OIDC discovery and direct token URLs
+- **Lazy Initialization**: Network calls are deferred until the first token request
+- **Token Caching**: Tokens are cached and reused until expiration
+- **Error Handling**: Automatic retry on authentication failures
+
+## Related Documentation
+
+- [Client SDK Specification](/contributing/client-libraries/) - For SDK developers
+- [API Reference: auth package](/contributing/client-api/auth/) - Detailed API documentation
+- [API Reference: grpc package](/contributing/client-api/grpc/) - gRPC utilities documentation
