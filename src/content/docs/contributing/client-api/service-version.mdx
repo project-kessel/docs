@@ -31,16 +31,17 @@ package:
               description: | 
                 The target URI for routing and discovery.
 
-                For gRPC< the scheme of the URI determines how name resolution works. `dns://` will use
+                For gRPC the scheme of the URI determines how name resolution works. `dns://` will use
                 DNS to resolve the host name to IPs and service configuration (from a TXT record).
 
                 Omitting a scheme is valid. In that case, "dns" is used.
 
                 For more information, see the [gRPC docs](https://grpc.io/docs/what-is-grpc/).
 
-                **Implementation note:** There are currently no other defaults that should be set
-                outside of gRPC defaults, in general. Python should enable use of single-threaded
-                unary streams when asyncio is not used.
+                **Default configuration:** 
+                - Use runtime-default TLS configuration for channel credential
+                - Python should enable use of single-threaded unary streams when asyncio is not used
+                - Otherwise, uses stock gRPC defaults (note: *no* keep alive)
       methods:
         - name: oauth2ClientAuthenticated
           description: Configures CallCredentials using the OAuth2 Client Credentials grant.

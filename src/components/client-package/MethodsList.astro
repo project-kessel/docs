@@ -2,8 +2,8 @@
 import ParameterList from "./ParameterList.astro";
 import ParameterDetail from "./ParameterDetail.astro";
 import DescriptionBlock from "./DescriptionBlock.astro";
+import LanguagesIndicator from "./LanguagesIndicator.astro";
 import type { MethodLike } from "../../schemas/client-package";
-import { Badge } from "@astrojs/starlight/components";
 
 interface Props {
   methods?: MethodLike[];
@@ -37,19 +37,7 @@ const { methods, title } = Astro.props;
                 )}
               </>
             )}
-            {method.languages && method.languages.length > 0 && (
-              <div
-                class="mt-1 flex items-center gap-2"
-                title="This method is implemented only in these SDK languages"
-              >
-                <span class="text-xs text-gray-600 dark:text-gray-400">
-                  Only in
-                </span>
-                {method.languages.map((lang) => (
-                  <Badge text={lang} size="small" />
-                ))}
-              </div>
-            )}
+            <LanguagesIndicator languages={method.languages} context="method" />
             <DescriptionBlock description={method.description} />
             <ParameterDetail params={method.params} />
           </li>

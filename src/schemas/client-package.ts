@@ -25,6 +25,9 @@ const ConstructorSchema = z.object({
   description: Description,
   name: z.string().optional(),
   params: z.array(ParamSchema).optional(),
+  // Optional list of languages this constructor applies to. If omitted,
+  // the constructor is considered applicable to all languages.
+  languages: z.array(z.string()).optional(),
 });
 
 const PropertySchema = z.object({
