@@ -26,14 +26,12 @@ const { methods, title } = Astro.props;
             {method.returns && (
               <>
                 :{" "}
-                {typeof method.returns === "string" ? (
-                  <code>{method.returns}</code>
-                ) : method.returns?.link ? (
+                {method.returns.link ? (
                   <a href={method.returns.link}>
                     <code>{method.returns.name}</code>
                   </a>
                 ) : (
-                  <code>{method.returns?.name}</code>
+                  <code>{method.returns.name}</code>
                 )}
               </>
             )}

@@ -43,14 +43,12 @@ export function generateFunctionsHeadings(
             {func.returns && (
               <>
                 :{" "}
-                {typeof func.returns === "string" ? (
-                  <code>{func.returns}</code>
-                ) : func.returns?.link ? (
+                {func.returns.link ? (
                   <a href={func.returns.link}>
                     <code>{func.returns.name}</code>
                   </a>
                 ) : (
-                  <code>{func.returns?.name}</code>
+                  <code>{func.returns.name}</code>
                 )}
               </>
             )}
