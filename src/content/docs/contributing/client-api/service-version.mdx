@@ -42,13 +42,15 @@ package:
                 outside of gRPC defaults, in general. Python should enable use of single-threaded
                 unary streams when asyncio is not used.
       methods:
-        - name: oauth2ClientCredentials
+        - name: oauth2ClientAuthenticated
           description: Configures CallCredentials using the OAuth2 Client Credentials grant.
           params:
             - name: oauth2ClientCredentials
               type:
                 name: OAuth2ClientCredentials
                 link: ../auth/#class-OAuth2ClientCredentials
+              description: |
+                  Configures the OAuth2 Client Credentials grant in order to authenticate the client for each remote procedure call (RPC). Tokens are refreshed automatically when needed.
             - name: channelCredentials
               type:
                 name: ChannelCredentials
@@ -58,6 +60,36 @@ package:
                 The gRPC `ChannelCredentials` to use for each channel connection. This authenticates the server (e.g. through TLS) and, optionally, your client (e.g. through mutual TLS).
 
                 If not explicitly provided, the ClientBuilder MUST default to using TLS to authenticate the server with the runtime's default trust bundle and TLS configuration.
+        - name: authenticated
+          params: 
+            - name: callCredentials
+              type: 
+                name: CallCredentials
+                link: https://grpc.io/docs/guides/auth/#credential-types
+              optional: true
+              description: |
+                The gRPC `CallCredentials` to use for each remote procedure call (RPC). This authenticates the client to the server.
+
+                See `oauth2ClientAuthenticated` to authenticate using OAuth2 Client Credentials.
+            - name: channelCredential
+              type: 
+                name: ChannelCredentials
+                link: https://grpc.io/docs/guides/auth/#credential-types
+              optional: true
+              description: See above `ChannelCredentials` param description.
+        - name: unauthenticated
+          params:
+            - name: channelCredential
+              type: 
+                name: ChannelCredentials
+                link: https://grpc.io/docs/guides/auth/#credential-types
+              optional: true
+              description: See above `ChannelCredentials` param description.
+          description: |
+            Configures only a `ChannelCredentials` to secure communication with the server.
+            The client is not authenticated.
+        - name: insecure
+          description: Configures insecure communication with the server (e.g. for testing). Neither the client nor the server is authenticated.
         - name: build
           description: Constructs the generated stub for the package's service and version following the builder's configuration.
           returns:
