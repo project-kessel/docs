@@ -1,0 +1,24 @@
+---
+import { Badge } from "@astrojs/starlight/components";
+
+interface Props {
+  languages?: string[];
+  context?: string; // used in the title attribute
+}
+
+const { languages, context = "item" } = Astro.props as Props;
+---
+
+{
+  languages && languages.length > 0 && (
+    <div
+      class="mt-1 flex items-center gap-2"
+      title={`This ${context} is implemented only in these SDK languages`}
+    >
+      <span class="text-xs text-gray-600 dark:text-gray-400">Only in</span>
+      {languages.map((lang) => (
+        <Badge text={lang} size="small" />
+      ))}
+    </div>
+  )
+}

@@ -1,0 +1,45 @@
+---
+import type { Param } from "../../schemas/client-package";
+import DescriptionBlock from "./DescriptionBlock.astro";
+
+interface Props {
+  params?: Param[];
+}
+
+const { params } = Astro.props;
+---
+
+{
+  // Show details only for parameters that have a description or default value
+  params && params.some((p) => p.description) && (
+    <dl>
+      {params
+        .filter((param) => param.description)
+        .map((param) => (
+          <>
+            <dt>
+              <code>
+                {param.name}
+                {param.optional ? "?" : ""}
+              </code>
+              :{" "}
+              {typeof param.type === "string" ? (
+                <code>{param.type}</code>
+              ) : param.type.link ? (
+                <a href={param.type.link}>
+                  <code>{param.type.name}</code>
+                </a>
+              ) : (
+                <code>{param.type.name}</code>
+              )}
+            </dt>
+            {param.description && (
+              <dd>
+                <DescriptionBlock description={param.description} />
+              </dd>
+            )}
+          </>
+        ))}
+    </dl>
+  )
+}
