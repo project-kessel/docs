@@ -192,7 +192,7 @@ In the meantime, we will show you how to make calls using grpcurl
 <Tabs syncKey="language">
   <TabItem label="Python">
   ```bash
-  pip install whatever-the-package-is
+  pip install kessel-sdk 
   ```
   </TabItem>
   <TabItem label="Go">
@@ -231,9 +231,50 @@ kessel.inventory.v1beta2.KesselInventoryService.ReportResource
   </TabItem>
   <TabItem label="Python">
   ```python
-  import kessel
+import grpc
+from kessel.inventory.v1beta2 import (
+    inventory_service_pb2_grpc,
+    check_request_pb2,
+    resource_reference_pb2,
+    reporter_reference_pb2,
+    subject_reference_pb2,
+)
 
-  kessel.ReportResource(...)
+# Create gRPC client (insecure for development)
+stub = inventory_service_pb2_grpc.KesselInventoryServiceStub(
+    grpc.insecure_channel("localhost:9000")
+)
+
+# Create subject reference
+subject = subject_reference_pb2.SubjectReference(
+    resource=resource_reference_pb2.ResourceReference(
+        reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
+        resource_id="alice",
+        resource_type="principal"
+    )
+)
+
+# Create resource reference
+resource_ref = resource_reference_pb2.ResourceReference(
+    resource_id="alice_club",
+    resource_type="group",
+    reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
+)
+
+# Check permissions
+try:
+    response = stub.Check(
+        check_request_pb2.CheckRequest(
+            subject=subject,
+            relation="member",
+            object=resource_ref,
+        )
+    )
+    print(f"Permission check result: {response.allowed}")
+except grpc.RpcError as e:
+    print(f"Error: {e.details()}")
+
+
   ```
   </TabItem>
   <TabItem label="Go">
