@@ -4,6 +4,7 @@ description: Step-by-step instructions for installing and running Kessel with yo
 ---
 
 import { Aside, Card, CardGrid, LinkButton, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import SdkExamples from './src/components/SdkExamples.astro';
 
 TODO: Tutorial to run through end to end basic usage of Kessel with very basic demo/toy code, using the client libraries.
 Use the Tabs component to show code examples with different tabs for language (e.g. python vs go).
@@ -192,20 +193,32 @@ In the meantime, we will show you how to make calls using grpcurl
 <Tabs syncKey="language">
   <TabItem label="Python">
   ```bash
-  pip install kessel-sdk 
+  pip install kessel-sdk
   ```
   </TabItem>
   <TabItem label="Go">
   ```bash
-  go mod etc etc
+  go get github.com/project-kessel/kessel-sdk-go
+  ```
+  </TabItem>
+  <TabItem label="Javascript">
+  ```bash
+  npm install @project-kessel/kessel-sdk
+  ```
+  </TabItem>
+  <TabItem label="Ruby">
+  ```bash
+  gem install kessel-sdk
   ```
   </TabItem>
   <TabItem label="Java (Maven)">
+  TODO: Update once we have a Java SDK
   ```xml
   <maven coords></maven coords>
   ```
   </TabItem>
   <TabItem label="Java (Gradle)">
+  TODO: Update once we have a Java SDK
   ```gradle
   gradle coords
   ```
@@ -214,112 +227,8 @@ In the meantime, we will show you how to make calls using grpcurl
 
 ### Report resources
 
-TODO: Add examples for all languages
-
-<Tabs syncKey="language">
-  <TabItem label="grpcurl">
-  ```bash
-  MESSAGE='{"type": "host", "reporterType": "hbi", "reporterInstanceId": "3088be62-1c60-4884-b133-9200542d0b3f","representations": {"metadata": {"localResourceId": "dd1b73b9-3e33-4264-968c-e3ce55b9afec","apiHref": "https://apiHref.com/","consoleHref": "https://www.console.com/","reporterVersion": "2.7.16"},"common": {"workspace_id": "a64d17d0-aec3-410a-acd0-e0b85b22c076"},"reporter": {"insights_inventory_id": "05707922-7b0a-4fe6-982d-6adbc7695b8f"}}}'
-  grpcurl -plaintext -d $MESSAGE \
-localhost: <your local port for inventory> \
-kessel.inventory.v1beta2.KesselInventoryService.ReportResource
-  ```
-  </TabItem>
-  <TabItem label="curl">
-  ```curl
-  ```
-  </TabItem>
-  <TabItem label="Python">
-  ```python
-import grpc
-from kessel.inventory.v1beta2 import (
-    inventory_service_pb2_grpc,
-    check_request_pb2,
-    resource_reference_pb2,
-    reporter_reference_pb2,
-    subject_reference_pb2,
-)
-
-# Create gRPC client (insecure for development)
-stub = inventory_service_pb2_grpc.KesselInventoryServiceStub(
-    grpc.insecure_channel("localhost:9000")
-)
-
-# Create subject reference
-subject = subject_reference_pb2.SubjectReference(
-    resource=resource_reference_pb2.ResourceReference(
-        reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
-        resource_id="alice",
-        resource_type="principal"
-    )
-)
-
-# Create resource reference
-resource_ref = resource_reference_pb2.ResourceReference(
-    resource_id="alice_club",
-    resource_type="group",
-    reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
-)
-
-# Check permissions
-try:
-    response = stub.Check(
-        check_request_pb2.CheckRequest(
-            subject=subject,
-            relation="member",
-            object=resource_ref,
-        )
-    )
-    print(f"Permission check result: {response.allowed}")
-except grpc.RpcError as e:
-    print(f"Error: {e.details()}")
-
-
-  ```
-  </TabItem>
-  <TabItem label="Go">
-  ```go
-  kessel.ReportResource(...)
-  ```
-  </TabItem>
-  <TabItem label="Java">
-  ```java
-  kessel.ReportResource(...)
-  ```
-  </TabItem>
-</Tabs>
+<SdkExamples content="sdk-examples-report-resources" />
 
 ### Enforce access
 
-TODO: Check access
-
-<Tabs syncKey="language">
-  <TabItem label="grpcurl">
-  ```bash
-  MESSAGE='{"object": {"resourceType": "host", "resourceId": "dd1b73b9-3e33-4264-968c-e3ce55b9afec", "reporter": {"type": "hbi", "instanceId": "3088be62-1c60-4884-b133-9200542d0b3f"}}, "relation": "workspace", "subject": {"resource": {"resourceType": "workspace", "resourceId": "a64d17d0-aec3-410a-acd0-e0b85b22c076", "reporter": {"type": "rbac", "instanceId": "3088be62-1c60-4884-b133-9200542d0b3f"}}}}'
-  grpcurl -plaintext -d $MESSAGE \                                                                   
-localhost: <your local port for inventory> \
-kessel.inventory.v1beta2.KesselInventoryService.Check
-  ```
-  </TabItem>
-  <TabItem label="curl">
-  </TabItem>
-  <TabItem label="Python">
-  ```python
-  import kessel
-
-  kessel.Check(...)
-  ```
-  </TabItem>
-  <TabItem label="Go">
-  ```go
-  kessel.Check(...)
-  ```
-  </TabItem>
-  <TabItem label="Java">
-  ```java
-  kessel.Check(...)
-  ```
-  </TabItem>
-</Tabs>
-
+<SdkExamples content="sdk-examples-check" />
