@@ -2,6 +2,7 @@ import { defineCollection } from 'astro:content';
 import { docsSchema } from '@astrojs/starlight/schema';
 import { z } from 'astro:content';
 import { ClientPackageSchema } from './schemas/client-package';
+import {CodeExampleSchema} from "src/schemas/code-example.ts";
 
 const docs = defineCollection({
   schema: docsSchema({
@@ -12,4 +13,13 @@ const docs = defineCollection({
   })
 });
 
-export const collections = { docs };
+const sdkExamples = defineCollection({
+  type: 'content',
+  schema: CodeExampleSchema,
+})
+
+export const collections = {
+  docs,
+  'sdk-examples-check': sdkExamples,
+  'sdk-examples-report-resources': sdkExamples,
+};

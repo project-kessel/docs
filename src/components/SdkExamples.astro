@@ -1,0 +1,24 @@
+---
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import { getCollection } from 'astro:content';
+
+interface Props {
+    content: string;
+}
+
+const { content } = Astro.props;
+
+const unorderedExamples = await getCollection(content);
+const orderedExamples = unorderedExamples.sort((a, b) => a.data.order - b.data.order);
+
+---
+<Tabs syncKey="language">
+    {orderedExamples.map(async example => {
+        const { Content } = await example.render();
+        return (
+            <TabItem label={example.data.language}>
+                <Content />
+            </TabItem>
+        )
+    })}
+</Tabs>
