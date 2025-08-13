@@ -99,12 +99,12 @@ package:
             (Python: Channel, Java: ManagedChannel, Go: Client) and require explicit cleanup to prevent resource leaks.
 
             **Return Value**:
-            - If the client has a `close()` method: return the client directly
-            - If the client lacks a `close()` method: return a tuple/array `[Client, Closeable]` where `Closeable` is the resource that needs cleanup
+            - If the stub has a `close()` method: return the stub directly
+            - If the stub lacks a `close()` method: return a tuple `(Stub, Closeable)` where `Closeable` is the resource that needs cleanup
 
             This pattern ensures consistent resource management across all language implementations.
           returns:
-            name: "{Service}Stub"
+            name: "{Service}Stub (and possibly the channel – see description)"
         - name: buildAsync
           languages: ["Python", "JavaScript"]
           returns:
