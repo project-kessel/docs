@@ -183,8 +183,8 @@ The implementation of [root workspace pattern](https://docs.google.com/document/
 The workspace ID can be obtained from the RBAC service via a REST call:
 
 ```
-GET /v2/workspaces?type=root
-GET /v2/workspaces?type=default
+GET /api/rbac/v2/workspaces/?type=root
+GET /api/rbac/v2/workspaces/?type=default
 ```
 
 The default/root workspace for a given organization is guaranteed to never change and is therefore easily cacheable.
@@ -340,11 +340,11 @@ The following steps enable authentication with Kessel so that it can be validate
 
 	```shell
 	oc create secret generic system-users --dry-run=client -o yaml --from-literal="system-users.json={
-	\"$SUB\": {
-		\"admin\": true,
-		\"is_service_account\": true,
-		\"allow_any_org\": true
-	}
+	  \"$SUB\": {
+	    \"admin\": true,
+	    \"is_service_account\": true,
+	    \"allow_any_org\": true
+	  }
 	}" | kubectl apply -f -
 	```
 
