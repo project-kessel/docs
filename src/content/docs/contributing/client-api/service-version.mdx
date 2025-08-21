@@ -118,6 +118,199 @@ package:
 
             **Implementation note:** Wrapping the generated stubs is not ideal, but if it has to be done,
             ensure the wrapper is consistent with the stub API.
+
+    - name: UserAllowed
+      description: |
+        Enum representing the possible states of user authorization.
+        Used to indicate whether a user is explicitly allowed, denied, or unspecified for a particular operation.
+
+        Example:
+
+        ```python
+        if user_permission == UserAllowed.TRUE:
+            # User is explicitly allowed
+            process_request()
+        elif user_permission == UserAllowed.FALSE:
+            # User is explicitly denied
+            deny_request()
+        else: 
+            # UserAllowed.UNSPECIFIED
+            apply_some_default_policy()
+        ```
+      values:
+        - name: UNSPECIFIED
+          value: 0
+          description: The authorization state is not specified or unknown
+        - name: TRUE
+          value: 1
+          description: The user is explicitly allowed to perform the operation
+        - name: FALSE
+          value: 2
+          description: The user is explicitly denied from performing the operation
+
+  functions:
+    - name: workspace_representation
+      description: |
+        Function to create a RepresentationType for workspace resources.
+        Returns a protobuf RepresentationType configured for RBAC workspace objects.
+
+        Example:
+
+        ```python
+        workspace_type = workspace_representation()
+        ```
+      params: []
+      returns:
+        name: RepresentationType
+        description: A RepresentationType for workspace resources
+
+    - name: role_representation
+      description: |
+        Function to create a RepresentationType for role resources.
+        Returns a protobuf RepresentationType configured for RBAC role objects.
+
+        Example:
+
+        ```python
+        role_type = role_representation()
+        ```
+      params: []
+      returns:
+        name: RepresentationType
+        description: A RepresentationType for role resources
+
+    - name: principal_resource
+      description: |
+        Function to create a ResourceReference for a user principal with domain prefix.
+        Returns a protobuf ResourceReference with the user ID prefixed with "redhat/".
+
+        Example:
+
+        ```python
+        user_principal = principal_resource("user123")
+        ```
+      params:
+        - name: resource_id
+          type:
+            name: string
+          description: The user identifier (will be prefixed with "redhat/")
+      returns:
+        name: ResourceReference
+        description: A ResourceReference for the user principal
+
+    - name: role_resource
+      description: |
+        Function to create a ResourceReference for a role.
+        Returns a protobuf ResourceReference configured for RBAC role resources.
+
+        Example:
+
+        ```python
+        admin_role = role_resource("admin")
+        ```
+      params:
+        - name: resource_id
+          type:
+            name: string
+          description: The role identifier
+      returns:
+        name: ResourceReference
+        description: A ResourceReference for the role
+
+    - name: workspace_resource
+      description: |
+        Function to create a ResourceReference for a workspace.
+        Returns a protobuf ResourceReference configured for RBAC workspace resources.
+
+        Example:
+
+        ```python
+        project_workspace = workspace_resource("project-abc")
+        ```
+      params:
+        - name: resource_id
+          type:
+            name: string
+          description: The workspace identifier
+      returns:
+        name: ResourceReference
+        description: A ResourceReference for the workspace
+
+    - name: principal_resource_for_user_id
+      description: |
+        Creates a ResourceReference for a user principal based on user ID and domain.
+        This function standardizes the creation of principal references for RBAC operations.
+
+        Example:
+
+        ```python
+        user_resource = principal_resource_for_user_id("john.doe", "example.com")
+        ```
+      params:
+        - name: id
+          type:
+            name: string
+          description: The user identifier
+        - name: domain
+          type:
+            name: string
+          description: The domain or organization the user belongs to
+      returns:
+        name: ResourceReference
+        description: A ResourceReference pointing to the user's principal resource
+
+    - name: principal_subject_for_user_id
+      description: |
+        Creates a SubjectReference for a user principal based on user ID and domain.
+        This is a convenience function that wraps principal_resource_for_user_id to create a subject reference.
+
+        Example:
+
+        ```python
+        user_subject = principal_subject_for_user_id("john.doe", "example.com")
+        ```
+      params:
+        - name: id
+          type:
+            name: string
+          description: The user identifier
+        - name: domain
+          type:
+            name: string
+          description: The domain or organization the user belongs to
+      returns:
+        name: SubjectReference
+        description: A SubjectReference for the user's principal
+
+    - name: list_workspaces
+      description: |
+        Lists all workspaces that a subject has a specific relation to.
+        This function queries the inventory service to find workspaces based on the subject's permissions.
+
+        Example:
+
+        ```python
+        user_subject = principal_subject_for_user_id("john.doe", "redhat.com")
+        workspaces = list_workspaces(user_subject, "member", inventory_client)
+        for workspace in workspaces:
+            print(f"User has access to workspace: {workspace.resource.resource_id}")
+        ```
+      params:
+        - name: subject
+          type:
+            name: SubjectReference
+          description: The subject (typically a user principal) to check permissions for
+        - name: relation
+          type:
+            name: string
+          description: The relationship type to check (e.g., "member", "admin", "viewer")
+        - name: inventory
+          type:
+            name: KesselInventoryServiceStub
+          description: The inventory service client stub for making the request
+      returns:
+        name: "AsyncIterator[StreamedListObjectsResponse] | Iterable[StreamedListObjectsResponse]"
+        description: An iterator of workspace objects that the subject has the specified relation to
 ---
 
 Package for code specific to service and API version, where `{service}` is the separately versioned service (e.g. "inventory" or "rbac") and `{major_version}` is the major revision of the API (e.g. v1beta2, v1, v2), such as generated client code.
