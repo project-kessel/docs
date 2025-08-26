@@ -4,36 +4,68 @@ sidebar:
   order: 40
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import { LinkCard } from '@astrojs/starlight/components';
+import { Aside } from "@astrojs/starlight/components";
+import { LinkCard } from "@astrojs/starlight/components";
 
-<Aside title="Under Construction">We are working on improving this documentation, some sections may be missing or incomplete</Aside>
+<Aside title="Under Construction">
+  We are working on improving this documentation, some sections may be missing or incomplete
+</Aside>
 
-This guide provides service providers with general recommendations for reliably replicating data into Kessel. Successful
-integration requires navigating the complexities of distributed systems by selecting appropriate strategies that solve
-for consistency, resiliency, and durability. Depending on what guarantees your system needs, you can expect to face some
-challenges such as the [dual-write problem](https://www.confluent.io/blog/dual-write-problem/), 
-[write skew](https://www.cockroachlabs.com/blog/what-write-skew-looks-like/), and more. This guide should help you 
-understand how to address these challenges and implement a replication strategy that suits your application.
+This guide provides service providers with strategies for reliably replicating data into the Management Fabric. Successful integration requires navigating the complexities of distributed systems by selecting appropriate strategies that solve for consistency, resiliency, and durability. Depending on what guarantees your system needs, you can expect to face some challenges such as the [dual-write problem](https://www.confluent.io/blog/dual-write-problem/), [write skew](https://www.cockroachlabs.com/blog/what-write-skew-looks-like/), and more. This guide will help you understand how to address these challenges and implement a replication strategy that aligns with your application's requirements.
 
-## Using an Outbox
+# Reporting Resources
+
+Reporting resources to the Management Fabric is essential for leveraging its authorization and access control capabilities. A resource represents any business entity that requires access control - orders, customers, products, virtual machines, subscriptions, or any other domain-specific entity. This guide covers approaches for reporting resources, each with distinct trade-offs in terms of consistency, complexity, and infrastructure requirements.
+
+1. **Reporting via API/SDK**
+
+- This is the simplest way to report resources to Kessel
+- Supports immediate visibility of data changes in Kessel
+- Your application must be able to guarantee atomicity, delivery, and order of events when reporting to Kessel
+
+2. **Reporting via Async Messaging (Kafka, Change Data Capture, etc.)**
+
+- This is an alternative way to report resources to Kessel for applications that cannot guarantee delivery or order via
+  plain old API calls from their application.
+- Async operations afford only eventual consistency
+- May require additional infrastructure to setup and maintain
+
+## Reporting via API/SDK
+
+Service providers can report resources directly to Kessel using gRPC API calls or one of the available SDKs for [Go](https://github.com/project-kessel/kessel-sdk-go), [Python](https://github.com/project-kessel/kessel-sdk-py), [Node.js](https://github.com/project-kessel/kessel-sdk-node), or [Ruby](https://github.com/project-kessel/kessel-sdk-ruby). The API schema is available in the [Buf Schema Registry](https://buf.build/project-kessel), with the primary resource reporting endpoint being [`ReportResourceRequest`](https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.ReportResourceRequest). Direct API calls provide immediate visibility of data changes and synchronous error handling, making them ideal for simple integration scenarios. However, your application is responsible for ensuring atomicity, guaranteed delivery, and proper ordering of events - the API itself provides no built-in guarantees for consistency or durability if your application fails between database writes and API calls.
+
+## Reporting via Async Messaging
+
+Asynchronous messaging provides a robust alternative to direct API calls when your application requires decoupled, fault-tolerant data replication. Unlike synchronous API calls that can fail due to network issues, service unavailability, or transient errors, async messaging patterns offer built-in resilience through message persistence, retry mechanisms, and eventual consistency guarantees. This approach is particularly valuable for high-volume applications or those that cannot afford to block business operations while waiting for external service acknowledgments.
+
+### Direct Publishing
+
+Your application can publish resource events directly to a Kessel-owned Kafka topic for resource ingestion. However you will need to be sure your event publishing and saving to your database are done atomically. It may be necessary to implement a pattern like an outbox to help afford this.
+
+### Change Data Capture (CDC)
+
+Change Data Capture is a technique that allows you to capture changes to specific database tables and publish them to a message broker. This is a more robust way to report resources to Kessel for applications that cannot guarantee delivery or order via plain old API calls. This of course comes at the cost of more infrastructure set up and latency. Our recommended CDC tool is [Debezium](https://debezium.io/) which can attach to your database and publishes changes to a Kafka topic.
+
+#### Why Use CDC?
+
 Writing to your database and publishing events to a message broker are two distinct operations on external systems that
-cannot happen in an atomic manner (aka Dual Write Problem). This means that if your application crashes after writing
-to the database but before publishing an asynchronous event, your database and any message consumers may become
-permanently out of sync. The outbox pattern helps solve this problem by writing resource aggregates and messaging events
-within the same database transaction using an outbox table. When coupled with something like
-[Debezium](https://debezium.io/), the outbox table can be used to publish events to a message broker, ensuring that the
-database and messages are always (eventually) in sync.
+cannot happen in an atomic manner in many cases(aka Dual Write Problem). This means that if your application crashes after writing to the database but before publishing an asynchronous event, your database and any message consumers may become permanently out of sync. By using Change Data Capture (CDC) you can ensure that writes to your database are published to a message broker only when the transactions are successfully committed.
+
+## The Outbox Pattern
+
+The outbox pattern helps solve this problem by writing resource aggregates and messaging events within the same database transaction using an outbox table. When coupled with something like [Debezium](https://debezium.io/) for change data capture, the outbox table can be used to publish events to a message broker, ensuring that your database and downstream message consumers are eventually in sync.
 
 ### The Outbox Table
 
-This example uses the same structure as the [Debezium Outbox Event Router](https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html#basic-outbox-table) example.
+This example uses a similar structure as the [Debezium Outbox Event Router](https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html#basic-outbox-table) example.
 
 ```sql
 CREATE TABLE outbox (
     id UUID NOT NULL,
     aggregatetype VARCHAR(255) NOT NULL,
     aggregateid VARCHAR(255) NOT NULL,
+    version VARCHAR(255) NOT NULL,
+    operation VARCHAR(255) NOT NULL,
     payload JSONB,
     PRIMARY KEY (id)
 );
@@ -45,13 +77,9 @@ CREATE TABLE outbox (
 - **aggregatetype:** Describes the type of business entity that an event relates to, for example, customer or order.
   This is used by Debezium to determine the destination topic.
 - **aggregateid:** The unique identifier of the specific entity instance, like the customer's ID or order number.
-- **payload:** The actual content of the event message, typically stored as JSON or JSONB for flexibility. This is what
-  message consumers will receive.
-
-Additional columns can be added as needed, such as a `timestamp` for event creation or `operation` to indicate the type
-of operation (e.g., create, update, delete). There are [additional configurations](https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html#emitting-messages-with-additional-fields)
-that need to be added to the debezium configuration if you'd like these fields to be mapped to headers or the payload
-when producing messages.
+- **version:** Indicates the Kessel API version of the event, i.e. `v1beta2`
+- **operation:** Indicates the Kessel API method that will be called to process the event, i.e. `ReportResource`
+- **payload:** The actual content of the event message. This should be the same as the request body of the `ReportResourceRequest` API call.
 
 ### Writing to the Outbox
 
@@ -64,8 +92,8 @@ transaction looking something like this:
 ```sql
 BEGIN;
 INSERT INTO customers (id, name) VALUES ('123', 'John Doe');
-INSERT INTO outbox (id, aggregatetype, aggregateid, payload)
-VALUES ('456', 'customer', '123', '{"event": "customer_created", "data": {"id": "123", "name": "John Doe"}}');
+INSERT INTO outbox (id, aggregatetype, aggregateid, version, operation, payload)
+VALUES ('456', 'customer', '123', 'v1beta2', 'ReportResource', '{"event": "customer_created", "data": {"id": "123", "name": "John Doe"}}');
 COMMIT;
 ```
 
@@ -80,8 +108,8 @@ With Debezium, since it will be reading from the [write-ahead log](https://www.p
 ```sql
 BEGIN;
 INSERT INTO customers (id, name) VALUES ('123', 'John Doe');
-INSERT INTO outbox (id, aggregatetype, aggregateid, payload)
-  VALUES ('456', 'customer', '123', '{"event": "customer_created", "data": {"id": "123", "name": "John Doe"}}');
+INSERT INTO outbox (id, aggregatetype, aggregateid, version, operation, payload)
+  VALUES ('456', 'customer', '123', 'v1beta2', 'ReportResource', '{"event": "customer_created", "data": {"id": "123", "name": "John Doe"}}');
 DELETE FROM outbox WHERE id = '456';
 COMMIT;
 ```
@@ -96,66 +124,69 @@ additional mechanisms in your application or database to ensure outbox ordering,
 **Outbox Event Creation**: Tracking the rate of event creation in combination with the rate of event consumption can help identify end-to-end lag in your system. If the outbox is filling up faster than it can be processed, you may need to scale your consumers or optimize your event processing logic.
 
 See our **Monitoring Data Replication** guide for more details on how to monitor your replication processes.
-<LinkCard title="Monitoring Data Replication in Inventory API" href="/running-kessel/monitoring-kessel/monitoring-data-replication-inventory-api" />
+
+<LinkCard
+  title="Monitoring Data Replication in Inventory API"
+  href="/running-kessel/monitoring-kessel/monitoring-data-replication-inventory-api"
+/>
 
 ### Beware: Write Skew
 
-Interleaved database writes could lead to
-[write skew issues](https://www.cockroachlabs.com/blog/what-write-skew-looks-like/), where concurrent application
-read-modify-write cycles could be operating on stale data causing silent corruption. It's advisable to take this into
-consideration when designing your outbox and event processing logic.
+Interleaved database writes could lead to [write skew issues](https://www.cockroachlabs.com/blog/what-write-skew-looks-like/), where concurrent application read-modify-write cycles could be operating on stale data causing silent corruption. It's advisable to take this into consideration when designing your outbox and event processing logic.
 
 ## Immediate Write Visibility with Asynchronous Messaging
 
-For use cases where immediate visibility of data changes are required, but are bound by the nature of asynchronous event
-processing, you can consider using Postgres [LISTEN](https://www.postgresql.org/docs/current/sql-listen.html) 
-and [NOTIFY](https://www.postgresql.org/docs/current/sql-notify.html) features. This can afford your request handler to 
-wait for a notification related to the outcome of event consumption (e.g. replicating to kessel) before proceeding 
-or returning to the client.
+For use cases where immediate visibility of data changes are required, but are bound by the nature of asynchronous event processing, you can consider using Postgres [LISTEN](https://www.postgresql.org/docs/current/sql-listen.html) and [NOTIFY](https://www.postgresql.org/docs/current/sql-notify.html) features. This can afford your request handler to wait for a notification related to the outcome of event consumption (e.g. replicating to kessel) before proceeding or returning to the client.
 
 ### How it works
 
 The process is fairly straightforward:
 
-* **Produce & Listen:** The request handler produces an event to a Kafka topic (directly or via an outbox table) and then begins LISTENing on a Postgres channel.
-* **Consume & Notify:** A separate consumer process parses the event. Upon completion, it issues a NOTIFY command to the same channel the request handler is listening on.
-* **Synchronize:** The LISTENing request handler receives this notification, confirming that the event has been successfully consumed. This allows the handler to then continue its execution, for example, by returning a response to the client.
+- **Produce & Listen:** The request handler produces an event to a Kafka topic (directly or via an outbox table) and then begins LISTENing on a Postgres channel.
+- **Consume & Notify:** A separate consumer process parses the event. Upon completion, it issues a NOTIFY command to the same channel the request handler is listening on.
+- **Synchronize:** The LISTENing request handler receives this notification, confirming that the event has been successfully consumed. This allows the handler to then continue its execution, for example, by returning a response to the client.
 
 This approach effectively creates a synchronous workflow over an asynchronous workflow, ensuring that request handlers can await the completion of downstream event processing.
 
 ### Examples
 
 #### Listening on a Postgres channel
+
 To listen for notifications on a specific Postgres channel, you can use the `LISTEN` command. The example below listens
 on the `host-replication` channel. Channels are arbitrarily defined strings that you can use to group related notifications.
+
 ```sql
 LISTEN "host-replication";
 ```
 
 #### Notifying a Postgres channel
+
 The SQL below sends a notification to all listeners on the `host-replication` channel. The payload can be any string,
 but in this example, it is a UUID that could be used to identify the specific event or request.
+
 ```sql
 NOTIFY "host-replication", 'c0740fcd-c2a3-4767-b2d2-fd21cd12e31a';
 ```
 
 ### Considerations
+
 - LISTEN/NOTIFY may not be supported by all database drivers, you should double-check that your current postgres driver
-can handle it.
+  can handle it.
 - Postgres channels are not durable, meaning that if the request handler is not actively listening when the NOTIFY is
-sent, it will miss the notification. Listening should be one of the first things you do in your request handler.
-- You may run into limitations if your Postgres channels are ephemeral, so it is not advised to create and drop channels 
-frequently. Instead, use a consistent channel name for each type of event you want to listen for. This means that you 
-may have many listeners on the same channel and your event/notification payloads should have some identifier to
-distinguish which event the listener is interested in.
+  sent, it will miss the notification. Listening should be one of the first things you do in your request handler.
+- You may run into limitations if your Postgres channels are ephemeral, so it is not advised to create and drop channels
+  frequently. Instead, use a consistent channel name for each type of event you want to listen for. This means that you
+  may have many listeners on the same channel and your event/notification payloads should have some identifier to
+  distinguish which event the listener is interested in.
 - LISTEN/NOTIFY should use it's own pg connection, separate from the one used for your application logic. This is
-because LISTEN/NOTIFY is a long-lived operation that can block other operations on the same connection. You should also
-aim to minimize connections in a way that each new LISTEN does not produce a new connection, but rather reuses an
-existing one.
+  because LISTEN/NOTIFY is a long-lived operation that can block other operations on the same connection. You should also
+  aim to minimize connections in a way that each new LISTEN does not produce a new connection, but rather reuses an
+  existing one.
 
 ## Kafka Consumer Strategies
-As a service provider, you need a reliable way to replicate data changes from your systems to the Fabric. 
-A Kafka consumer offers a robust and scalable pattern to solve this problem. A consumer reads messages from Kafka topics by subscribing to topic partitions. 
+
+As a service provider, you need a reliable way to replicate data changes from your systems to the Fabric.
+A Kafka consumer offers a robust and scalable pattern to solve this problem. A consumer reads messages from Kafka topics by subscribing to topic partitions.
 The consuming application then processes the messages to apply those changes.
 
 This guide outlines the key challenges your consumer should address and provides
@@ -164,36 +195,40 @@ some high-level strategies for building a robust solution.
 We built our consumer in Go using the [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go) client library.
 
 ### Why Use a Kafka Consumer for Replication?
+
 When replicating data, a Kafka consumer solves the core problem of reliably processing asynchronous messages.
-It decouples your primary service from the replication process, meaning an issue in the replication pipeline won't 
+It decouples your primary service from the replication process, meaning an issue in the replication pipeline won't
 directly impact your main application's performance.
 
 ### Key Guarantees for Data Integrity
-To maintain data consistency between your service and Kessel, your consumer implementation 
+
+To maintain data consistency between your service and Kessel, your consumer implementation
 should prioritize data integrity. Below are three guarantees that we aim to enforce with our own consumer
 that you should too.
 
 1. **Messages must be processed in order:**
-  If messages are not processed in the order in which they are received we risk applying changes in a manner
-  that causes unexpected consequences. For example, processing an `update` event before a `create` event for the 
-  same record would fail and cause data issues. 
+   If messages are not processed in the order in which they are received we risk applying changes in a manner
+   that causes unexpected consequences. For example, processing an `update` event before a `create` event for the
+   same record would fail and cause data issues.
 
 2. **Guarantee At-least-once processing:**
-  A consumer must never "lose" a message. In other words, we should not be continuing 
-  to process the next message until the current one has been confirmed to be processed. 
-  Without this guarantee we risk losing data and will have permanent inconsistency for the “skipped” event.
+   A consumer must never "lose" a message. In other words, we should not be continuing
+   to process the next message until the current one has been confirmed to be processed.
+   Without this guarantee we risk losing data and will have permanent inconsistency for the “skipped” event.
 
 3. **Processing should be idempotent:**
-  If a message is processed more than once, it should not cause any side effects or data corruption. 
-  This means that if a message is reprocessed due to a failure or retry, the outcome should be the same as if it were 
-  processed only once. This comes with a caveat that if a "historical" message is replayed, all messages after it also 
-  be reprocessed in order to ensure no data loss.
+   If a message is processed more than once, it should not cause any side effects or data corruption.
+   This means that if a message is reprocessed due to a failure or retry, the outcome should be the same as if it were
+   processed only once. This comes with a caveat that if a "historical" message is replayed, all messages after it also
+   be reprocessed in order to ensure no data loss.
 
 ### Authentication
+
 To read from a secured Kafka cluster, a consumer must first authenticate itself with the brokers.
 This is configured in the consumer's properties. For our setup we use SASL with the SCRAM-SHA-512 mechanism.
 
 A typical configuration would look like this:
+
 ```yaml
 security-protocol: sasl_plaintext
 sasl-mechanism: SCRAM-SHA-512
@@ -201,19 +236,20 @@ sasl-username: my-generic-consumer
 sasl-password: <PASSWORD>
 ```
 
-Your consumer configuration must include properties like `security.protocol`, `sasl.mechanism`, 
+Your consumer configuration must include properties like `security.protocol`, `sasl.mechanism`,
 and other related settings to provide the necessary credentials for a successful connection to Kafka.
 
 ### Retry Logic
-Message processing can fail for many reasons. Some failures are transient (e.g. a temporary network failure), 
+
+Message processing can fail for many reasons. Some failures are transient (e.g. a temporary network failure),
 while others are permanent (e.g. a malformed message). A robust consumer must handle these failures without halting all
 processing.
 
-Our implementation uses two retry systems to handle message failures, prioritizing 
+Our implementation uses two retry systems to handle message failures, prioritizing
 message durability over pure throughput.
 
 1. **Operation-level Retry:**
-For transient failures within a specific task, a blocking `Retry` function is used.
+   For transient failures within a specific task, a blocking `Retry` function is used.
 
 ```go
 // Retry executes the given function and will retry on failure with backoff until max retries is reached
@@ -231,12 +267,13 @@ func (i *InventoryConsumer) Retry(operation func() (string, error)) (string, err
     // ...
 }
 ```
-This function synchronously retries a failing operation with an exponential backoff up to a configured maximum. 
-Because it uses `time.Sleep`, it blocks the consumer's main processing loop. 
+
+This function synchronously retries a failing operation with an exponential backoff up to a configured maximum.
+Because it uses `time.Sleep`, it blocks the consumer's main processing loop.
 
 2. **Consumer-Level Retry:**
-If a message fails processing in a way that the Consume loop cannot recover from (indicated by `consumer.ErrClosed`),
-a more drastic retry strategy is engaged.
+   If a message fails processing in a way that the Consume loop cannot recover from (indicated by `consumer.ErrClosed`),
+   a more drastic retry strategy is engaged.
 
 ```go
 // Outer consumer loop
@@ -256,11 +293,13 @@ This strategy ensures a failed message is re-attempted from scratch by forcing a
 committed offset, preventing potential message loss.
 
 ### Rebalances
+
 Rebalances are critical to handle, as if your consumer loses a partition without first saving its progress
 the next consumer will start processing from the last saved point, leading to duplicate processing.
 
 Our consumer handles partition reassignments from the Kafka cluster by registering a `RebalanceCallback`. This
 ensures its processing state is committed before partitions are lost.
+
 ```go
 func (i *InventoryConsumer) RebalanceCallback(consumer *kafka.Consumer, event kafka.Event) error {
     switch ev := event.(type) {
@@ -270,47 +309,54 @@ func (i *InventoryConsumer) RebalanceCallback(consumer *kafka.Consumer, event ka
             len(ev.Partitions), ev.Partitions)
 
         // Commits stored offsets before partition is lost
-        err := i.commitStoredOffsets() 
+        err := i.commitStoredOffsets()
         // ...
     }
     return nil
 }
-``` 
+```
+
 When the consumer is notified that it is about to lose ownership of its partitions, it calls `commitStoredOffsets()`. This
 is essential to guarantee that all successfully processed messages before this point have been marked as complete.
 This prevents the next consumer that receives the partition from reprocessing messages, maintaining the at-least-once
 processing guarantee.
 
-
 ### Leveraging Client Statistics
-In addition to application level metrics (e.g. "events processed"), most Kafka client libraries
-can be configured to emit internal performance statistics, often as JSON. These "stats messages" provide a deep, 
-real-time view into the health and performance of the consumer client itself. 
 
-To enable this you typically set a configuration property like `statistics.interval.ms` to a non-zero value 
+In addition to application level metrics (e.g. "events processed"), most Kafka client libraries
+can be configured to emit internal performance statistics, often as JSON. These "stats messages" provide a deep,
+real-time view into the health and performance of the consumer client itself.
+
+To enable this you typically set a configuration property like `statistics.interval.ms` to a non-zero value
 (e.g. 60000 for every 60 seconds). The client will then periodically provide a detailed report containing metrics such as:
 
-- **Round-trip time (rtt)** 
-- **Total messages consumed (rxmsgs)** 
+- **Round-trip time (rtt)**
+- **Total messages consumed (rxmsgs)**
 
 These stats messages metrics are invaluable for debugging. You can use these metrics in dashboards and alerts we offer
-or build your own to track the health of the consumer. 
+or build your own to track the health of the consumer.
 
-### Deployment 
+### Deployment
+
 How you deploy your consumer has a few key considerations, with 3 main ways to do so.
 
 1. **In-process thread (used by the Kessel team)**
-  - Consumer logic runs as a thread within the main application process.
-  - Simple to deploy and manage without any network overhead for communication.
-  - Tightly coupled resources. A CPU and memory intensive task in the main application can
-  starve the consumer thread and vice versa. 
-  - Cannot scale the consumer independently from the main application.
+
+- Consumer logic runs as a thread within the main application process.
+- Simple to deploy and manage without any network overhead for communication.
+- Tightly coupled resources. A CPU and memory intensive task in the main application can
+  starve the consumer thread and vice versa.
+- Cannot scale the consumer independently from the main application.
+
 2. **Sidecar container**
-  - Consumer logic runs in its own container within the same pod as the main application.
-  - Decouples resources. The consumer and application have their own CPU and memory limits.
-  - Allows for independent scaling and focused monitoring and logging. 
-3. **Standalone pod** 
-  - Consumer logic runs as a completely separate deployment/service.
-  - Maximum decoupling of resources, scaling, and lifecycle.
-  - Highest operational complexity. Requires a separate deployment definition, monitoring, and alerting setup.
-  - Can be overkill if the consumer's logic is tightly coupled to the domain of a single application.
+
+- Consumer logic runs in its own container within the same pod as the main application.
+- Decouples resources. The consumer and application have their own CPU and memory limits.
+- Allows for independent scaling and focused monitoring and logging.
+
+3. **Standalone pod**
+
+- Consumer logic runs as a completely separate deployment/service.
+- Maximum decoupling of resources, scaling, and lifecycle.
+- Highest operational complexity. Requires a separate deployment definition, monitoring, and alerting setup.
+- Can be overkill if the consumer's logic is tightly coupled to the domain of a single application.
