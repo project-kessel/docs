@@ -3,8 +3,15 @@ title: Getting Started with RBAC
 description: Step-by-step instructions for installing and running Kessel with your first managed and access controlled resource.
 ---
 
-import { Aside, Card, CardGrid, LinkButton, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Card, CardGrid, LinkButton, Steps, Tabs, TabItem, Code } from '@astrojs/starlight/components';
 import SdkExamples from 'src/components/SdkExamples.astro';
+
+import commonRepresentation from 'src/examples/host/common_representation.json?raw';
+import hostConfig from 'src/examples/host/config.yaml?raw';
+import hbiConfig from 'src/examples/host/reporters/hbi/config.yaml?raw';
+import hbiHost from 'src/examples/host/reporters/hbi/host.json?raw';
+import resourceRelationshipsSchema from 'src/examples/resource_relationships_schema.ksl?raw';
+import rbacSchema from 'src/examples/rbac.ksl?raw';
 
 TODO: Tutorial to run through end to end basic usage of Kessel with very basic demo/toy code, using the client libraries.
 Use the Tabs component to show code examples with different tabs for language (e.g. python vs go).
@@ -27,62 +34,17 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
 <Steps>
 1. Author schemas
 
-    {/* 
-    NOTE: you can write files for these and then just import them.
+    <Code code={commonRepresentation} lang="json" title="host/common_representation.json" />
 
-    e.g.
+    <Code code={hostConfig} lang="yaml" title="host/config.yaml" />
 
-    import someRepresentation from 'src/examples/common_rep.json?raw'
+    <Code code={hbiConfig} lang="yaml" title="host/reporters/hbi/config.yaml" />
 
-    <Code code={someRepresentation> lang="json" title="host/common_representation.json"} />
-    */}
+    <Code code={hbiHost} lang="json" title="host/reporters/hbi/host.json" />
 
-    ```json title="host/common_representation.json"
-    {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "type": "object",
-    "properties": {
-        "workspace_id": {
-            "type": "string"
-        }
-    },
-    "required": ["workspace_id"]
-   }    
-    ```
+    <Code code={resourceRelationshipsSchema} lang="ksl" title="resource_relationships_schema.ksl" />
 
-    ```yaml title="host/config.yaml"
-    resource_type: host
-    resource_reporters:
-      - hbi
-    ```
-
-    ```yaml title="host/reporters/hbi/config.yaml"
-    resource_type: host
-    reporter_name: hbi
-    namespace: hbi
-    ```
-
-    ```json title="host/reporters/hbi/host.json"
-    {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "type": "object",
-    "properties": {
-        "insights_inventory_id": {
-            "type": "string",
-            "format": "uuid"
-        }
-    },
-    "required": []
-   }
-    ```
-
-    ```ksl title="path/to/resource_relationships_schema.ksl"
-    ksl for resource
-    ```
-
-    ```ksl title="path/to/rbac.ksl"
-    ksl for rbac
-    ```
+    <Code code={rbacSchema} lang="ksl" title="rbac.ksl" />
 2. Compile to SpiceDB schema
 
     ```bash
