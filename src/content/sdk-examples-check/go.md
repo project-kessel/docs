@@ -23,17 +23,15 @@ func checkResource() {
 	ctx := context.Background()
 
 	// For authenticated environments, uncomment and configure the following:
-	// auth, err := oauth2.NewClientCredentials(oauth2.ClientCredentialsConfig{
-	//     ClientID:     clientID,
-	//     ClientSecret: clientSecret,
-	//     TokenURL:     issuerURL + "/token",
+	// discovered, err := auth.FetchOIDCDiscovery(ctx, os.Getenv("AUTH_DISCOVERY_ISSUER_URL"), auth.FetchOIDCDiscoveryOptions{
+	// 	HttpClient: nil, // Optionally specify an http client - defaults to http.DefaultClient
 	// })
+
 	// if err != nil {
-	//     log.Fatal("Failed to create OAuth2 credentials:", err)
+	// 	panic(err)
 	// }
-	// inventoryClient, conn, err := v1beta2.NewClientBuilder(kesselEndpoint).
-	//     OAuth2ClientAuthenticated(auth).
-	//     Build()
+
+	// oauthCredentials := auth.NewOAuth2ClientCredentials(os.Getenv("AUTH_CLIENT_ID"), os.Getenv("AUTH_CLIENT_SECRET"), discovered.TokenEndpoint)
 
 	inventoryClient, conn, err := v1beta2.NewClientBuilder(KESSEL_ENDPOINT).
 		Insecure().

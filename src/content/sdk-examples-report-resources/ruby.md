@@ -12,15 +12,23 @@ require 'json'
 require 'kessel-sdk'
 
 include Kessel::Inventory::V1beta2
+include Kessel::GRPC
+include Kessel::Auth
 
 # For authenticated environments, uncomment and configure the following:
-# auth_credentials = OAuth2ClientCredentials.new(
-#   client_id: CLIENT_ID,
-#   client_secret: CLIENT_SECRET,
-#   token_endpoint: "#{ISSUER_URL}/token"
+# discovery = fetch_oidc_discovery(ENV.fetch('AUTH_DISCOVERY_ISSUER_URL', nil))
+# oauth = OAuth2ClientCredentials.new(
+#   client_id: ENV.fetch('AUTH_CLIENT_ID', nil),
+#   client_secret: ENV.fetch('AUTH_CLIENT_SECRET', nil),
+#   token_endpoint: discovery.token_endpoint,
 # )
-# client = KesselInventoryService::ClientBuilder.new(KESSEL_ENDPOINT)
-#                                               .oauth2_client_authenticated(auth_credentials)
+
+# # Set GRPC_DEFAULT_SSL_ROOTS_FILE_PATH if testing locally
+# # e.g. GRPC_DEFAULT_SSL_ROOTS_FILE_PATH="$(mkcert -CAROOT)/rootCA.pem"
+
+# # Using the client builder
+# client = KesselInventoryService::ClientBuilder.new(ENV.fetch('KESSEL_ENDPOINT', nil))
+#                                               .oauth2_client_authenticated(oauth2_client_credentials: oauth)
 #                                               .build
 
 # For insecure local development:

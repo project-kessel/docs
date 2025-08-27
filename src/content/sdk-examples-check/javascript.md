@@ -13,12 +13,20 @@ import "dotenv/config";
 async function run() {
   try {
     // For authenticated environments, uncomment and configure the following:
-    // const auth = await OAuth2ClientCredentials.fromDiscovery({
-    //   clientId: CLIENT_ID,
-    //   clientSecret: CLIENT_SECRET,
-    //   issuerUrl: ISSUER_URL,
+    // For authenticated environments, uncomment and configure the following:
+    // const discovery = await fetchOIDCDiscovery(
+    //   process.env.AUTH_DISCOVERY_ISSUER_URL,
+    // );
+
+    // const oAuth2ClientCredentials = new OAuth2ClientCredentials({
+    //   clientId: process.env.AUTH_CLIENT_ID!,
+    //   clientSecret: process.env.AUTH_CLIENT_SECRET!,
+    //   tokenEndpoint: discovery.tokenEndpoint,
     // });
-    // const client = new ClientBuilder(KESSEL_ENDPOINT).oauth2ClientAuthenticated(auth).buildAsync();
+
+    // const client = new ClientBuilder(process.env.KESSEL_ENDPOINT)
+    //   .oauth2ClientAuthenticated(oAuth2ClientCredentials)
+    //   .buildAsync(); // Or .build if using the callback client
 
     // For insecure local development:
     const client = new ClientBuilder(process.env.KESSEL_ENDPOINT).insecure().buildAsync();
