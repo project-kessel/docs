@@ -12,6 +12,17 @@ require 'kessel-sdk'
 
 include Kessel::Inventory::V1beta2
 
+# For authenticated environments, uncomment and configure the following:
+# auth_credentials = OAuth2ClientCredentials.new(
+#   client_id: CLIENT_ID,
+#   client_secret: CLIENT_SECRET,
+#   token_endpoint: "#{ISSUER_URL}/token"
+# )
+# client = KesselInventoryService::ClientBuilder.new(KESSEL_ENDPOINT)
+#                                               .oauth2_client_authenticated(auth_credentials)
+#                                               .build
+
+# For insecure local development:
 client = KesselInventoryService::ClientBuilder.new(ENV.fetch('KESSEL_ENDPOINT', 'nil'))
                                               .insecure
                                               .build

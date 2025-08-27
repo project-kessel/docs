@@ -17,6 +17,16 @@ from kessel.inventory.v1beta2 import (
 
 
 def run():
+    # For authenticated environments, uncomment and configure the following:
+    # discovery = fetch_oidc_discovery(ISSUER_URL)
+    # auth_credentials = OAuth2ClientCredentials(
+    #     client_id=CLIENT_ID,
+    #     client_secret=CLIENT_SECRET,
+    #     token_endpoint=discovery.token_endpoint,
+    # )
+    # stub, channel = ClientBuilder(KESSEL_ENDPOINT).oauth2_client_authenticated(auth_credentials).build()
+
+    # For insecure local development:
     stub, channel = ClientBuilder(KESSEL_ENDPOINT).insecure().build()
 
     with channel:

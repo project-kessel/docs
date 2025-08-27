@@ -12,6 +12,15 @@ import "dotenv/config";
 
 async function run() {
   try {
+    // For authenticated environments, uncomment and configure the following:
+    // const auth = await OAuth2ClientCredentials.fromDiscovery({
+    //   clientId: CLIENT_ID,
+    //   clientSecret: CLIENT_SECRET,
+    //   issuerUrl: ISSUER_URL,
+    // });
+    // const client = new ClientBuilder(KESSEL_ENDPOINT).oauth2ClientAuthenticated(auth).buildAsync();
+
+    // For insecure local development:
     const client = new ClientBuilder(process.env.KESSEL_ENDPOINT).insecure().buildAsync();
 
     const subjectReference: SubjectReference = {

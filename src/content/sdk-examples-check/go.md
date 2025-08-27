@@ -22,6 +22,19 @@ import (
 func checkResource() {
 	ctx := context.Background()
 
+	// For authenticated environments, uncomment and configure the following:
+	// auth, err := oauth2.NewClientCredentials(oauth2.ClientCredentialsConfig{
+	//     ClientID:     clientID,
+	//     ClientSecret: clientSecret,
+	//     TokenURL:     issuerURL + "/token",
+	// })
+	// if err != nil {
+	//     log.Fatal("Failed to create OAuth2 credentials:", err)
+	// }
+	// inventoryClient, conn, err := v1beta2.NewClientBuilder(kesselEndpoint).
+	//     OAuth2ClientAuthenticated(auth).
+	//     Build()
+
 	inventoryClient, conn, err := v1beta2.NewClientBuilder(KESSEL_ENDPOINT).
 		Insecure().
 		Build()
