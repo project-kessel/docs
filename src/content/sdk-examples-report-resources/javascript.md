@@ -4,59 +4,65 @@ order: 40
 ---
 
 ```javascript
-import { KesselInventoryServiceClient } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/inventory_service";
 import { ReportResourceRequest } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/report_resource_request";
 import { ResourceRepresentations } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/resource_representations";
 import { RepresentationMetadata } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/representation_metadata";
-import { ChannelCredentials } from "@grpc/grpc-js";
+import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
 import "dotenv/config";
 
-const stub = new KesselInventoryServiceClient(
-  process.env.KESSEL_ENDPOINT,
-  ChannelCredentials.createInsecure(),
-  {
-    // Channel options
-  },
-);
+async function run() {
+  try {
+    // For authenticated environments, uncomment and configure the following:
+    // const auth = await OAuth2ClientCredentials.fromDiscovery({
+    //   clientId: CLIENT_ID,
+    //   clientSecret: CLIENT_SECRET,
+    //   issuerUrl: ISSUER_URL,
+    // });
+    // const client = new ClientBuilder(KESSEL_ENDPOINT).oauth2ClientAuthenticated(auth).buildAsync();
 
-const common = {
-  workspace_id: "6eb10953-4ec9-4feb-838f-ba43a60880bf",
-};
+    // For insecure local development:
+    const client = new ClientBuilder(KESSEL_ENDPOINT).insecure().buildAsync();
 
-const reporter = {
-  satellite_id: "ca234d8f-9861-4659-a033-e80460b2801c",
-  sub_manager_id: "e9b7d65f-3f81-4c26-b86c-2db663376eed",
-  insights_inventory_id: "c4b9b5e7-a82a-467a-b382-024a2f18c129",
-  ansible_host: "host-1",
-};
+    const common = {
+      workspace_id: "a64d17d0-aec3-410a-acd0-e0b85b22c076",
+    };
 
-const metadata: RepresentationMetadata = {
-  localResourceId: "854589f0-3be7-4cad-8bcd-45e18f33cb81",
-  apiHref: "https://apiHref.com/",
-  consoleHref: "https://www.consoleHref.com/",
-  reporterVersion: "0.2.11",
-};
+    const reporter = {
+      satellite_id: "ca234d8f-9861-4659-a033-e80460b2801c",
+      sub_manager_id: "e9b7d65f-3f81-4c26-b86c-2db663376eed",
+      insights_inventory_id: "05707922-7b0a-4fe6-982d-6adbc7695b8f",
+      ansible_host: "host-1",
+    };
 
-const representations: ResourceRepresentations = {
-  metadata: metadata,
-  common: common,
-  reporter: reporter,
-};
+    const metadata: RepresentationMetadata = {
+      localResourceId: "dd1b73b9-3e33-4264-968c-e3ce55b9afec",
+      apiHref: "https://apiHref.com/",
+      consoleHref: "https://www.console.com/",
+      reporterVersion: "2.7.16",
+    };
 
-const reportResourceRequest: ReportResourceRequest = {
-  type: "host",
-  reporterType: "hbi",
-  reporterInstanceId: "0a2a430e-1ad9-4304-8e75-cc6fd3b5441a",
-  representations,
-};
+    const representations: ResourceRepresentations = {
+      metadata: metadata,
+      common: common,
+      reporter: reporter,
+    };
 
-stub.reportResource(reportResourceRequest, (error, response) => {
-  if (!error) {
+    const reportResourceRequest: ReportResourceRequest = {
+      type: "host",
+      reporterType: "hbi",
+      reporterInstanceId: "3088be62-1c60-4884-b133-9200542d0b3f",
+      representations,
+    };
+
+    const response = await client.reportResource(reportResourceRequest);
     console.log("Resource reported successfully:");
     console.log(response);
-  } else {
+
+  } catch (error) {
     console.log("gRPC error occurred during Resource reporting:");
-    console.log(`Exception:`, error);
+    console.log("Exception:", error);
   }
-});
+}
+
+run();
 ```
