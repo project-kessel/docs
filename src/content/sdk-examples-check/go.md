@@ -17,6 +17,7 @@ import (
 	"github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"github.com/project-kessel/kessel-sdk-go/kessel/auth"
 )
 
 func checkResource() {
@@ -32,6 +33,9 @@ func checkResource() {
 	// }
 
 	// oauthCredentials := auth.NewOAuth2ClientCredentials(os.Getenv("AUTH_CLIENT_ID"), os.Getenv("AUTH_CLIENT_SECRET"), discovered.TokenEndpoint)
+	// inventoryClient, conn, err := v1beta2.NewClientBuilder(os.Getenv("KESSEL_ENDPOINT")).
+	// 	OAuth2ClientAuthenticated(&oauthCredentials, nil).
+	// 	Build()
 
 	inventoryClient, conn, err := v1beta2.NewClientBuilder(KESSEL_ENDPOINT).
 		Insecure().

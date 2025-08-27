@@ -4,17 +4,16 @@ order: 20
 ---
 
 ```python
-import grpc
 import os
-
+import grpc
+from google.protobuf import struct_pb2
+from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
 from kessel.inventory.v1beta2 import (
-    check_request_pb2,
-    resource_reference_pb2,
-    reporter_reference_pb2,
-    subject_reference_pb2,
     ClientBuilder,
+    report_resource_request_pb2,
+    resource_representations_pb2,
+    representation_metadata_pb2,
 )
-
 
 def run():
     # For authenticated environments, uncomment and configure the following:

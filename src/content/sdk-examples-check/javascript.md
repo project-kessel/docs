@@ -8,6 +8,10 @@ import { ResourceReference } from "@project-kessel/kessel-sdk/kessel/inventory/v
 import { SubjectReference } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/subject_reference";
 import { CheckRequest } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/check_request";
 import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
+import {
+  fetchOIDCDiscovery,
+  OAuth2ClientCredentials,
+} from "@project-kessel/kessel-sdk/kessel/auth";
 import "dotenv/config";
 
 async function run() {

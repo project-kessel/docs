@@ -8,6 +8,10 @@ import { ReportResourceRequest } from "@project-kessel/kessel-sdk/kessel/invento
 import { ResourceRepresentations } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/resource_representations";
 import { RepresentationMetadata } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/representation_metadata";
 import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
+import {
+  fetchOIDCDiscovery,
+  OAuth2ClientCredentials,
+} from "@project-kessel/kessel-sdk/kessel/auth";
 import "dotenv/config";
 
 async function run() {
