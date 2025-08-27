@@ -12,14 +12,16 @@ require 'kessel-sdk'
 
 include Kessel::Inventory::V1beta2
 
-client = KesselInventoryService::Stub.new(ENV.fetch('KESSEL_ENDPOINT', nil), :this_channel_is_insecure)
+client = KesselInventoryService::ClientBuilder.new(ENV.fetch('KESSEL_ENDPOINT', 'nil'))
+                                              .insecure
+                                              .build
 
 subject_reference = SubjectReference.new(
   resource: ResourceReference.new(
     reporter: ReporterReference.new(
       type: 'rbac'
     ),
-    resource_id: 'foobar',
+    resource_id: 'bob',
     resource_type: 'principal'
   )
 )
@@ -28,22 +30,22 @@ resource = ResourceReference.new(
   reporter: ReporterReference.new(
     type: 'rbac'
   ),
-  resource_id: '1234',
-  resource_type: 'workspace'
+  resource_id: 'bob_club',
+  resource_type: 'group'
 )
 
 begin
   response = client.check(
     CheckRequest.new(
       object: resource,
-      relation: 'inventory_host_view',
+      relation: 'member',
       subject: subject_reference
     )
   )
   p 'check response received successfully:'
   p response
-rescue Exception => e
+rescue => e
   p 'gRPC error occurred during check:'
-  p "Exception #{e}"
+  p "Exception: #{e}"
 end
 ```

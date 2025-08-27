@@ -15,20 +15,16 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 
 	"github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
-func main() {
+func checkResource() {
 	ctx := context.Background()
 
-	var dialOpts []grpc.DialOption
-
-	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-
-	conn, err := grpc.NewClient(os.Getenv("KESSEL_ENDPOINT"), dialOpts...)
+	inventoryClient, conn, err := v1beta2.NewClientBuilder(KESSEL_ENDPOINT).
+		Insecure().
+		Build()
 	if err != nil {
 		log.Fatal("Failed to create gRPC client:", err)
 	}
@@ -38,28 +34,27 @@ func main() {
 		}
 	}()
 
-	inventoryClient := v1beta2.NewKesselInventoryServiceClient(conn)
-
-	// Example request using the external API types
 	checkRequest := &v1beta2.CheckRequest{
 		Object: &v1beta2.ResourceReference{
-			ResourceType: "host",
-			ResourceId:   "1213",
+			ResourceType: "group",
+			ResourceId:   "bob_club",
 			Reporter: &v1beta2.ReporterReference{
-				Type: "HBI",
+				Type: "rbac",
 			},
 		},
 		Relation: "member",
 		Subject: &v1beta2.SubjectReference{
 			Resource: &v1beta2.ResourceReference{
-				ResourceType: "user",
-				ResourceId:   "tim",
+				ResourceType: "principal",
+				ResourceId:   "bob",
+				Reporter: &v1beta2.ReporterReference{
+					Type: "rbac",
+				},
 			},
 		},
 	}
 
-	fmt.Println("Making basic gRPC request:")
-
+	fmt.Println("Making check request:")
 	response, err := inventoryClient.Check(ctx, checkRequest)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -77,4 +72,6 @@ func main() {
 	}
 	fmt.Printf("Check response: %+v\n", response)
 }
+
+func main() { checkResource() }
 ```
