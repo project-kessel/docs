@@ -1,2 +1,35 @@
-// KSL schema for RBAC
-// TODO: Add actual KSL content for RBAC
+version 0.1
+namespace rbac
+
+public type principal {}
+
+public type group {
+    relation member: [Any principal or group.member]
+}
+
+public type role {
+}
+
+public type role_binding {
+    relation subject: [Any principal or group.member]
+    relation granted: [AtLeastOne role]
+}
+
+public type workspace {
+    relation parent: [AtMostOne workspace]
+    relation user_grant: [Any role_binding]
+}
+
+public extension add_permission(name) {
+    type role {
+        private relation `${name}`: [bool]
+    }
+
+    type role_binding {
+        internal relation `${name}`: subject and granted.`${name}`
+    }
+
+    type workspace {
+        internal relation `${name}`: user_grant.`${name}` or parent.`${name}`
+    }
+}

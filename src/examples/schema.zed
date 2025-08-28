@@ -1,0 +1,119 @@
+definition drive/base_document {
+	permission delete_document = t_workspace->delete_document + t_folder->delete_document
+	permission edit = edit_document
+	permission edit_document = t_workspace->edit_document + t_folder->edit_document
+	permission folder = t_folder
+	relation t_folder: drive/folder
+	permission manage = delete_document
+	permission view = view_document
+	permission view_document = t_workspace->view_document + t_folder->view_document
+	permission workspace = t_workspace
+	relation t_workspace: rbac/workspace
+}
+
+definition drive/document {
+	permission base = t_base
+	relation t_base: drive/base_document
+	permission edit = t_base->edit
+	permission manage = t_base->manage
+	permission view = t_base->view
+}
+
+definition drive/folder {
+	permission create_document = t_workspace->create_document + t_parent_folder->create_document
+	permission create_folder = t_workspace->create_folder + t_parent_folder->create_folder
+	permission delete_document = t_workspace->delete_document + t_parent_folder->delete_document
+	permission delete_folder = t_workspace->delete_folder + t_parent_folder->delete_folder
+	permission edit = edit_folder
+	permission edit_document = t_workspace->edit_document + t_parent_folder->edit_document
+	permission edit_folder = t_workspace->edit_folder + t_parent_folder->edit_folder
+	permission manage = delete_folder
+	permission parent_folder = t_parent_folder
+	relation t_parent_folder: drive/folder
+	permission view = view_folder
+	permission view_document = t_workspace->view_document + t_parent_folder->view_document
+	permission view_folder = t_workspace->view_folder + t_parent_folder->view_folder
+	permission workspace = t_workspace
+	relation t_workspace: rbac/workspace
+}
+
+definition drive/slides {
+	permission base = t_base
+	relation t_base: drive/base_document
+	permission edit = t_base->edit
+	permission manage = t_base->manage
+	permission present = t_base->view
+	permission view = t_base->view
+}
+
+definition drive/spreadsheet {
+	permission base = t_base
+	relation t_base: drive/base_document
+	permission calculate = t_base->edit
+	permission edit = t_base->edit
+	permission manage = t_base->manage
+	permission view = t_base->view
+}
+
+definition kessel/lock {
+	permission version = t_version
+	relation t_version: kessel/lockversion
+}
+
+definition kessel/lockversion {}
+
+definition rbac/group {
+	permission member = t_member
+	relation t_member: rbac/principal | rbac/group#member
+}
+
+definition rbac/principal {}
+
+definition rbac/role {
+	permission create_document = t_create_document
+	relation t_create_document: rbac/principal:*
+	permission create_folder = t_create_folder
+	relation t_create_folder: rbac/principal:*
+	permission delete_document = t_delete_document
+	relation t_delete_document: rbac/principal:*
+	permission delete_folder = t_delete_folder
+	relation t_delete_folder: rbac/principal:*
+	permission edit_document = t_edit_document
+	relation t_edit_document: rbac/principal:*
+	permission edit_folder = t_edit_folder
+	relation t_edit_folder: rbac/principal:*
+	permission view_document = t_view_document
+	relation t_view_document: rbac/principal:*
+	permission view_folder = t_view_folder
+	relation t_view_folder: rbac/principal:*
+}
+
+definition rbac/role_binding {
+	permission create_document = (subject & t_granted->create_document)
+	permission create_folder = (subject & t_granted->create_folder)
+	permission delete_document = (subject & t_granted->delete_document)
+	permission delete_folder = (subject & t_granted->delete_folder)
+	permission edit_document = (subject & t_granted->edit_document)
+	permission edit_folder = (subject & t_granted->edit_folder)
+	permission granted = t_granted
+	relation t_granted: rbac/role
+	permission subject = t_subject
+	relation t_subject: rbac/principal | rbac/group#member
+	permission view_document = (subject & t_granted->view_document)
+	permission view_folder = (subject & t_granted->view_folder)
+}
+
+definition rbac/workspace {
+	permission create_document = t_user_grant->create_document + t_parent->create_document
+	permission create_folder = t_user_grant->create_folder + t_parent->create_folder
+	permission delete_document = t_user_grant->delete_document + t_parent->delete_document
+	permission delete_folder = t_user_grant->delete_folder + t_parent->delete_folder
+	permission edit_document = t_user_grant->edit_document + t_parent->edit_document
+	permission edit_folder = t_user_grant->edit_folder + t_parent->edit_folder
+	permission parent = t_parent
+	relation t_parent: rbac/workspace
+	permission user_grant = t_user_grant
+	relation t_user_grant: rbac/role_binding
+	permission view_document = t_user_grant->view_document + t_parent->view_document
+	permission view_folder = t_user_grant->view_folder + t_parent->view_folder
+}

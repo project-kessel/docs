@@ -6,12 +6,14 @@ description: Step-by-step instructions for installing and running Kessel with yo
 import { Aside, Card, CardGrid, LinkButton, Steps, Tabs, TabItem, Code } from '@astrojs/starlight/components';
 import SdkExamples from 'src/components/SdkExamples.astro';
 
-import commonRepresentation from 'src/examples/host/common_representation.json?raw';
-import hostConfig from 'src/examples/host/config.yaml?raw';
-import hbiConfig from 'src/examples/host/reporters/hbi/config.yaml?raw';
-import hbiHost from 'src/examples/host/reporters/hbi/host.json?raw';
-import resourceRelationshipsSchema from 'src/examples/resource_relationships_schema.ksl?raw';
+import commonRepresentation from 'src/examples/document/common_representation.json?raw';
+import documentConfig from 'src/examples/document/config.yaml?raw';
+import driveConfig from 'src/examples/document/reporters/drive_service/config.yaml?raw';
+import driveHost from 'src/examples/document/reporters/drive_service/document.json?raw';
+import driveSchema from 'src/examples/drive.ksl?raw';
 import rbacSchema from 'src/examples/rbac.ksl?raw';
+import kesselSchema from 'src/examples/kessel.ksl?raw';
+import schemaZed from 'src/examples/schema.zed?raw';
 
 TODO: Tutorial to run through end to end basic usage of Kessel with very basic demo/toy code, using the client libraries.
 Use the Tabs component to show code examples with different tabs for language (e.g. python vs go).
@@ -29,27 +31,51 @@ If you are migrating an existing Red Hat Insights application to Kessel, follow 
 
 A new installation of Kessel begins as a blank slate. To integrate a Resource (e.g. for access control), you have to configure a Resource _schema_.
 
-Configure a basic resource that ties into RBAC for permissions. Following is an example of a Host schema configured by HBI.
+Configure a basic resource that ties into RBAC for permissions. Following is an example of a drive like schema as described in [understanding kessel](../understanding-kessel).
 
 <Steps>
 1. Author schemas
 
-    <Code code={commonRepresentation} lang="json" title="host/common_representation.json" />
+    <Code code={documentConfig} lang="yaml" title="document/config.yaml" />
 
-    <Code code={hostConfig} lang="yaml" title="host/config.yaml" />
+    <Code code={driveConfig} lang="yaml" title="document/reporters/drive_service/config.yaml" />
 
-    <Code code={hbiConfig} lang="yaml" title="host/reporters/hbi/config.yaml" />
+    <Code code={driveHost} lang="json" title="document/reporters/drive_service/document.json" />
 
-    <Code code={hbiHost} lang="json" title="host/reporters/hbi/host.json" />
+    <Code code={kesselSchema} lang="text" title="kessel.ksl" />
 
-    <Code code={resourceRelationshipsSchema} lang="ksl" title="resource_relationships_schema.ksl" />
+    <Code code={rbacSchema} lang="text" title="rbac.ksl" />
+    
+    <Code code={driveSchema} lang="text" title="drive.ksl" />
 
-    <Code code={rbacSchema} lang="ksl" title="rbac.ksl" />
 2. Compile to SpiceDB schema
 
+    Install the KSL compiler directly from github:
+
     ```bash
-    however you do that
+    go install github.com/project-kessel/ksl-schema-language/cmd/ksl@latest
     ```
+
+    Alternatively, you can clone the repository and build locally:
+
+    ```bash
+    git clone https://github.com/project-kessel/ksl-schema-language.git
+    cd ksl-schema-language
+    make build
+    ```
+
+    Then, you can use the `ksl` command to compile the schemas:
+
+    ```bash
+    ksl kessel.ksl rbac.ksl drive.ksl
+    ```
+
+    This will generate a `schema.zed` file in the current directory.
+    <details>
+        <summary>Example generated <code>schema.zed</code> file</summary>
+
+        <Code code={schemaZed} lang="text" title="schema.zed" />
+    </details>
 </Steps>
 
 ### Install and run Kessel with RBAC
@@ -119,28 +145,28 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
 <Steps>
     1. Link workspace to role binding
         ```bash
-        MESSAGE='{"tuples":[{"resource":{"id":"a64d17d0-aec3-410a-acd0-e0b85b22c076","type":{"name":"workspace","namespace":"rbac"}},"relation":"binding","subject":{"subject":{"id":"it_team_a","type":{"name":"role_binding","namespace":"rbac"}}}}]}'
+        MESSAGE='{"tuples":[{"resource":{"id":"workspace-1","type":{"name":"workspace","namespace":"rbac"}},"relation":"user_grant","subject":{"subject":{"id":"drive-team-binding","type":{"name":"role_binding","namespace":"rbac"}}}}]}'
         grpcurl -plaintext -d $MESSAGE \
         localhost: <your local port for relations> \
         kessel.relations.v1beta1.KesselTupleService.CreateTuples
         ```
-    2. Grant permission to all principals
+    2. Grant document permissions to role
         ```bash
-        MESSAGE='{"tuples":[{"resource":{"id":"inventory_hosts_admin","type":{"name":"role","namespace":"rbac"}},"relation":"inventory_hosts_read","subject":{"subject":{"id":"*","type":{"name":"principal","namespace":"rbac"}}}}]}'
+        MESSAGE='{"tuples":[{"resource":{"id":"drive-admin-role","type":{"name":"role","namespace":"rbac"}},"relation":"view_document","subject":{"subject":{"id":"*","type":{"name":"principal","namespace":"rbac"}}}},{"resource":{"id":"drive-admin-role","type":{"name":"role","namespace":"rbac"}},"relation":"edit_document","subject":{"subject":{"id":"*","type":{"name":"principal","namespace":"rbac"}}}}]}'
         grpcurl -plaintext -d $MESSAGE \
         localhost: <your local port for relations> \
         kessel.relations.v1beta1.KesselTupleService.CreateTuples
         ```
      3. Link the role binding to a role
         ```bash
-        MESSAGE='{"tuples":[{"resource":{"id":"it_team_a","type":{"name":"role_binding","namespace":"rbac"}},"relation":"role","subject":{"subject":{"id":"inventory_hosts_admin","type":{"name":"role","namespace":"rbac"}}}}]}'
+        MESSAGE='{"tuples":[{"resource":{"id":"drive-team-binding","type":{"name":"role_binding","namespace":"rbac"}},"relation":"granted","subject":{"subject":{"id":"drive-admin-role","type":{"name":"role","namespace":"rbac"}}}}]}'
         grpcurl -plaintext -d $MESSAGE \
         localhost: <your local port for relations> \
         kessel.relations.v1beta1.KesselTupleService.CreateTuples
         ```
      4. Link the user sarah to the role binding
         ```bash
-        MESSAGE='{"tuples":[{"resource":{"id":"it_team_a","type":{"name":"role_binding","namespace":"rbac"}},"relation":"subject","subject":{"subject":{"id":"sarah","type":{"name":"principal","namespace":"rbac"}}}}]}'    
+        MESSAGE='{"tuples":[{"resource":{"id":"drive-team-binding","type":{"name":"role_binding","namespace":"rbac"}},"relation":"subject","subject":{"subject":{"id":"sarah","type":{"name":"principal","namespace":"rbac"}}}}]}'    
         grpcurl -plaintext -d $MESSAGE \
         localhost: <your local port for relations> \
         kessel.relations.v1beta1.KesselTupleService.CreateTuples

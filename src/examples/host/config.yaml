@@ -1,3 +1,0 @@
-resource_type: host
-resource_reporters:
-  - hbi
