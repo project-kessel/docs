@@ -4,58 +4,64 @@ order: 20
 ---
 
 ```python
+import os
 import grpc
 from google.protobuf import struct_pb2
+from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
 from kessel.inventory.v1beta2 import (
-    inventory_service_pb2_grpc,
-    report_resource_request_pb2,
-    resource_representations_pb2,
-    representation_metadata_pb2,
+    ClientBuilder,
+    subject_reference_pb2,
+    resource_reference_pb2,
+    reporter_reference_pb2,
+    check_request_pb2,
 )
 
-stub = inventory_service_pb2_grpc.KesselInventoryServiceStub(
-    grpc.insecure_channel("localhost:9000")
-)
+def run():
+    # For authenticated environments, uncomment and configure the following:
+    # discovery = fetch_oidc_discovery(ISSUER_URL)
+    # auth_credentials = OAuth2ClientCredentials(
+    #     client_id=CLIENT_ID,
+    #     client_secret=CLIENT_SECRET,
+    #     token_endpoint=discovery.token_endpoint,
+    # )
+    # stub, channel = ClientBuilder(KESSEL_ENDPOINT).oauth2_client_authenticated(auth_credentials).build()
 
-# Build protobuf Struct for common metadata
-common_struct = struct_pb2.Struct()
-common_struct.update({"workspace_id": "6eb10953-4ec9-4feb-838f-ba43a60880bf"})
+    # For insecure local development:
+    stub, channel = ClientBuilder(KESSEL_ENDPOINT).insecure().build()
 
-# Build protobuf Struct for reporter-specific data
-reporter_struct = struct_pb2.Struct()
-reporter_struct.update(
-    {
-        "satellite_id": "ca234d8f-9861-4659-a033-e80460b2801c",
-        "sub_manager_id": "e9b7d65f-3f81-4c26-b86c-2db663376eed",
-        "insights_inventory_id": "c4b9b5e7-a82a-467a-b382-024a2f18c129",
-        "ansible_host": "host-1",
-    }
-)
+    with channel:
+        # Prepare the subject reference object
+        subject = subject_reference_pb2.SubjectReference(
+            resource=resource_reference_pb2.ResourceReference(
+                reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
+                resource_id="sarah",
+                resource_type="principal",
+            )
+        )
 
-# Create metadata for the resource representation
-metadata = representation_metadata_pb2.RepresentationMetadata(
-    local_resource_id="854589f0-3be7-4cad-8bcd-45e18f33cb81",
-    api_href="https://apiHref.com/",
-    console_href="https://www.consoleHref.com/",
-    reporter_version="0.2.11",
-)
+        # Prepare the resource reference object
+        resource_ref = resource_reference_pb2.ResourceReference(
+            resource_id="doc-123",
+            resource_type="document",
+            reporter=reporter_reference_pb2.ReporterReference(type="drive"),
+        )
 
-# Build the resource representations
-representations = resource_representations_pb2.ResourceRepresentations(
-    metadata=metadata, common=common_struct, reporter=reporter_struct
-)
+        check_request = check_request_pb2.CheckRequest(
+            subject=subject,
+            relation="view",
+            object=resource_ref,
+        )
 
-# Create the report request
-request = report_resource_request_pb2.ReportResourceRequest(
-    type="host",
-    reporter_type="hbi",
-    reporter_instance_id="0a2a430e-1ad9-4304-8e75-cc6fd3b5441a",
-    representations=representations,
-)
+        try:
+            check_response = stub.Check(check_request)
+            print("Check response received successfully")
+            print(check_response)
+        except grpc.RpcError as e:
+            print("gRPC error occurred during Check:")
+            print(f"Code: {e.code()}")
+            print(f"Details: {e.details()}")
 
-try:
-    response = stub.ReportResource(request)
-    print("Resource reported successfully")
-except grpc.RpcError as e:
-    print(f"Error reporting resource: {e.details()}")
+
+if __name__ == "__main__":
+    run()
 ```

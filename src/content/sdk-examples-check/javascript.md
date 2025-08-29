@@ -4,59 +4,70 @@ order: 40
 ---
 
 ```javascript
-import { KesselInventoryServiceClient } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/inventory_service";
-import { ReportResourceRequest } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/report_resource_request";
-import { ResourceRepresentations } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/resource_representations";
-import { RepresentationMetadata } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/representation_metadata";
-import { ChannelCredentials } from "@grpc/grpc-js";
+import { ResourceReference } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/resource_reference";
+import { SubjectReference } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/subject_reference";
+import { CheckRequest } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/check_request";
+import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
+import {
+  fetchOIDCDiscovery,
+  OAuth2ClientCredentials,
+} from "@project-kessel/kessel-sdk/kessel/auth";
 import "dotenv/config";
 
-const stub = new KesselInventoryServiceClient(
-  process.env.KESSEL_ENDPOINT,
-  ChannelCredentials.createInsecure(),
-  {
-    // Channel options
-  },
-);
+async function run() {
+  try {
+    // For authenticated environments, uncomment and configure the following:
+    // For authenticated environments, uncomment and configure the following:
+    // const discovery = await fetchOIDCDiscovery(
+    //   process.env.AUTH_DISCOVERY_ISSUER_URL,
+    // );
 
-const common = {
-  workspace_id: "6eb10953-4ec9-4feb-838f-ba43a60880bf",
-};
+    // const oAuth2ClientCredentials = new OAuth2ClientCredentials({
+    //   clientId: process.env.AUTH_CLIENT_ID!,
+    //   clientSecret: process.env.AUTH_CLIENT_SECRET!,
+    //   tokenEndpoint: discovery.tokenEndpoint,
+    // });
 
-const reporter = {
-  satellite_id: "ca234d8f-9861-4659-a033-e80460b2801c",
-  sub_manager_id: "e9b7d65f-3f81-4c26-b86c-2db663376eed",
-  insights_inventory_id: "c4b9b5e7-a82a-467a-b382-024a2f18c129",
-  ansible_host: "host-1",
-};
+    // const client = new ClientBuilder(process.env.KESSEL_ENDPOINT)
+    //   .oauth2ClientAuthenticated(oAuth2ClientCredentials)
+    //   .buildAsync(); // Or .build if using the callback client
 
-const metadata: RepresentationMetadata = {
-  localResourceId: "854589f0-3be7-4cad-8bcd-45e18f33cb81",
-  apiHref: "https://apiHref.com/",
-  consoleHref: "https://www.consoleHref.com/",
-  reporterVersion: "0.2.11",
-};
+    // For insecure local development:
+    const client = new ClientBuilder(process.env.KESSEL_ENDPOINT).insecure().buildAsync();
 
-const representations: ResourceRepresentations = {
-  metadata: metadata,
-  common: common,
-  reporter: reporter,
-};
+    const subjectReference: SubjectReference = {
+        resource: {
+            reporter: {
+                type: "rbac",
+            },
+            resourceId: "sarah",
+            resourceType: "principal",
+        },
+    };
 
-const reportResourceRequest: ReportResourceRequest = {
-  type: "host",
-  reporterType: "hbi",
-  reporterInstanceId: "0a2a430e-1ad9-4304-8e75-cc6fd3b5441a",
-  representations,
-};
+    const resource: ResourceReference = {
+        reporter: {
+            type: "drive",
+        },
+        resourceId: "doc-123",
+        resourceType: "document",
+    };
 
-stub.reportResource(reportResourceRequest, (error, response) => {
-  if (!error) {
-    console.log("Resource reported successfully:");
+    const check_request: CheckRequest = {
+        object: resource,
+        relation: "view",
+        subject: subjectReference,
+    };
+
+    const response = await client.check(check_request);
+    console.log("Check response received successfully:");
     console.log(response);
-  } else {
-    console.log("gRPC error occurred during Resource reporting:");
-    console.log(`Exception:`, error);
+
+  } catch (error) {
+    console.log("gRPC error occurred during Check:");
+    console.log("Exception:", error);
   }
-});
+}
+
+run();
 ```
