@@ -4,7 +4,7 @@ order: 0
 ---
 
 ```bash
-MESSAGE='{"type": "host", "reporter_type": "hbi", "reporter_instance_id": "3088be62-1c60-4884-b133-9200542d0b3f","representations": {"metadata": {"local_resource_id": "dd1b73b9-3e33-4264-968c-e3ce55b9afec","api_href": "https://apiHref.com/","console_href": "https://www.console.com/","reporter_version": "2.7.16"},"common": {"workspace_id": "a64d17d0-aec3-410a-acd0-e0b85b22c076"},"reporter": {"insights_inventory_id": "05707922-7b0a-4fe6-982d-6adbc7695b8f"}}}'
+MESSAGE='{"type": "document", "reporter_type": "drive", "reporter_instance_id": "drive-1","representations": {"metadata": {"local_resource_id": "doc-123","api_href": "https://drive.example.com/document/123","console_href": "https://www.console.com/drive/documents","reporter_version": "2.7.16"},"common": {"workspace_id": "workspace-1","folder_id": "folder-1"},"reporter": {"document_id": "doc-123","document_name": "My Important Document","document_type": "document","created_at": "2025-08-31T10:30:00Z","file_size": 2048576,"owner_id": "user-1"}}}'
 grpcurl -plaintext -d $MESSAGE \
 localhost: <your local port for inventory> \
 kessel.inventory.v1beta2.KesselInventoryService.ReportResource
