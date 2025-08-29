@@ -1,4 +1,4 @@
-definition drive/base_document {
+definition drive/document {
 	permission delete_document = t_workspace->delete_document + t_folder->delete_document
 	permission edit = edit_document
 	permission edit_document = t_workspace->edit_document + t_folder->edit_document
@@ -9,14 +9,6 @@ definition drive/base_document {
 	permission view_document = t_workspace->view_document + t_folder->view_document
 	permission workspace = t_workspace
 	relation t_workspace: rbac/workspace
-}
-
-definition drive/document {
-	permission base = t_base
-	relation t_base: drive/base_document
-	permission edit = t_base->edit
-	permission manage = t_base->manage
-	permission view = t_base->view
 }
 
 definition drive/folder {
@@ -38,21 +30,31 @@ definition drive/folder {
 }
 
 definition drive/slides {
-	permission base = t_base
-	relation t_base: drive/base_document
-	permission edit = t_base->edit
-	permission manage = t_base->manage
-	permission present = t_base->view
-	permission view = t_base->view
+	permission delete_document = t_workspace->delete_document + t_folder->delete_document
+	permission edit = edit_document
+	permission edit_document = t_workspace->edit_document + t_folder->edit_document
+	permission folder = t_folder
+	relation t_folder: drive/folder
+	permission manage = delete_document
+	permission present = view_document
+	permission view = view_document
+	permission view_document = t_workspace->view_document + t_folder->view_document
+	permission workspace = t_workspace
+	relation t_workspace: rbac/workspace
 }
 
 definition drive/spreadsheet {
-	permission base = t_base
-	relation t_base: drive/base_document
-	permission calculate = t_base->edit
-	permission edit = t_base->edit
-	permission manage = t_base->manage
-	permission view = t_base->view
+	permission calculate = edit_document
+	permission delete_document = t_workspace->delete_document + t_folder->delete_document
+	permission edit = edit_document
+	permission edit_document = t_workspace->edit_document + t_folder->edit_document
+	permission folder = t_folder
+	relation t_folder: drive/folder
+	permission manage = delete_document
+	permission view = view_document
+	permission view_document = t_workspace->view_document + t_folder->view_document
+	permission workspace = t_workspace
+	relation t_workspace: rbac/workspace
 }
 
 definition kessel/lock {
