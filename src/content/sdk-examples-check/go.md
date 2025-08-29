@@ -51,17 +51,17 @@ func checkResource() {
 
 	checkRequest := &v1beta2.CheckRequest{
 		Object: &v1beta2.ResourceReference{
-			ResourceType: "group",
-			ResourceId:   "bob_club",
+			ResourceType: "document",
+			ResourceId:   "doc-123",
 			Reporter: &v1beta2.ReporterReference{
-				Type: "rbac",
+				Type: "drive",
 			},
 		},
-		Relation: "member",
+		Relation: "view",
 		Subject: &v1beta2.SubjectReference{
 			Resource: &v1beta2.ResourceReference{
 				ResourceType: "principal",
-				ResourceId:   "bob",
+				ResourceId:   "sarah",
 				Reporter: &v1beta2.ReporterReference{
 					Type: "rbac",
 				},

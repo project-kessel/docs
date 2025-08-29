@@ -40,22 +40,22 @@ async function run() {
             reporter: {
                 type: "rbac",
             },
-            resourceId: "bob",
+            resourceId: "sarah",
             resourceType: "principal",
         },
     };
 
     const resource: ResourceReference = {
         reporter: {
-            type: "rbac",
+            type: "drive",
         },
-        resourceId: "bob_club",
-        resourceType: "group",
+        resourceId: "doc-123",
+        resourceType: "document",
     };
 
     const check_request: CheckRequest = {
         object: resource,
-        relation: "member",
+        relation: "view",
         subject: subjectReference,
     };
 

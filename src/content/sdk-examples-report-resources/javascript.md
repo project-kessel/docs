@@ -35,20 +35,23 @@ async function run() {
     const client = new ClientBuilder(KESSEL_ENDPOINT).insecure().buildAsync();
 
     const common = {
-      workspace_id: "a64d17d0-aec3-410a-acd0-e0b85b22c076",
+      workspace_id: "workspace-1",
+      folder_id: "folder-1",
     };
 
     const reporter = {
-      satellite_id: "ca234d8f-9861-4659-a033-e80460b2801c",
-      sub_manager_id: "e9b7d65f-3f81-4c26-b86c-2db663376eed",
-      insights_inventory_id: "05707922-7b0a-4fe6-982d-6adbc7695b8f",
-      ansible_host: "host-1",
+      document_id: "doc-123",
+      document_name: "My Important Document",
+      document_type: "document",
+      created_at: "2025-08-31T10:30:00Z",
+      file_size: 2048576,
+      owner_id: "user-1",
     };
 
     const metadata: RepresentationMetadata = {
-      localResourceId: "dd1b73b9-3e33-4264-968c-e3ce55b9afec",
-      apiHref: "https://apiHref.com/",
-      consoleHref: "https://www.console.com/",
+      localResourceId: "doc-123",
+      apiHref: "https://drive.example.com/document/123",
+      consoleHref: "https://www.console.com/drive/documents",
       reporterVersion: "2.7.16",
     };
 
@@ -59,9 +62,9 @@ async function run() {
     };
 
     const reportResourceRequest: ReportResourceRequest = {
-      type: "host",
-      reporterType: "hbi",
-      reporterInstanceId: "3088be62-1c60-4884-b133-9200542d0b3f",
+      type: "document",
+      reporterType: "drive",
+      reporterInstanceId: "drive-1",
       representations,
     };
 

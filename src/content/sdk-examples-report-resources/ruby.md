@@ -36,19 +36,21 @@ client = KesselInventoryService::ClientBuilder.new(KESSEL_ENDPOINT)
                                               .insecure
                                               .build
 
-common = Google::Protobuf::Struct.decode_json({ 'workspace_id' => 'a64d17d0-aec3-410a-acd0-e0b85b22c076' }.to_json)
+common = Google::Protobuf::Struct.decode_json({ 'workspace_id' => 'workspace-1', 'folder_id' => 'folder-1' }.to_json)
 
 reporter = Google::Protobuf::Struct.decode_json({
-  'satellite_id' => 'ca234d8f-9861-4659-a033-e80460b2801c',
-  'sub_manager_id' => 'e9b7d65f-3f81-4c26-b86c-2db663376eed',
-  'insights_inventory_id' => '05707922-7b0a-4fe6-982d-6adbc7695b8f',
-  'ansible_host' => 'host-1'
+  'document_id' => 'doc-123',
+  'document_name' => 'My Important Document',
+  'document_type' => 'document',
+  'created_at' => '2025-08-31T10:30:00Z',
+  'file_size' => 2048576,
+  'owner_id' => 'user-1'
 }.to_json)
 
 metadata = RepresentationMetadata.new(
-  local_resource_id: 'dd1b73b9-3e33-4264-968c-e3ce55b9afec',
-  api_href: 'https://apiHref.com/',
-  console_href: 'https://www.console.com/',
+  local_resource_id: 'doc-123',
+  api_href: 'https://drive.example.com/document/123',
+  console_href: 'https://www.console.com/drive/documents',
   reporter_version: '2.7.16'
 )
 
@@ -61,9 +63,9 @@ representations = ResourceRepresentations.new(
 begin
   response = client.report_resource(
     ReportResourceRequest.new(
-      type: 'host',
-      reporter_type: 'hbi',
-      reporter_instance_id: '3088be62-1c60-4884-b133-9200542d0b3f',
+      type: 'document',
+      reporter_type: 'drive',
+      reporter_instance_id: 'drive-1',
       representations: representations
     )
   )

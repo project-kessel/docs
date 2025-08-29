@@ -10,9 +10,10 @@ from google.protobuf import struct_pb2
 from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
 from kessel.inventory.v1beta2 import (
     ClientBuilder,
-    report_resource_request_pb2,
-    resource_representations_pb2,
-    representation_metadata_pb2,
+    subject_reference_pb2,
+    resource_reference_pb2,
+    reporter_reference_pb2,
+    check_request_pb2,
 )
 
 def run():
@@ -33,21 +34,21 @@ def run():
         subject = subject_reference_pb2.SubjectReference(
             resource=resource_reference_pb2.ResourceReference(
                 reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
-                resource_id="bob",
+                resource_id="sarah",
                 resource_type="principal",
             )
         )
 
         # Prepare the resource reference object
         resource_ref = resource_reference_pb2.ResourceReference(
-            resource_id="bob_club",
-            resource_type="group",
-            reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
+            resource_id="doc-123",
+            resource_type="document",
+            reporter=reporter_reference_pb2.ReporterReference(type="drive"),
         )
 
         check_request = check_request_pb2.CheckRequest(
             subject=subject,
-            relation="member",
+            relation="view",
             object=resource_ref,
         )
 

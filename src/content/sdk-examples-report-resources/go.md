@@ -54,27 +54,30 @@ func reportResource() {
 	}()
 
 	reportResourceRequest := &v1beta2.ReportResourceRequest{
-		Type:               "host",
-		ReporterType:       "hbi",
-		ReporterInstanceId: "3088be62-1c60-4884-b133-9200542d0b3f",
+		Type:               "document",
+		ReporterType:       "drive",
+		ReporterInstanceId: "drive-1",
 		Representations: &v1beta2.ResourceRepresentations{
 			Metadata: &v1beta2.RepresentationMetadata{
-				LocalResourceId: "dd1b73b9-3e33-4264-968c-e3ce55b9afec",
-				ApiHref:         "https://apiHref.com/",
-				ConsoleHref:     addr("https://www.console.com/"),
+				LocalResourceId: "doc-123",
+				ApiHref:         "https://drive.example.com/document/123",
+				ConsoleHref:     addr("https://www.console.com/drive/documents"),
 				ReporterVersion: addr("2.7.16"),
 			},
 			Common: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
-					"workspace_id": structpb.NewStringValue("a64d17d0-aec3-410a-acd0-e0b85b22c076"),
+					"workspace_id": structpb.NewStringValue("workspace-1"),
+					"folder_id":    structpb.NewStringValue("folder-1"),
 				},
 			},
 			Reporter: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
-					"satellite_id":          structpb.NewStringValue("ca234d8f-9861-4659-a033-e80460b2801c"),
-					"sub_manager_id":        structpb.NewStringValue("e9b7d65f-3f81-4c26-b86c-2db663376eed"),
-					"insights_inventory_id": structpb.NewStringValue("05707922-7b0a-4fe6-982d-6adbc7695b8f"),
-					"ansible_host":          structpb.NewStringValue("host-1"),
+					"document_id":    structpb.NewStringValue("doc-123"),
+					"document_name":  structpb.NewStringValue("My Important Document"),
+					"document_type":  structpb.NewStringValue("document"),
+					"created_at":     structpb.NewStringValue("2025-08-31T10:30:00Z"),
+					"file_size":      structpb.NewNumberValue(2048576),
+					"owner_id":       structpb.NewStringValue("user-1"),
 				},
 			},
 		},

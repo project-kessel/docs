@@ -40,24 +40,24 @@ subject_reference = SubjectReference.new(
     reporter: ReporterReference.new(
       type: 'rbac'
     ),
-    resource_id: 'bob',
+    resource_id: 'sarah',
     resource_type: 'principal'
   )
 )
 
 resource = ResourceReference.new(
   reporter: ReporterReference.new(
-    type: 'rbac'
+    type: 'drive'
   ),
-  resource_id: 'bob_club',
-  resource_type: 'group'
+  resource_id: 'doc-123',
+  resource_type: 'document'
 )
 
 begin
   response = client.check(
     CheckRequest.new(
       object: resource,
-      relation: 'member',
+      relation: 'view',
       subject: subject_reference
     )
   )
