@@ -120,7 +120,7 @@ package:
             ensure the wrapper is consistent with the stub API.
 
   functions:
-    - name: workspace_representation
+    - name: workspace_type
       description: |
         Function to create a RepresentationType for workspace resources.
         Returns a protobuf RepresentationType configured for RBAC workspace objects.
@@ -128,14 +128,15 @@ package:
         Example:
 
         ```python
-        workspace_type = workspace_representation()
+        workspace_type = workspace_type()
         ```
       params: []
       returns:
         name: RepresentationType
+        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.RepresentationType
         description: A RepresentationType for workspace resources
 
-    - name: role_representation
+    - name: role_type
       description: |
         Function to create a RepresentationType for role resources.
         Returns a protobuf RepresentationType configured for RBAC role objects.
@@ -143,31 +144,37 @@ package:
         Example:
 
         ```python
-        role_type = role_representation()
+        role_type = role_type()
         ```
       params: []
       returns:
         name: RepresentationType
+        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.RepresentationType
         description: A RepresentationType for role resources
 
     - name: principal_resource
       description: |
-        Function to create a ResourceReference for a user principal with domain prefix.
-        Returns a protobuf ResourceReference with the user ID prefixed with "redhat/".
+        Creates a ResourceReference for a user principal based on user ID and domain.
+        This function standardizes the creation of principal resources.
 
         Example:
 
         ```python
-        user_principal = principal_resource("user123")
+        user_resource = principal_resource("123", "redhat")
         ```
       params:
-        - name: resource_id
+        - name: id
           type:
             name: string
-          description: The user identifier (will be prefixed with "redhat/")
+          description: The user identifier
+        - name: domain
+          type:
+            name: string
+          description: The domain or organization the user belongs to
       returns:
         name: ResourceReference
-        description: A ResourceReference for the user principal
+        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.ResourceReference
+        description: A ResourceReference pointing to the user's principal resource
 
     - name: role_resource
       description: |
@@ -186,6 +193,7 @@ package:
           description: The role identifier
       returns:
         name: ResourceReference
+        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.ResourceReference
         description: A ResourceReference for the role
 
     - name: workspace_resource
@@ -205,35 +213,13 @@ package:
           description: The workspace identifier
       returns:
         name: ResourceReference
+        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.ResourceReference
         description: A ResourceReference for the workspace
-
-    - name: principal_resource_for_user_id
-      description: |
-        Creates a ResourceReference for a user principal based on user ID and domain.
-        This function standardizes the creation of principal references for RBAC operations.
-
-        Example:
-
-        ```python
-        user_resource = principal_resource_for_user_id("john.doe", "example.com")
-        ```
-      params:
-        - name: id
-          type:
-            name: string
-          description: The user identifier
-        - name: domain
-          type:
-            name: string
-          description: The domain or organization the user belongs to
-      returns:
-        name: ResourceReference
-        description: A ResourceReference pointing to the user's principal resource
 
     - name: principal_subject_for_user_id
       description: |
         Creates a SubjectReference for a user principal based on user ID and domain.
-        This is a convenience function that wraps principal_resource_for_user_id to create a subject reference.
+        This is a convenience function that wraps principal_resource to create a subject reference.
 
         Example:
 
@@ -251,6 +237,7 @@ package:
           description: The domain or organization the user belongs to
       returns:
         name: SubjectReference
+        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.SubjectReference
         description: A SubjectReference for the user's principal
 
     - name: list_workspaces
@@ -270,6 +257,7 @@ package:
         - name: subject
           type:
             name: SubjectReference
+            link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.SubjectReference
           description: The subject (typically a user principal) to check permissions for
         - name: relation
           type:
@@ -281,6 +269,7 @@ package:
           description: The inventory service client stub for making the request
       returns:
         name: "AsyncIterator[StreamedListObjectsResponse] | Iterable[StreamedListObjectsResponse]"
+        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.StreamedListObjectsResponse
         description: An iterator of workspace objects that the subject has the specified relation to
 ---
 
