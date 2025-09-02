@@ -119,35 +119,6 @@ package:
             **Implementation note:** Wrapping the generated stubs is not ideal, but if it has to be done,
             ensure the wrapper is consistent with the stub API.
 
-    - name: UserAllowed
-      description: |
-        Enum representing the possible states of user authorization.
-        Used to indicate whether a user is explicitly allowed, denied, or unspecified for a particular operation.
-
-        Example:
-
-        ```python
-        if user_permission == UserAllowed.TRUE:
-            # User is explicitly allowed
-            process_request()
-        elif user_permission == UserAllowed.FALSE:
-            # User is explicitly denied
-            deny_request()
-        else: 
-            # UserAllowed.UNSPECIFIED
-            apply_some_default_policy()
-        ```
-      values:
-        - name: UNSPECIFIED
-          value: 0
-          description: The authorization state is not specified or unknown
-        - name: TRUE
-          value: 1
-          description: The user is explicitly allowed to perform the operation
-        - name: FALSE
-          value: 2
-          description: The user is explicitly denied from performing the operation
-
   functions:
     - name: workspace_representation
       description: |
