@@ -31,8 +31,7 @@ public type folder {
     relation manage: delete_folder
 }
 
-// Base document type with common behavior
-public type base_document {
+public type document {
     relation workspace: [ExactlyOne rbac.workspace]
     relation folder: [AtMostOne folder]
     
@@ -46,37 +45,35 @@ public type base_document {
     relation manage: delete_document
 }
 
-// Specific document types that inherit from base_document
-public type document {
-    relation base: [ExactlyOne base_document]
-    
-    // All permissions delegate to base
-    relation view: base.view
-    relation edit: base.edit
-    relation manage: base.manage
-}
-
 public type spreadsheet {
-    relation base: [ExactlyOne base_document]
+    relation workspace: [ExactlyOne rbac.workspace]
+    relation folder: [AtMostOne folder]
     
-    // All permissions delegate to base
-    relation view: base.view
-    relation edit: base.edit
-    relation manage: base.manage
+    // Inherited permissions from folder and workspace
+    relation view_document: workspace.view_document or folder.view_document
+    relation edit_document: workspace.edit_document or folder.edit_document
+    relation delete_document: workspace.delete_document or folder.delete_document
     
-    // Spreadsheet-specific permissions could be added here
-    relation calculate: base.edit
+    // Spreadsheet-specific permissions
+    relation calculate: edit_document
+    relation view: view_document
+    relation edit: edit_document
+    relation manage: delete_document
 }
 
 public type slides {
-    relation base: [ExactlyOne base_document]
+    relation workspace: [ExactlyOne rbac.workspace]
+    relation folder: [AtMostOne folder]
     
-    // All permissions delegate to base
-    relation view: base.view
-    relation edit: base.edit
-    relation manage: base.manage
+    // Inherited permissions from folder and workspace
+    relation view_document: workspace.view_document or folder.view_document
+    relation edit_document: workspace.edit_document or folder.edit_document
+    relation delete_document: workspace.delete_document or folder.delete_document
     
-    // Slides-specific permissions could be added here
-    relation present: base.view
+    // Slides-specific permissions
+    relation present: view_document
+    relation view: view_document
+    relation edit: edit_document
+    relation manage: delete_document
 }
 
