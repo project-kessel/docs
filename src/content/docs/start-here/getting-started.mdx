@@ -95,7 +95,8 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
         ```bash
         git clone git@github.com:project-kessel/relations-api.git
         cd relations-api
-        curl -o deploy/schema.zed https://raw.githubusercontent.com/RedHatInsights/rbac-config/refs/heads/master/configs/prod/schemas/schema.zed
+        # copy the schema.zed file we created earlier to deploy/schema.zed
+        cp ../schema.zed deploy/schema.zed
         make relations-api-up 
         ```
       
@@ -120,7 +121,10 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
     2. Load Schema
 
         ```bash
-        oc apply -f https://gist.githubusercontent.com/akoserwal/a061a2959862caa653aa8c8836db874b/raw/7cd73fd045ed8f30c850349bb7ff3264b2d35c8e/spicedb-schema-configmap.yaml
+        # create configmap from the schema.zed file we created earlier
+        oc create configmap spicedb-schema --dry-run=client --from-file=schema.zed -o yaml > spicedb-schema-configmap.yaml
+        # apply the configmap
+        oc apply -f spicedb-schema-configmap.yaml
         ```
     
     3. Fetch the API URL and Credentials
