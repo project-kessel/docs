@@ -128,11 +128,19 @@ package:
         Example:
         
         ```python
+        import requests
+        
+        # Configure HTTP client with authentication headers
+        http_client = requests.Session()
+        http_client.headers.update({
+            "x-rh-rbac-psk": "your-pre-shared-key",
+            "x-rh-rbac-client-id": "client-id"
+        })
+        
         # Get all root workspaces
         root_workspaces = get_root_workspaces(
-            rbac_endpoint="https://console.stage.redhat.com/", 
-            psk="your-pre-shared-key",
-            client_id="client-id",
+            http_client=http_client,
+            rbac_endpoint="https://console.stage.redhat.com/",
             org_id="12345", 
             limit=20
         )
@@ -141,27 +149,23 @@ package:
             
         # Get just the first root workspace ID
         first_root = get_root_workspaces(
+            http_client=http_client,
             rbac_endpoint="https://console.stage.redhat.com/",
-            psk="your-pre-shared-key", 
-            client_id="client-id",
             org_id="12345", 
             limit=1
         )
         workspace_id = first_root["data"][0]["id"]
         ```
       params:
+        - name: http_client
+          type:
+            name: "http.Client"
+          description: |
+            Pre-configured HTTP client with required headers like authentication. 
         - name: rbac_endpoint
           type:
             name: string
           description: The RBAC service endpoint URL (stage/prod/ephemeral)
-        - name: psk
-          type:
-            name: string
-          description: Pre-shared key for RBAC authentication. Will be sent as x-rh-rbac-psk header
-        - name: client_id
-          type:
-            name: string
-          description: Client identifier for the calling service. Will be sent as x-rh-rbac-client-id header
         - name: org_id
           type:
             name: string
@@ -202,11 +206,19 @@ package:
         Example:
         
         ```python
+        import requests
+        
+        # Configure HTTP client with authentication headers
+        http_client = requests.Session()
+        http_client.headers.update({
+            "x-rh-rbac-psk": "your-pre-shared-key",
+            "x-rh-rbac-client-id": "client-id"
+        })
+        
         # Get all default workspaces
         default_workspaces = get_default_workspaces(
+            http_client=http_client,
             rbac_endpoint="https://console.stage.redhat.com/",
-            psk="your-pre-shared-key",
-            client_id="client-id",
             org_id="12345", 
             limit=20
         )
@@ -215,27 +227,23 @@ package:
             
         # Get just the first default workspace ID
         first_default = get_default_workspaces(
+            http_client=http_client,
             rbac_endpoint="https://console.stage.redhat.com/",
-            psk="your-pre-shared-key",
-            client_id="client-id", 
             org_id="12345", 
             limit=1
         )
         workspace_id = first_default["data"][0]["id"]
         ```
       params:
+        - name: http_client
+          type:
+            name: "http.Client"
+          description: |
+            Pre-configured HTTP client with required headers like authentication. 
         - name: rbac_endpoint
           type:
             name: string
           description: The RBAC service endpoint URL (stage/prod/ephemeral)
-        - name: psk
-          type:
-            name: string
-          description: Pre-shared key for RBAC authentication. Will be sent as x-rh-rbac-psk header
-        - name: client_id
-          type:
-            name: string
-          description: Client identifier for the calling service. Will be sent as x-rh-rbac-client-id header
         - name: org_id
           type:
             name: string
