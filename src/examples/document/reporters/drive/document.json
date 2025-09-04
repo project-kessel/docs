@@ -6,7 +6,7 @@
     "document_name": { "type": "string" },
     "document_type": { 
       "type": "string",
-      "enum": ["document", "slides", "spreadsheet"]
+      "enum": ["document"]
     },
     "created_at": { 
       "type": "string", 

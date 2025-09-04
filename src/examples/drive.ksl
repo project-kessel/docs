@@ -3,77 +3,19 @@ namespace drive
 
 import rbac
 
-@rbac.add_permission(name:'create_document')
 @rbac.add_permission(name:'view_document')
 @rbac.add_permission(name:'edit_document')
 @rbac.add_permission(name:'delete_document')
-@rbac.add_permission(name:'create_folder')
-@rbac.add_permission(name:'view_folder')
-@rbac.add_permission(name:'edit_folder')
-@rbac.add_permission(name:'delete_folder')
-public type folder {
-    relation workspace: [ExactlyOne rbac.workspace]
-    relation parent_folder: [AtMostOne folder]
-    
-    // Permissions that inherit from workspace and parent folder
-    relation create_document: workspace.create_document or parent_folder.create_document
-    relation view_document: workspace.view_document or parent_folder.view_document
-    relation edit_document: workspace.edit_document or parent_folder.edit_document
-    relation delete_document: workspace.delete_document or parent_folder.delete_document
-    
-    relation create_folder: workspace.create_folder or parent_folder.create_folder
-    relation view_folder: workspace.view_folder or parent_folder.view_folder
-    relation edit_folder: workspace.edit_folder or parent_folder.edit_folder
-    relation delete_folder: workspace.delete_folder or parent_folder.delete_folder
-    
-    relation view: view_folder
-    relation edit: edit_folder
-    relation manage: delete_folder
-}
 
 public type document {
     relation workspace: [ExactlyOne rbac.workspace]
-    relation folder: [AtMostOne folder]
     
-    // Inherited permissions from folder and workspace
-    relation view_document: workspace.view_document or folder.view_document
-    relation edit_document: workspace.edit_document or folder.edit_document
-    relation delete_document: workspace.delete_document or folder.delete_document
+    // Direct permissions from workspace
+    relation view_document: workspace.view_document
+    relation edit_document: workspace.edit_document
+    relation delete_document: workspace.delete_document
     
     relation view: view_document
     relation edit: edit_document
     relation manage: delete_document
 }
-
-public type spreadsheet {
-    relation workspace: [ExactlyOne rbac.workspace]
-    relation folder: [AtMostOne folder]
-    
-    // Inherited permissions from folder and workspace
-    relation view_document: workspace.view_document or folder.view_document
-    relation edit_document: workspace.edit_document or folder.edit_document
-    relation delete_document: workspace.delete_document or folder.delete_document
-    
-    // Spreadsheet-specific permissions
-    relation calculate: edit_document
-    relation view: view_document
-    relation edit: edit_document
-    relation manage: delete_document
-}
-
-public type slides {
-    relation workspace: [ExactlyOne rbac.workspace]
-    relation folder: [AtMostOne folder]
-    
-    // Inherited permissions from folder and workspace
-    relation view_document: workspace.view_document or folder.view_document
-    relation edit_document: workspace.edit_document or folder.edit_document
-    relation delete_document: workspace.delete_document or folder.delete_document
-    
-    // Slides-specific permissions
-    relation present: view_document
-    relation view: view_document
-    relation edit: edit_document
-    relation manage: delete_document
-}
-
