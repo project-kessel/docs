@@ -32,7 +32,7 @@ def run():
         with channel:
             # Build protobuf Struct for common metadata
             common_struct = struct_pb2.Struct()
-            common_struct.update({"workspace_id": "workspace-1", "folder_id": "folder-1"})
+            common_struct.update({"workspace_id": "workspace-1"})
 
             # Build protobuf Struct for reporter-specific data
             reporter_struct = struct_pb2.Struct()

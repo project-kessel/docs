@@ -36,7 +36,6 @@ async function run() {
 
     const common = {
       workspace_id: "workspace-1",
-      folder_id: "folder-1",
     };
 
     const reporter = {

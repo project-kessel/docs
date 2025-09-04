@@ -67,7 +67,6 @@ func reportResource() {
 			Common: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
 					"workspace_id": structpb.NewStringValue("workspace-1"),
-					"folder_id":    structpb.NewStringValue("folder-1"),
 				},
 			},
 			Reporter: &structpb.Struct{

@@ -151,7 +151,7 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
         ```
     2. Grant document permissions to role
         ```bash
-        MESSAGE='{"tuples":[{"resource":{"id":"drive-admin-role","type":{"name":"role","namespace":"rbac"}},"relation":"view_document","subject":{"subject":{"id":"*","type":{"name":"principal","namespace":"rbac"}}}},{"resource":{"id":"drive-admin-role","type":{"name":"role","namespace":"rbac"}},"relation":"edit_document","subject":{"subject":{"id":"*","type":{"name":"principal","namespace":"rbac"}}}}]}'
+        MESSAGE='{"tuples":[{"resource":{"id":"drive-admin-role","type":{"name":"role","namespace":"rbac"}},"relation":"view_document","subject":{"subject":{"id":"*","type":{"name":"principal","namespace":"rbac"}}}},{"resource":{"id":"drive-admin-role","type":{"name":"role","namespace":"rbac"}},"relation":"edit_document","subject":{"subject":{"id":"*","type":{"name":"principal","namespace":"rbac"}}}},{"resource":{"id":"drive-admin-role","type":{"name":"role","namespace":"rbac"}},"relation":"delete_document","subject":{"subject":{"id":"*","type":{"name":"principal","namespace":"rbac"}}}}]}'
         grpcurl -plaintext -d $MESSAGE \
         localhost: <your local port for relations> \
         kessel.relations.v1beta1.KesselTupleService.CreateTuples

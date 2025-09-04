@@ -36,7 +36,7 @@ client = KesselInventoryService::ClientBuilder.new(KESSEL_ENDPOINT)
                                               .insecure
                                               .build
 
-common = Google::Protobuf::Struct.decode_json({ 'workspace_id' => 'workspace-1', 'folder_id' => 'folder-1' }.to_json)
+common = Google::Protobuf::Struct.decode_json({ 'workspace_id' => 'workspace-1' }.to_json)
 
 reporter = Google::Protobuf::Struct.decode_json({
   'document_id' => 'doc-123',
