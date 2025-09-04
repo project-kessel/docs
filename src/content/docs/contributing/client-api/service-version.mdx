@@ -118,6 +118,155 @@ package:
 
             **Implementation note:** Wrapping the generated stubs is not ideal, but if it has to be done,
             ensure the wrapper is consistent with the stub API.
+
+  functions:
+    - name: get_root_workspaces
+      description: |
+        Gets the root workspaces for the specified organization.
+        This function queries RBAC v2 to find the root workspaces for the given org_id.
+        
+        Example:
+        
+        ```python
+        # Get all root workspaces
+        root_workspaces = get_root_workspaces(
+            rbac_endpoint="https://console.stage.redhat.com/", 
+            psk="your-pre-shared-key",
+            client_id="client-id",
+            org_id="12345", 
+            limit=20
+        )
+        for workspace in root_workspaces["data"]:
+            print(f"Root workspace: {workspace['name']}")
+            
+        # Get just the first root workspace ID
+        first_root = get_root_workspaces(
+            rbac_endpoint="https://console.stage.redhat.com/",
+            psk="your-pre-shared-key", 
+            client_id="client-id",
+            org_id="12345", 
+            limit=1
+        )
+        workspace_id = first_root["data"][0]["id"]
+        ```
+      params:
+        - name: rbac_endpoint
+          type:
+            name: string
+          description: The RBAC service endpoint URL (stage/prod/ephemeral)
+        - name: psk
+          type:
+            name: string
+          description: Pre-shared key for RBAC authentication. Will be sent as x-rh-rbac-psk header
+        - name: client_id
+          type:
+            name: string
+          description: Client identifier for the calling service. Will be sent as x-rh-rbac-client-id header
+        - name: org_id
+          type:
+            name: string
+          description: Organization ID to use for the request. Will be encoded in the x-rh-identity header
+        - name: limit
+          type:
+            name: integer
+          optional: true
+          description: "Maximum number of workspaces to return (default: 10)"
+        - name: offset
+          type:
+            name: integer
+          optional: true
+          description: "Number of workspaces to skip for pagination (default: 0)"
+        - name: cursor
+          type:
+            name: string
+          optional: true
+          description: Cursor for cursor-based pagination. When provided, offset parameter is ignored
+        - name: name
+          type:
+            name: string
+          optional: true
+          description: Case sensitive exact match of workspace by name
+      returns:
+        name: "Dict[str, Any]"
+        description: |
+          A dictionary containing the workspace list response with structure:
+          - `meta`: Pagination metadata (count, limit, offset, type)
+          - `links`: Navigation links (first, next, previous, last) 
+          - `data`: List of workspace objects with id, name, type, description, etc.
+
+    - name: get_default_workspaces
+      description: |
+        Gets the default workspaces for the specified organization.
+        This function queries RBAC v2 to find the default workspaces for the given org_id.
+        
+        Example:
+        
+        ```python
+        # Get all default workspaces
+        default_workspaces = get_default_workspaces(
+            rbac_endpoint="https://console.stage.redhat.com/",
+            psk="your-pre-shared-key",
+            client_id="client-id",
+            org_id="12345", 
+            limit=20
+        )
+        for workspace in default_workspaces["data"]:
+            print(f"Default workspace: {workspace['name']}")
+            
+        # Get just the first default workspace ID
+        first_default = get_default_workspaces(
+            rbac_endpoint="https://console.stage.redhat.com/",
+            psk="your-pre-shared-key",
+            client_id="client-id", 
+            org_id="12345", 
+            limit=1
+        )
+        workspace_id = first_default["data"][0]["id"]
+        ```
+      params:
+        - name: rbac_endpoint
+          type:
+            name: string
+          description: The RBAC service endpoint URL (stage/prod/ephemeral)
+        - name: psk
+          type:
+            name: string
+          description: Pre-shared key for RBAC authentication. Will be sent as x-rh-rbac-psk header
+        - name: client_id
+          type:
+            name: string
+          description: Client identifier for the calling service. Will be sent as x-rh-rbac-client-id header
+        - name: org_id
+          type:
+            name: string
+          description: Organization ID to use for the request. Will be encoded in the x-rh-identity header
+        - name: limit
+          type:
+            name: integer
+          optional: true
+          description: "Maximum number of workspaces to return (default: 10)"
+        - name: offset
+          type:
+            name: integer
+          optional: true
+          description: "Number of workspaces to skip for pagination (default: 0)"
+        - name: cursor
+          type:
+            name: string
+          optional: true
+          description: Cursor for cursor-based pagination. When provided, offset parameter is ignored
+        - name: name
+          type:
+            name: string
+          optional: true
+          description: Case sensitive exact match of workspace by name
+      returns:
+        name: "Dict[str, Any]"
+        description: |
+          A dictionary containing the workspace list response with structure:
+          - `meta`: Pagination metadata (count, limit, offset, type)
+          - `links`: Navigation links (first, next, previous, last) 
+          - `data`: List of workspace objects with id, name, type, description, etc.
 ---
 
 Package for code specific to service and API version, where `{service}` is the separately versioned service (e.g. "inventory" or "rbac") and `{major_version}` is the major revision of the API (e.g. v1beta2, v1, v2), such as generated client code.
