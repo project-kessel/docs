@@ -124,7 +124,9 @@ package:
       description: |
         Gets the root workspaces for the specified organization.
         This function queries RBAC v2 to find the root workspaces for the given org_id.
-        
+
+        GET /v2/workspaces?type=root
+
         Example:
         
         ```python
@@ -202,6 +204,8 @@ package:
       description: |
         Gets the default workspaces for the specified organization.
         This function queries RBAC v2 to find the default workspaces for the given org_id.
+        
+        GET /v2/workspaces?type=default
         
         Example:
         
