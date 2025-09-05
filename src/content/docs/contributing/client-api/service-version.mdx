@@ -131,12 +131,31 @@ package:
         
         ```python
         import requests
+        from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
         
-        # Configure HTTP client with authentication headers
+        ISSUER_URL = "https://sso.example.com/auth/"
+        CLIENT_ID = "your-client-id"
+        CLIENT_SECRET = "your-client-secret"
+        
+        # Fetch OIDC discovery information
+        discovery = fetch_oidc_discovery(ISSUER_URL)
+        
+        # Create OAuth2 credentials
+        auth_credentials = OAuth2ClientCredentials(
+            client_id=CLIENT_ID,
+            client_secret=CLIENT_SECRET,
+            token_endpoint=discovery.token_endpoint,
+        )
+        
+        # Get access token
+        token_response = auth_credentials.getToken()
+        access_token = token_response.accessToken
+        
+        # Configure HTTP client with Bearer token
         http_client = requests.Session()
         http_client.headers.update({
-            "x-rh-rbac-psk": "your-pre-shared-key",
-            "x-rh-rbac-client-id": "client-id"
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
         })
         
         # Get the root workspace
@@ -162,7 +181,7 @@ package:
           type:
             name: string
           description: |
-            Organization ID to use for the request. Will be encoded in the x-rh-identity header. ("X-RH-RBAC-ORG-ID")
+            Organization ID to use for the request. Will be encoded in the x-rh-rbac-org-id header in the http request.
       returns:
         name: "Dict[str, Any]"
         description: |
@@ -183,12 +202,31 @@ package:
         
         ```python
         import requests
+        from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
         
-        # Configure HTTP client with authentication headers
+        ISSUER_URL = "https://sso.example.com/auth/"
+        CLIENT_ID = "your-client-id"
+        CLIENT_SECRET = "your-client-secret"
+        
+        # Fetch OIDC discovery information
+        discovery = fetch_oidc_discovery(ISSUER_URL)
+        
+        # Create OAuth2 credentials
+        auth_credentials = OAuth2ClientCredentials(
+            client_id=CLIENT_ID,
+            client_secret=CLIENT_SECRET,
+            token_endpoint=discovery.token_endpoint,
+        )
+        
+        # Get access token
+        token_response = auth_credentials.getToken()
+        access_token = token_response.accessToken
+        
+        # Configure HTTP client with Bearer token
         http_client = requests.Session()
         http_client.headers.update({
-            "x-rh-rbac-psk": "your-pre-shared-key",
-            "x-rh-rbac-client-id": "client-id"
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
         })
         
         # Get the default workspace
@@ -214,7 +252,7 @@ package:
           type:
             name: string
           description: |
-            Organization ID to use for the request. Will be encoded in the x-rh-identity header. ("X-RH-RBAC-ORG-ID")
+            Organization ID to use for the request. Will be encoded in the x-rh-rbac-org-id header in the http request.
       returns:
         name: "Dict[str, Any]"
         description: |
