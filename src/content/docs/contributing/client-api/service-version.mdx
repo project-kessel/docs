@@ -161,7 +161,8 @@ package:
         - name: org_id
           type:
             name: string
-          description: Organization ID to use for the request. Will be encoded in the x-rh-identity header
+          description: |
+            Organization ID to use for the request. Will be encoded in the x-rh-identity header. ("X-RH-RBAC-ORG-ID")
       returns:
         name: "Dict[str, Any]"
         description: |
@@ -212,7 +213,8 @@ package:
         - name: org_id
           type:
             name: string
-          description: Organization ID to use for the request. Will be encoded in the x-rh-identity header
+          description: |
+            Organization ID to use for the request. Will be encoded in the x-rh-identity header. ("X-RH-RBAC-ORG-ID")
       returns:
         name: "Dict[str, Any]"
         description: |
