@@ -130,7 +130,6 @@ package:
         Example:
         
         ```python
-        import requests
         from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
         
         ISSUER_URL = "https://sso.example.com/auth/"
@@ -147,32 +146,23 @@ package:
             token_endpoint=discovery.token_endpoint,
         )
         
-        # Get access token
-        token_response = auth_credentials.getToken()
-        access_token = token_response.accessToken
-        
-        # Configure HTTP client with Bearer token
-        http_client = requests.Session()
-        http_client.headers.update({
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        })
-        
         # Get the root workspace
         root_workspace = get_root_workspace(
-            http_client=http_client,
+            oauth_credentials=auth_credentials,
             rbac_base_endpoint="https://console.stage.redhat.com/",
             org_id="12345"
         )
         print(f"Root workspace: {root_workspace['name']}")
         workspace_id = root_workspace["id"]
         ```
+        
       params:
-        - name: http_client
+        - name: oauth_credentials
           type:
-            name: "http.Client"
+            name: OAuth2ClientCredentials
+            link: ../auth/#class-OAuth2ClientCredentials
           description: |
-            Pre-configured HTTP client with required headers like authentication. 
+            OAuth2 client credentials for automatic authentication. Using getToken() to retrieve a token for the http request.
         - name: rbac_base_endpoint
           type:
             name: string
@@ -201,7 +191,6 @@ package:
         Example:
         
         ```python
-        import requests
         from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
         
         ISSUER_URL = "https://sso.example.com/auth/"
@@ -218,32 +207,23 @@ package:
             token_endpoint=discovery.token_endpoint,
         )
         
-        # Get access token
-        token_response = auth_credentials.getToken()
-        access_token = token_response.accessToken
-        
-        # Configure HTTP client with Bearer token
-        http_client = requests.Session()
-        http_client.headers.update({
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        })
-        
         # Get the default workspace
         default_workspace = get_default_workspace(
-            http_client=http_client,
+            oauth_credentials=auth_credentials,
             rbac_base_endpoint="https://console.stage.redhat.com/",
             org_id="12345"
         )
         print(f"Default workspace: {default_workspace['name']}")
         workspace_id = default_workspace["id"]
         ```
+        
       params:
-        - name: http_client
+        - name: oauth_credentials
           type:
-            name: "http.Client"
+            name: OAuth2ClientCredentials
+            link: ../auth/#class-OAuth2ClientCredentials
           description: |
-            Pre-configured HTTP client with required headers like authentication. 
+            OAuth2 client credentials for automatic authentication. Using getToken() to retrieve a token for the http request.
         - name: rbac_base_endpoint
           type:
             name: string
