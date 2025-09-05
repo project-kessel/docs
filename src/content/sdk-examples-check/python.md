@@ -3,59 +3,154 @@ language: "Python"
 order: 20
 ---
 
+## Basic Client Setup
+
+Create a basic Kessel client for local development:
+
+```python
+from kessel.inventory.v1beta2 import ClientBuilder
+
+# For insecure local development:
+stub, channel = ClientBuilder(KESSEL_ENDPOINT).insecure().build()
+```
+
+## Auth Client Setup
+
+Set up an authenticated client for production environments:
+
+```python
+from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
+from kessel.inventory.v1beta2 import ClientBuilder
+
+# Fetch OIDC discovery information
+discovery = fetch_oidc_discovery(ISSUER_URL)
+
+# Create OAuth2 credentials
+auth_credentials = OAuth2ClientCredentials(
+    client_id=CLIENT_ID,
+    client_secret=CLIENT_SECRET,
+    token_endpoint=discovery.token_endpoint,
+)
+
+# Build authenticated client
+stub, channel = ClientBuilder(KESSEL_ENDPOINT).oauth2_client_authenticated(auth_credentials).build()
+```
+
+## Creating Check Requests
+
+Build a permission check request:
+
+```python
+from kessel.inventory.v1beta2 import (
+    subject_reference_pb2,
+    resource_reference_pb2,
+    reporter_reference_pb2,
+    check_request_pb2,
+)
+
+# Prepare the subject reference object (who is requesting access)
+subject = subject_reference_pb2.SubjectReference(
+    resource=resource_reference_pb2.ResourceReference(
+        reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
+        resource_id="sarah",
+        resource_type="principal",
+    )
+)
+
+# Prepare the resource reference object (what is being accessed)
+resource_ref = resource_reference_pb2.ResourceReference(
+    resource_id="doc-123",
+    resource_type="document",
+    reporter=reporter_reference_pb2.ReporterReference(type="drive"),
+)
+
+# Build the complete check request
+check_request = check_request_pb2.CheckRequest(
+    subject=subject,
+    relation="view",
+    object=resource_ref,
+)
+```
+
+## Sending Check Requests
+
+Execute the check request and handle the response:
+
 ```python
 import grpc
-from google.protobuf import struct_pb2
-from kessel.inventory.v1beta2 import (
-    inventory_service_pb2_grpc,
-    report_resource_request_pb2,
-    resource_representations_pb2,
-    representation_metadata_pb2,
-)
-
-stub = inventory_service_pb2_grpc.KesselInventoryServiceStub(
-    grpc.insecure_channel("localhost:9000")
-)
-
-# Build protobuf Struct for common metadata
-common_struct = struct_pb2.Struct()
-common_struct.update({"workspace_id": "6eb10953-4ec9-4feb-838f-ba43a60880bf"})
-
-# Build protobuf Struct for reporter-specific data
-reporter_struct = struct_pb2.Struct()
-reporter_struct.update(
-    {
-        "satellite_id": "ca234d8f-9861-4659-a033-e80460b2801c",
-        "sub_manager_id": "e9b7d65f-3f81-4c26-b86c-2db663376eed",
-        "insights_inventory_id": "c4b9b5e7-a82a-467a-b382-024a2f18c129",
-        "ansible_host": "host-1",
-    }
-)
-
-# Create metadata for the resource representation
-metadata = representation_metadata_pb2.RepresentationMetadata(
-    local_resource_id="854589f0-3be7-4cad-8bcd-45e18f33cb81",
-    api_href="https://apiHref.com/",
-    console_href="https://www.consoleHref.com/",
-    reporter_version="0.2.11",
-)
-
-# Build the resource representations
-representations = resource_representations_pb2.ResourceRepresentations(
-    metadata=metadata, common=common_struct, reporter=reporter_struct
-)
-
-# Create the report request
-request = report_resource_request_pb2.ReportResourceRequest(
-    type="host",
-    reporter_type="hbi",
-    reporter_instance_id="0a2a430e-1ad9-4304-8e75-cc6fd3b5441a",
-    representations=representations,
-)
 
 try:
-    response = stub.ReportResource(request)
-    print("Resource reported successfully")
+    check_response = stub.Check(check_request)
+    print("Check response received successfully")
+    print(check_response)
 except grpc.RpcError as e:
-    print(f"Error reporting resource: {e.details()}")
+    print("gRPC error occurred during Check:")
+    print(f"Code: {e.code()}")
+    print(f"Details: {e.details()}")
+```
+
+## Complete Example
+
+```python
+import os
+import grpc
+from google.protobuf import struct_pb2
+from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
+from kessel.inventory.v1beta2 import (
+    ClientBuilder,
+    subject_reference_pb2,
+    resource_reference_pb2,
+    reporter_reference_pb2,
+    check_request_pb2,
+)
+
+def run():
+    # For authenticated environments, uncomment and configure the following:
+    # discovery = fetch_oidc_discovery(ISSUER_URL)
+    # auth_credentials = OAuth2ClientCredentials(
+    #     client_id=CLIENT_ID,
+    #     client_secret=CLIENT_SECRET,
+    #     token_endpoint=discovery.token_endpoint,
+    # )
+    # stub, channel = ClientBuilder(KESSEL_ENDPOINT).oauth2_client_authenticated(auth_credentials).build()
+
+    # For insecure local development:
+    stub, channel = ClientBuilder(KESSEL_ENDPOINT).insecure().build()
+
+    with channel:
+        # Prepare the subject reference object
+        subject = subject_reference_pb2.SubjectReference(
+            resource=resource_reference_pb2.ResourceReference(
+                reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
+                resource_id="sarah",
+                resource_type="principal",
+            )
+        )
+
+        # Prepare the resource reference object
+        resource_ref = resource_reference_pb2.ResourceReference(
+            resource_id="doc-123",
+            resource_type="document",
+            reporter=reporter_reference_pb2.ReporterReference(type="drive"),
+        )
+        
+        # Build the complete check request
+        check_request = check_request_pb2.CheckRequest(
+            subject=subject,
+            relation="view",
+            object=resource_ref,
+        )
+
+        try:
+            check_response = stub.Check(check_request)
+            print("Check response received successfully")
+            print(check_response)
+        except grpc.RpcError as e:
+            print("gRPC error occurred during Check:")
+            print(f"Code: {e.code()}")
+            print(f"Details: {e.details()}")
+
+
+if __name__ == "__main__":
+    run()
 ```

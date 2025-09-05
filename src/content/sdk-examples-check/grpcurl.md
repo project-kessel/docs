@@ -1,11 +1,62 @@
 ---
 language: "grpcurl"
-order: 0
+order: 15
 ---
 
+## Basic Client Setup
+
+Set up basic grpcurl configuration for local development:
+
 ```bash
-MESSAGE='{"type": "host", "reporterType": "hbi", "reporterInstanceId": "3088be62-1c60-4884-b133-9200542d0b3f","representations": {"metadata": {"localResourceId": "dd1b73b9-3e33-4264-968c-e3ce55b9afec","apiHref": "https://apiHref.com/","consoleHref": "https://www.console.com/","reporterVersion": "2.7.16"},"common": {"workspace_id": "a64d17d0-aec3-410a-acd0-e0b85b22c076"},"reporter": {"insights_inventory_id": "05707922-7b0a-4fe6-982d-6adbc7695b8f"}}}'
-grpcurl -plaintext -d $MESSAGE \
-localhost: <your local port for inventory> \
-kessel.inventory.v1beta2.KesselInventoryService.ReportResource
-  ```
+# Set your Kessel gRPC endpoint
+KESSEL_GRPC_ENDPOINT="localhost:9000"
+
+# For insecure local development:
+GRPC_OPTS="-plaintext"
+```
+
+## Auth Client Setup
+
+Configure grpcurl with authentication for production environments:
+
+```bash
+# Set grpcurl options with authentication
+GRPC_OPTS="-H 'authorization: Bearer $ACCESS_TOKEN'"
+```
+
+## Creating Check Requests
+
+Build the check request payload:
+
+```bash
+MESSAGE='{"object": {"resource_type": "document", "resource_id": "doc-123", "reporter": {"type": "drive"}}, "relation": "view", "subject": {"resource": {"resource_type": "principal", "resource_id": "sarah", "reporter": {"type": "rbac"}}}}'
+```
+
+## Sending Check Requests
+
+Execute the check request:
+
+```bash
+grpcurl $GRPC_OPTS \
+  -d "$MESSAGE" \
+  "$KESSEL_GRPC_ENDPOINT" \
+  kessel.inventory.v1beta2.KesselInventoryService.Check
+```
+
+## Complete Example
+
+```bash
+# Set your Kessel gRPC endpoint
+KESSEL_GRPC_ENDPOINT="localhost:9000"
+
+# For insecure local development:
+GRPC_OPTS="-plaintext"
+
+# For authenticated environments:
+# GRPC_OPTS="-H 'authorization: Bearer $ACCESS_TOKEN'"
+MESSAGE='{"object": {"resource_type": "document", "resource_id": "doc-123", "reporter": {"type": "drive"}}, "relation": "view", "subject": {"resource": {"resource_type": "principal", "resource_id": "sarah", "reporter": {"type": "rbac"}}}}'
+grpcurl $GRPC_OPTS \
+  -d "$MESSAGE" \
+  "$KESSEL_GRPC_ENDPOINT" \
+  kessel.inventory.v1beta2.KesselInventoryService.Check
+```

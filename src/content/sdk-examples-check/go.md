@@ -3,34 +3,148 @@ language: "Go"
 order: 30
 ---
 
+## Basic Client Setup
+
+Create a basic Kessel client for local development:
+
+```go
+import "github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
+
+// For insecure local development:
+inventoryClient, conn, err := v1beta2.NewClientBuilder(kesselEndpoint).
+    Insecure().
+    Build()
+if err != nil {
+    log.Fatal("Failed to create gRPC client:", err)
+}
+defer conn.Close()
+```
+
+## Auth Client Setup
+
+Set up an authenticated client for production environments:
+
+```go
+import (
+    "github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
+    "github.com/project-kessel/kessel-sdk-go/kessel/auth"
+)
+
+// Fetch OIDC discovery information
+discovered, err := auth.FetchOIDCDiscovery(ctx, os.Getenv("AUTH_DISCOVERY_ISSUER_URL"), auth.FetchOIDCDiscoveryOptions{
+    HttpClient: nil, // Optionally specify an http client - defaults to http.DefaultClient
+})
+if err != nil {
+    panic(err)
+}
+
+// Create OAuth2 credentials
+oauthCredentials := auth.NewOAuth2ClientCredentials(
+    os.Getenv("AUTH_CLIENT_ID"), 
+    os.Getenv("AUTH_CLIENT_SECRET"), 
+    discovered.TokenEndpoint,
+)
+
+// Build authenticated client
+inventoryClient, conn, err := v1beta2.NewClientBuilder(os.Getenv("KESSEL_ENDPOINT")).
+    OAuth2ClientAuthenticated(&oauthCredentials, nil).
+    Build()
+```
+
+## Creating Check Requests
+
+Build a permission check request:
+
+```go
+checkRequest := &v1beta2.CheckRequest{
+    Object: &v1beta2.ResourceReference{
+        ResourceType: "document",
+        ResourceId:   "doc-123",
+        Reporter: &v1beta2.ReporterReference{
+            Type: "drive",
+        },
+    },
+    Relation: "view",
+    Subject: &v1beta2.SubjectReference{
+        Resource: &v1beta2.ResourceReference{
+            ResourceType: "principal",
+            ResourceId:   "sarah",
+            Reporter: &v1beta2.ReporterReference{
+                Type: "rbac",
+            },
+        },
+    },
+}
+```
+
+## Sending Check Requests
+
+Execute the check request and handle the response:
+
+```go
+import (
+    "google.golang.org/grpc/codes"
+    "google.golang.org/grpc/status"
+)
+
+fmt.Println("Making check request:")
+response, err := inventoryClient.Check(ctx, checkRequest)
+if err != nil {
+    if st, ok := status.FromError(err); ok {
+        switch st.Code() {
+        case codes.Unavailable:
+            log.Fatal("Service unavailable: ", err)
+        case codes.PermissionDenied:
+            log.Fatal("Permission denied: ", err)
+        default:
+            log.Fatal("gRPC connection error: ", err)
+        }
+    } else {
+        log.Fatal("Unknown error: ", err)
+    }
+}
+fmt.Printf("Check response: %+v\n", response)
+```
+
+## Complete Example
+
 ```go
 package main
 
 import (
 	"context"
 	"fmt"
-	"google.golang.org/protobuf/types/known/structpb"
 	"log"
 	"os"
 
 	_ "github.com/joho/godotenv/autoload"
 
-	v1beta2 "github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
-	"google.golang.org/grpc"
+	"github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+	"github.com/project-kessel/kessel-sdk-go/kessel/auth"
 )
 
-func addr[T any](t T) *T { return &t }
-
-func main() {
+func checkResource() {
 	ctx := context.Background()
 
-	var dialOpts []grpc.DialOption
-	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// For authenticated environments, uncomment and configure the following:
+	// discovered, err := auth.FetchOIDCDiscovery(ctx, os.Getenv("AUTH_DISCOVERY_ISSUER_URL"), auth.FetchOIDCDiscoveryOptions{
+	// 	HttpClient: nil, // Optionally specify an http client - defaults to http.DefaultClient
+	// })
 
-	conn, err := grpc.NewClient(os.Getenv("KESSEL_ENDPOINT"), dialOpts...)
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// oauthCredentials := auth.NewOAuth2ClientCredentials(os.Getenv("AUTH_CLIENT_ID"), os.Getenv("AUTH_CLIENT_SECRET"), discovered.TokenEndpoint)
+	// inventoryClient, conn, err := v1beta2.NewClientBuilder(os.Getenv("KESSEL_ENDPOINT")).
+	// 	OAuth2ClientAuthenticated(&oauthCredentials, nil).
+	// 	Build()
+
+	inventoryClient, conn, err := v1beta2.NewClientBuilder(KESSEL_ENDPOINT).
+		Insecure().
+		Build()
 	if err != nil {
 		log.Fatal("Failed to create gRPC client:", err)
 	}
@@ -40,38 +154,28 @@ func main() {
 		}
 	}()
 
-	inventoryClient := v1beta2.NewKesselInventoryServiceClient(conn)
-
-	reportResourceRequest := &v1beta2.ReportResourceRequest{
-		Type:               "host",
-		ReporterType:       "hbi",
-		ReporterInstanceId: "0a2a430e-1ad9-4304-8e75-cc6fd3b5441a",
-		Representations: &v1beta2.ResourceRepresentations{
-			Metadata: &v1beta2.RepresentationMetadata{
-				LocalResourceId: "854589f0-3be7-4cad-8bcd-45e18f33cb81",
-				ApiHref:         "https://apiHref.com/",
-				ConsoleHref:     addr("https://www.consoleHref.com/"),
-				ReporterVersion: addr("0.2.11"),
+	checkRequest := &v1beta2.CheckRequest{
+		Object: &v1beta2.ResourceReference{
+			ResourceType: "document",
+			ResourceId:   "doc-123",
+			Reporter: &v1beta2.ReporterReference{
+				Type: "drive",
 			},
-			Common: &structpb.Struct{
-				Fields: map[string]*structpb.Value{
-					"workspace_id": structpb.NewStringValue("6eb10953-4ec9-4feb-838f-ba43a60880bf"),
-				},
-			},
-			Reporter: &structpb.Struct{
-				Fields: map[string]*structpb.Value{
-					"satellite_id":          structpb.NewStringValue("ca234d8f-9861-4659-a033-e80460b2801c"),
-					"sub_manager_id":        structpb.NewStringValue("e9b7d65f-3f81-4c26-b86c-2db663376eed"),
-					"insights_inventory_id": structpb.NewStringValue("c4b9b5e7-a82a-467a-b382-024a2f18c129"),
-					"ansible_host":          structpb.NewStringValue("host-1"),
+		},
+		Relation: "view",
+		Subject: &v1beta2.SubjectReference{
+			Resource: &v1beta2.ResourceReference{
+				ResourceType: "principal",
+				ResourceId:   "sarah",
+				Reporter: &v1beta2.ReporterReference{
+					Type: "rbac",
 				},
 			},
 		},
 	}
 
-	fmt.Println("Making report resource request:")
-
-	response, err := inventoryClient.ReportResource(ctx, reportResourceRequest)
+	fmt.Println("Making check request:")
+	response, err := inventoryClient.Check(ctx, checkRequest)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			switch st.Code() {
@@ -86,7 +190,8 @@ func main() {
 			log.Fatal("Unknown error: ", err)
 		}
 	}
-	fmt.Printf("Report resource response: %+v\n", response)
+	fmt.Printf("Check response: %+v\n", response)
 }
 
+func main() { checkResource() }
 ```

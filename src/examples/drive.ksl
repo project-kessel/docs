@@ -1,0 +1,21 @@
+version 0.1
+namespace drive
+
+import rbac
+
+@rbac.add_permission(name:'view_document')
+@rbac.add_permission(name:'edit_document')
+@rbac.add_permission(name:'delete_document')
+
+public type document {
+    relation workspace: [ExactlyOne rbac.workspace]
+    
+    // Direct permissions from workspace
+    relation view_document: workspace.view_document
+    relation edit_document: workspace.edit_document
+    relation delete_document: workspace.delete_document
+    
+    relation view: view_document
+    relation edit: edit_document
+    relation manage: delete_document
+}

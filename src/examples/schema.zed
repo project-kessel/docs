@@ -1,0 +1,53 @@
+definition drive/document {
+	permission delete_document = t_workspace->delete_document
+	permission edit = edit_document
+	permission edit_document = t_workspace->edit_document
+	permission manage = delete_document
+	permission view = view_document
+	permission view_document = t_workspace->view_document
+	permission workspace = t_workspace
+	relation t_workspace: rbac/workspace
+}
+
+definition kessel/lock {
+	permission version = t_version
+	relation t_version: kessel/lockversion
+}
+
+definition kessel/lockversion {}
+
+definition rbac/group {
+	permission member = t_member
+	relation t_member: rbac/principal | rbac/group#member
+}
+
+definition rbac/principal {}
+
+definition rbac/role {
+	permission delete_document = t_delete_document
+	relation t_delete_document: rbac/principal:*
+	permission edit_document = t_edit_document
+	relation t_edit_document: rbac/principal:*
+	permission view_document = t_view_document
+	relation t_view_document: rbac/principal:*
+}
+
+definition rbac/role_binding {
+	permission delete_document = (subject & t_granted->delete_document)
+	permission edit_document = (subject & t_granted->edit_document)
+	permission granted = t_granted
+	relation t_granted: rbac/role
+	permission subject = t_subject
+	relation t_subject: rbac/principal | rbac/group#member
+	permission view_document = (subject & t_granted->view_document)
+}
+
+definition rbac/workspace {
+	permission delete_document = t_user_grant->delete_document + t_parent->delete_document
+	permission edit_document = t_user_grant->edit_document + t_parent->edit_document
+	permission parent = t_parent
+	relation t_parent: rbac/workspace
+	permission user_grant = t_user_grant
+	relation t_user_grant: rbac/role_binding
+	permission view_document = t_user_grant->view_document + t_parent->view_document
+}
