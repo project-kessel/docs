@@ -152,10 +152,10 @@ package:
             OAuth2 client credentials instance that will be used for automatic token 
             retrieval and refresh for each HTTP request.
       returns:
-        name: requests.auth.AuthBase
+        name: OAuth2Auth
         description: |
-          A requests-compatible authentication object that automatically handles OAuth2 token 
-          retrieval and injects Bearer tokens into HTTP requests.
+          A new instance of OAuth2Auth (subclass of requests.auth.AuthBase or similar library class) that automatically 
+          handles OAuth2 token retrieval and injects Bearer tokens into HTTP requests.
     - name: fetch_root_workspace
       description: |
         Fetches the root workspace for the specified organization.
