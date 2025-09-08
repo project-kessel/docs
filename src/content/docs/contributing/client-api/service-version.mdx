@@ -120,9 +120,45 @@ package:
             ensure the wrapper is consistent with the stub API.
 
   functions:
-    - name: get_root_workspace
+    - name: oauth2_auth
       description: |
-        Gets the root workspace for the specified organization.
+        Create a requests-compatible authentication object that leverages the OAuth2 Client Credentials flow.
+        This function provides the same functionality as the gRPC `oauth2CallCredentials` but for HTTP requests using a requests-compatible library.
+        
+        Example:
+        
+        ```python
+        import requests
+        from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
+        from kessel.requests import oauth2_auth
+        
+        # Configure OAuth2 credentials
+        discovery = fetch_oidc_discovery("https://sso.example.com/auth/")
+        auth_credentials = OAuth2ClientCredentials(
+            client_id="your-client-id",
+            client_secret="your-client-secret",
+            token_endpoint=discovery.token_endpoint,
+        )
+        
+        # Create requests auth object
+        auth = oauth2_auth(auth_credentials)
+        ```
+      params:
+        - name: credentials
+          type:
+            name: OAuth2ClientCredentials
+            link: ../auth/#class-OAuth2ClientCredentials
+          description: |
+            OAuth2 client credentials instance that will be used for automatic token 
+            retrieval and refresh for each HTTP request.
+      returns:
+        name: requests.auth.AuthBase
+        description: |
+          A requests-compatible authentication object that automatically handles OAuth2 token 
+          retrieval and injects Bearer tokens into HTTP requests.
+    - name: fetch_root_workspace
+      description: |
+        Fetches the root workspace for the specified organization.
         This function queries RBAC v2 to find the root workspace for the given org_id.
         
         GET /api/rbac/v2/workspaces/?type=root
@@ -130,48 +166,52 @@ package:
         Example:
         
         ```python
+        import requests
         from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
+        from kessel.requests import oauth2_auth
         
-        ISSUER_URL = "https://sso.example.com/auth/"
-        CLIENT_ID = "your-client-id"
-        CLIENT_SECRET = "your-client-secret"
-        
-        # Fetch OIDC discovery information
-        discovery = fetch_oidc_discovery(ISSUER_URL)
-        
-        # Create OAuth2 credentials
+        # Configure OAuth2 credentials
+        discovery = fetch_oidc_discovery("https://sso.example.com/auth/")
         auth_credentials = OAuth2ClientCredentials(
-            client_id=CLIENT_ID,
-            client_secret=CLIENT_SECRET,
+            client_id="your-client-id",
+            client_secret="your-client-secret",
             token_endpoint=discovery.token_endpoint,
         )
         
-        # Get the root workspace
-        root_workspace = get_root_workspace(
-            oauth_credentials=auth_credentials,
-            rbac_base_endpoint="https://console.stage.redhat.com/",
-            org_id="12345"
+        # Create requests auth object
+        auth = oauth2_auth(auth_credentials)
+        
+        # Fetch the root workspace
+        root_workspace = fetch_root_workspace(
+            org_id="12345",
+            requests_module=requests,
+            auth=auth,
+            rbac_base_endpoint="https://console.stage.redhat.com/"
         )
         print(f"Root workspace: {root_workspace['name']}")
         workspace_id = root_workspace["id"]
         ```
         
       params:
-        - name: oauth_credentials
+        - name: org_id
           type:
-            name: OAuth2ClientCredentials
-            link: ../auth/#class-OAuth2ClientCredentials
+            name: string
+          description: Organization ID to use for the request.
+        - name: requests_module
+          type:
+            name: module
           description: |
-            OAuth2 client credentials for automatic authentication. Using getToken() to retrieve a token for the http request.
+            The requests module (or compatible library).
+        - name: auth
+          type:
+            name: requests.auth.AuthBase
+          description: |
+            Requests-compatible authentication object. Use `oauth2_auth(credentials)` from 
+            the `kessel.requests` package for OAuth2 authentication.
         - name: rbac_base_endpoint
           type:
             name: string
           description: The RBAC service endpoint URL (stage/prod/ephemeral)
-        - name: org_id
-          type:
-            name: string
-          description: |
-            Organization ID to use for the request. Will be encoded in the x-rh-rbac-org-id header in the http request.
       returns:
         name: "Dict[str, Any]"
         description: |
@@ -181,9 +221,9 @@ package:
           - `type`: Workspace type ("root")
           - `description`: Workspace description
 
-    - name: get_default_workspace
+    - name: fetch_default_workspace
       description: |
-        Gets the default workspace for the specified organization.
+        Fetches the default workspace for the specified organization.
         This function queries RBAC v2 to find the default workspace for the given org_id.
         
         GET /api/rbac/v2/workspaces/?type=default
@@ -191,48 +231,52 @@ package:
         Example:
         
         ```python
+        import requests
         from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
+        from kessel.requests import oauth2_auth
         
-        ISSUER_URL = "https://sso.example.com/auth/"
-        CLIENT_ID = "your-client-id"
-        CLIENT_SECRET = "your-client-secret"
-        
-        # Fetch OIDC discovery information
-        discovery = fetch_oidc_discovery(ISSUER_URL)
-        
-        # Create OAuth2 credentials
+        # Configure OAuth2 credentials
+        discovery = fetch_oidc_discovery("https://sso.example.com/auth/")
         auth_credentials = OAuth2ClientCredentials(
-            client_id=CLIENT_ID,
-            client_secret=CLIENT_SECRET,
+            client_id="your-client-id",
+            client_secret="your-client-secret",
             token_endpoint=discovery.token_endpoint,
         )
         
-        # Get the default workspace
-        default_workspace = get_default_workspace(
-            oauth_credentials=auth_credentials,
-            rbac_base_endpoint="https://console.stage.redhat.com/",
-            org_id="12345"
+        # Create requests auth object
+        auth = oauth2_auth(auth_credentials)
+        
+        # Fetch the default workspace
+        default_workspace = fetch_default_workspace(
+            org_id="12345",
+            requests_module=requests,
+            auth=auth,
+            rbac_base_endpoint="https://console.stage.redhat.com/"
         )
         print(f"Default workspace: {default_workspace['name']}")
         workspace_id = default_workspace["id"]
         ```
         
       params:
-        - name: oauth_credentials
+        - name: org_id
           type:
-            name: OAuth2ClientCredentials
-            link: ../auth/#class-OAuth2ClientCredentials
+            name: string
+          description: Organization ID to use for the request.
+        - name: requests_module
+          type:
+            name: module
           description: |
-            OAuth2 client credentials for automatic authentication. Using getToken() to retrieve a token for the http request.
+            The requests module (or compatible library).
+        - name: auth
+          type:
+            name: requests.auth.AuthBase
+          description: |
+            Requests-compatible authentication object. Use `oauth2_auth(credentials)` from 
+            the `kessel.requests` package for OAuth2 authentication.
         - name: rbac_base_endpoint
           type:
             name: string
           description: The RBAC service endpoint URL (stage/prod/ephemeral)
-        - name: org_id
-          type:
-            name: string
-          description: |
-            Organization ID to use for the request. Will be encoded in the x-rh-rbac-org-id header in the http request.
       returns:
         name: "Dict[str, Any]"
         description: |
