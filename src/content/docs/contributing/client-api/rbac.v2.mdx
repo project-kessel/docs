@@ -2,6 +2,26 @@
 title: "Package: rbac.v2"
 docType: client-package
 package:
+  classes:
+    - name: Workspace
+      description: Represents a workspace object from RBAC v2 API
+      properties:
+        - name: id
+          type:
+            name: string
+          description: Workspace identifier
+        - name: name
+          type:
+            name: string
+          description: Workspace name
+        - name: type
+          type:
+            name: string
+          description: Workspace type (e.g., "root", "default")
+        - name: description
+          type:
+            name: string
+          description: Workspace description
   functions:
     - name: fetchRootWorkspace
       description: |
@@ -50,13 +70,10 @@ package:
             name: string
           description: Organization ID to use for the request.
       returns:
-        name: "Dict[str, Any]"
+        name: Workspace
+        link: "#class-Workspace"
         description: |
-          A dictionary containing the root workspace object with fields like:
-          - `id`: Workspace identifier
-          - `name`: Workspace name
-          - `type`: Workspace type ("root")
-          - `description`: Workspace description
+          A Workspace object representing the root workspace for the organization.
 
     - name: fetchDefaultWorkspace
       description: |
@@ -105,13 +122,10 @@ package:
             name: string
           description: Organization ID to use for the request.
       returns:
-        name: "Dict[str, Any]"
+        name: Workspace
+        link: "#class-Workspace"
         description: |
-          A dictionary containing the default workspace object with fields like:
-          - `id`: Workspace identifier
-          - `name`: Workspace name
-          - `type`: Workspace type ("default")
-          - `description`: Workspace description
+          A Workspace object representing the default workspace for the organization.
 ---
 
 Package for RBAC v2 client methods.
