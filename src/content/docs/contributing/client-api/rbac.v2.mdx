@@ -1,0 +1,117 @@
+---
+title: "Package: rbac.v2"
+docType: client-package
+package:
+  functions:
+    - name: fetchRootWorkspace
+      description: |
+        Fetches the root workspace for the specified organization.
+        This function queries RBAC v2 to find the root workspace for the given orgId.
+        
+        GET /api/rbac/v2/workspaces/?type=root
+        
+        Example:
+        
+        ```python
+        from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
+        
+        # Configure OAuth2 credentials
+        discovery = fetch_oidc_discovery("https://sso.example.com/auth/")
+        auth_credentials = OAuth2ClientCredentials(
+            client_id="your-client-id",
+            client_secret="your-client-secret",
+            token_endpoint=discovery.token_endpoint,
+        )
+        
+        # Fetch the root workspace
+        root_workspace = fetch_root_workspace(
+            oauth_credentials=auth_credentials,
+            rbac_base_endpoint="https://console.stage.redhat.com/",
+            org_id="12345"
+        )
+        print(f"Root workspace: {root_workspace['name']}")
+        workspace_id = root_workspace["id"]
+        ```
+        
+      params:
+        - name: oauthCredentials
+          type:
+            name: OAuth2ClientCredentials
+            link: ../auth/#class-OAuth2ClientCredentials
+          description: |
+            OAuth2 client credentials for automatic auth. The function will internally 
+            create the appropriate auth adapter for the HTTP library.
+        - name: rbacBaseEndpoint
+          type:
+            name: string
+          description: The RBAC service endpoint URL (stage/prod/ephemeral)
+        - name: orgId
+          type:
+            name: string
+          description: Organization ID to use for the request.
+      returns:
+        name: "Dict[str, Any]"
+        description: |
+          A dictionary containing the root workspace object with fields like:
+          - `id`: Workspace identifier
+          - `name`: Workspace name
+          - `type`: Workspace type ("root")
+          - `description`: Workspace description
+
+    - name: fetchDefaultWorkspace
+      description: |
+        Fetches the default workspace for the specified organization.
+        This function queries RBAC v2 to find the default workspace for the given orgId.
+        
+        GET /api/rbac/v2/workspaces/?type=default
+        
+        Example:
+        
+        ```python
+        from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
+        
+        # Configure OAuth2 credentials
+        discovery = fetch_oidc_discovery("https://sso.example.com/auth/")
+        auth_credentials = OAuth2ClientCredentials(
+            client_id="your-client-id",
+            client_secret="your-client-secret",
+            token_endpoint=discovery.token_endpoint,
+        )
+        
+        # Fetch the default workspace
+        default_workspace = fetch_default_workspace(
+            oauth_credentials=auth_credentials,
+            rbac_base_endpoint="https://console.stage.redhat.com/",
+            org_id="12345"
+        )
+        print(f"Default workspace: {default_workspace['name']}")
+        workspace_id = default_workspace["id"]
+        ```
+        
+      params:
+        - name: oauthCredentials
+          type:
+            name: OAuth2ClientCredentials
+            link: ../auth/#class-OAuth2ClientCredentials
+          description: |
+            OAuth2 client credentials for automatic auth. The function will internally 
+            create the appropriate auth adapter for the HTTP library.
+        - name: rbacBaseEndpoint
+          type:
+            name: string
+          description: The RBAC service endpoint URL (stage/prod/ephemeral)
+        - name: orgId
+          type:
+            name: string
+          description: Organization ID to use for the request.
+      returns:
+        name: "Dict[str, Any]"
+        description: |
+          A dictionary containing the default workspace object with fields like:
+          - `id`: Workspace identifier
+          - `name`: Workspace name
+          - `type`: Workspace type ("default")
+          - `description`: Workspace description
+---
+
+Package for RBAC v2 client methods.
