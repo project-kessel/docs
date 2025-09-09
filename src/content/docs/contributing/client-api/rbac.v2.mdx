@@ -33,24 +33,24 @@ package:
         Example:
         
         ```python
-        from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
+        from kessel.auth import fetchOIDCDiscovery, OAuth2ClientCredentials
         
         # Configure OAuth2 credentials
-        discovery = fetch_oidc_discovery("https://sso.example.com/auth/")
-        auth_credentials = OAuth2ClientCredentials(
-            client_id="your-client-id",
-            client_secret="your-client-secret",
-            token_endpoint=discovery.token_endpoint,
+        discovery = fetchOIDCDiscovery("https://sso.example.com/auth/")
+        authCredentials = OAuth2ClientCredentials(
+            clientId="your-client-id",
+            clientSecret="your-client-secret",
+            tokenEndpoint=discovery.tokenEndpoint,
         )
         
         # Fetch the root workspace
-        root_workspace = fetch_root_workspace(
-            oauth_credentials=auth_credentials,
-            rbac_base_endpoint="https://console.stage.redhat.com/",
-            org_id="12345"
+        rootWorkspace = fetchRootWorkspace(
+            oauthCredentials=authCredentials,
+            rbacBaseEndpoint="https://console.stage.redhat.com/",
+            orgId="12345"
         )
-        print(f"Root workspace: {root_workspace['name']}")
-        workspace_id = root_workspace["id"]
+        print(f"Root workspace: {rootWorkspace['name']}")
+        workspaceId = rootWorkspace["id"]
         ```
         
       params:
@@ -69,6 +69,14 @@ package:
           type:
             name: string
           description: Organization ID to use for the request.
+        - name: httpClient
+          type:
+            name: HttpClient
+          optional: true
+          description: |
+            Optional HTTP client instance (e.g., requests, http.Client). 
+            If not provided, uses the default HTTP client for the language.
+            Allows users to inject custom HTTP clients with additional headers or configuration.
       returns:
         name: Workspace
         link: "#class-Workspace"
@@ -85,24 +93,24 @@ package:
         Example:
         
         ```python
-        from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
+        from kessel.auth import fetchOIDCDiscovery, OAuth2ClientCredentials
         
         # Configure OAuth2 credentials
-        discovery = fetch_oidc_discovery("https://sso.example.com/auth/")
-        auth_credentials = OAuth2ClientCredentials(
-            client_id="your-client-id",
-            client_secret="your-client-secret",
-            token_endpoint=discovery.token_endpoint,
+        discovery = fetchOIDCDiscovery("https://sso.example.com/auth/")
+        authCredentials = OAuth2ClientCredentials(
+            clientId="your-client-id",
+            clientSecret="your-client-secret",
+            tokenEndpoint=discovery.tokenEndpoint,
         )
         
         # Fetch the default workspace
-        default_workspace = fetch_default_workspace(
-            oauth_credentials=auth_credentials,
-            rbac_base_endpoint="https://console.stage.redhat.com/",
-            org_id="12345"
+        defaultWorkspace = fetchDefaultWorkspace(
+            oauthCredentials=authCredentials,
+            rbacBaseEndpoint="https://console.stage.redhat.com/",
+            orgId="12345"
         )
-        print(f"Default workspace: {default_workspace['name']}")
-        workspace_id = default_workspace["id"]
+        print(f"Default workspace: {defaultWorkspace['name']}")
+        workspaceId = defaultWorkspace["id"]
         ```
         
       params:
@@ -121,6 +129,14 @@ package:
           type:
             name: string
           description: Organization ID to use for the request.
+        - name: httpClient
+          type:
+            name: HttpClient
+          optional: true
+          description: |
+            Optional HTTP client instance (e.g., requests, http.Client). 
+            If not provided, uses the default HTTP client for the language.
+            Allows users to inject custom HTTP clients with additional headers or configuration.
       returns:
         name: Workspace
         link: "#class-Workspace"
