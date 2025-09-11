@@ -34,6 +34,8 @@ package:
         
         ```python
         from kessel.auth import fetchOIDCDiscovery, OAuth2ClientCredentials
+        from kessel.requests import oauth2Auth
+        from kessel.rbac.v2 import fetchRootWorkspace
         
         # Configure OAuth2 credentials
         discovery = fetchOIDCDiscovery("https://sso.example.com/auth/")
@@ -43,24 +45,26 @@ package:
             tokenEndpoint=discovery.tokenEndpoint,
         )
         
+        # Create auth adapter
+        auth = oauth2Auth(authCredentials)
+        
         # Fetch the root workspace
         rootWorkspace = fetchRootWorkspace(
-            oauthCredentials=authCredentials,
+            auth=auth,
             rbacBaseEndpoint="https://console.stage.redhat.com/",
             orgId="12345"
         )
-        print(f"Root workspace: {rootWorkspace['name']}")
-        workspaceId = rootWorkspace["id"]
+        print(f"Root workspace: {rootWorkspace.name}")
+        workspaceId = rootWorkspace.id
         ```
         
       params:
-        - name: oauthCredentials
+        - name: auth
           type:
-            name: OAuth2ClientCredentials
-            link: ../auth/#class-OAuth2ClientCredentials
+            name: OAuth2Auth
           description: |
-            OAuth2 client credentials for automatic auth. The function will internally 
-            create the appropriate auth adapter for the HTTP library.
+            Authentication object compatible with requests/http library. Injects auth into http headers. 
+            Create this using oauth2_auth(credentials). 
         - name: rbacBaseEndpoint
           type:
             name: string
@@ -94,6 +98,8 @@ package:
         
         ```python
         from kessel.auth import fetchOIDCDiscovery, OAuth2ClientCredentials
+        from kessel.requests import oauth2Auth
+        from kessel.rbac.v2 import fetchDefaultWorkspace
         
         # Configure OAuth2 credentials
         discovery = fetchOIDCDiscovery("https://sso.example.com/auth/")
@@ -103,24 +109,26 @@ package:
             tokenEndpoint=discovery.tokenEndpoint,
         )
         
+        # Create auth adapter
+        auth = oauth2Auth(authCredentials)
+        
         # Fetch the default workspace
         defaultWorkspace = fetchDefaultWorkspace(
-            oauthCredentials=authCredentials,
+            auth=auth,
             rbacBaseEndpoint="https://console.stage.redhat.com/",
             orgId="12345"
         )
-        print(f"Default workspace: {defaultWorkspace['name']}")
-        workspaceId = defaultWorkspace["id"]
+        print(f"Default workspace: {defaultWorkspace.name}")
+        workspaceId = defaultWorkspace.id
         ```
         
       params:
-        - name: oauthCredentials
+        - name: auth
           type:
-            name: OAuth2ClientCredentials
-            link: ../auth/#class-OAuth2ClientCredentials
+            name: OAuth2Auth
           description: |
-            OAuth2 client credentials for automatic auth. The function will internally 
-            create the appropriate auth adapter for the HTTP library.
+            Authentication object compatible with requests/http library. Injects auth into http headers. 
+            Create this using oauth2Auth(credentials).
         - name: rbacBaseEndpoint
           type:
             name: string
@@ -141,7 +149,7 @@ package:
         name: Workspace
         link: "#class-Workspace"
         description: |
-          A Workspace object representing the default workspace for the organization.
+          A Workspace object representing the root workspace for the organization.
 ---
 
 Package for RBAC v2 client methods.
