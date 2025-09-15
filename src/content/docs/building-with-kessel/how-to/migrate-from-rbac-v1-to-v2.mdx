@@ -187,6 +187,15 @@ GET /api/rbac/v2/workspaces/?type=root
 GET /api/rbac/v2/workspaces/?type=default
 ```
 
+<Aside type="note" title="Resolving workspace ids from RBAC">
+Note that requests to the RBAC service for obtaining workspace IDs should **not** relay the `x-rh-identity` header.
+That is to avoid the situations where the principal themselves may lack the permission to list workspaces in RBAC, causing this logic to fail.
+
+Instead, the integrating service needs to use its own authority to look up the workspaces (will always be authorized to do so) and hence uses the OAuth access token obtained from the Kessel SDK to authenticate requests.
+Furthermore, the `x-rh-rbac-org-id` needs to be specified so that RBAC can properly identify the correct account.
+See [config-manager's RBAC client implementation](https://github.com/RedHatInsights/config-manager/blob/54348fd2a0c8034659a2fed5a082c511e8169f10/internal/http/middleware/authorization/rbac.go#L52-L61) for an example.
+</Aside>
+
 The default/root workspace for a given organization is guaranteed to never change and is therefore easily cacheable.
 However, in the future the need to look up the default/root workspace ID will be resolved transparently on the Kessel side.
 There is therefore no need to implement the caching code in the application code at this time.
