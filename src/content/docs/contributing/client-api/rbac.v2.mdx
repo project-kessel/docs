@@ -1,0 +1,155 @@
+---
+title: "Package: rbac.v2"
+docType: client-package
+package:
+  classes:
+    - name: Workspace
+      description: Represents a workspace object from RBAC v2 API
+      properties:
+        - name: id
+          type:
+            name: string
+          description: Workspace identifier
+        - name: name
+          type:
+            name: string
+          description: Workspace name
+        - name: type
+          type:
+            name: string
+          description: Workspace type (e.g., "root", "default")
+        - name: description
+          type:
+            name: string
+          description: Workspace description
+  functions:
+    - name: fetchRootWorkspace
+      description: |
+        Fetches the root workspace for the specified organization.
+        This function queries RBAC v2 to find the root workspace for the given orgId.
+        
+        GET /api/rbac/v2/workspaces/?type=root
+        
+        Example:
+        
+        ```python
+        from kessel.auth import fetchOIDCDiscovery, OAuth2ClientCredentials
+        from kessel.requests import oauth2Auth
+        from kessel.rbac.v2 import fetchRootWorkspace
+        
+        # Configure OAuth2 credentials
+        discovery = fetchOIDCDiscovery("https://sso.example.com/auth/")
+        authCredentials = OAuth2ClientCredentials(
+            clientId="your-client-id",
+            clientSecret="your-client-secret",
+            tokenEndpoint=discovery.tokenEndpoint,
+        )
+        
+        # Create auth adapter
+        auth = oauth2Auth(authCredentials)
+        
+        # Fetch the root workspace
+        rootWorkspace = fetchRootWorkspace(
+            auth=auth,
+            rbacBaseEndpoint="https://console.stage.redhat.com/",
+            orgId="12345"
+        )
+        print(f"Root workspace: {rootWorkspace.name}")
+        workspaceId = rootWorkspace.id
+        ```
+        
+      params:
+        - name: auth
+          type:
+            name: OAuth2Auth
+          description: |
+            Authentication object compatible with requests/http library. Injects auth into http headers. 
+            Create this using oauth2_auth(credentials). 
+        - name: rbacBaseEndpoint
+          type:
+            name: string
+          description: The RBAC service endpoint URL (stage/prod/ephemeral)
+        - name: orgId
+          type:
+            name: string
+          description: Organization ID to use for the request.
+        - name: httpClient
+          type:
+            name: HttpClient
+          optional: true
+          description: |
+            Optional HTTP client instance (e.g., requests, http.Client). 
+            If not provided, uses the default HTTP client for the language.
+            Allows users to inject custom HTTP clients with additional headers or configuration.
+      returns:
+        name: Workspace
+        link: "#class-Workspace"
+        description: |
+          A Workspace object representing the root workspace for the organization.
+
+    - name: fetchDefaultWorkspace
+      description: |
+        Fetches the default workspace for the specified organization.
+        This function queries RBAC v2 to find the default workspace for the given orgId.
+        
+        GET /api/rbac/v2/workspaces/?type=default
+        
+        Example:
+        
+        ```python
+        from kessel.auth import fetchOIDCDiscovery, OAuth2ClientCredentials
+        from kessel.requests import oauth2Auth
+        from kessel.rbac.v2 import fetchDefaultWorkspace
+        
+        # Configure OAuth2 credentials
+        discovery = fetchOIDCDiscovery("https://sso.example.com/auth/")
+        authCredentials = OAuth2ClientCredentials(
+            clientId="your-client-id",
+            clientSecret="your-client-secret",
+            tokenEndpoint=discovery.tokenEndpoint,
+        )
+        
+        # Create auth adapter
+        auth = oauth2Auth(authCredentials)
+        
+        # Fetch the default workspace
+        defaultWorkspace = fetchDefaultWorkspace(
+            auth=auth,
+            rbacBaseEndpoint="https://console.stage.redhat.com/",
+            orgId="12345"
+        )
+        print(f"Default workspace: {defaultWorkspace.name}")
+        workspaceId = defaultWorkspace.id
+        ```
+        
+      params:
+        - name: auth
+          type:
+            name: OAuth2Auth
+          description: |
+            Authentication object compatible with requests/http library. Injects auth into http headers. 
+            Create this using oauth2Auth(credentials).
+        - name: rbacBaseEndpoint
+          type:
+            name: string
+          description: The RBAC service endpoint URL (stage/prod/ephemeral)
+        - name: orgId
+          type:
+            name: string
+          description: Organization ID to use for the request.
+        - name: httpClient
+          type:
+            name: HttpClient
+          optional: true
+          description: |
+            Optional HTTP client instance (e.g., requests, http.Client). 
+            If not provided, uses the default HTTP client for the language.
+            Allows users to inject custom HTTP clients with additional headers or configuration.
+      returns:
+        name: Workspace
+        link: "#class-Workspace"
+        description: |
+          A Workspace object representing the root workspace for the organization.
+---
+
+Package for RBAC v2 client methods.
