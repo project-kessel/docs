@@ -318,28 +318,59 @@ package:
 
         ```python
         userSubject = principalSubject("john.doe", "redhat.com")
-        workspaces = listWorkspaces(userSubject, "member", inventoryClient)
-        for workspace in workspaces:
-            print(f"User has access to workspace: {workspace.resource.resourceId}")
+        for workspace in listWorkspaces(inventoryClient, userSubject, "member"):
+            print(f"User has access to workspace: {workspace.resourceId}")
         ```
       params:
-        - name: subject
-          type:
-            name: SubjectReference
-            link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.SubjectReference
-          description: The subject (typically a user principal) to check permissions for
-        - name: relation
-          type:
-            name: string
-          description: The relationship type to check (e.g., "member", "admin", "viewer")
         - name: inventory
           type:
             name: KesselInventoryServiceStub
           description: The inventory service client stub for making the request
+        - name: subject
+          type:
+            name: SubjectReference
+            link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.SubjectReference
+          description: The subject to check permissions for
+        - name: relation
+          type:
+            name: string
+          description: The relationship type to check
       returns:
-        name: "AsyncIterator[StreamedListObjectsResponse] | Iterable[StreamedListObjectsResponse]"
-        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.StreamedListObjectsResponse
-        description: An iterator of workspace objects that the subject has the specified relation to
+        name: "Iterable[ResourceReference]"
+        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.ResourceReference
+        description: An iterator of workspace resources that the subject has the specified relation to
+
+    - name: listWorkspacesAsync
+      description: |
+        Lists all workspaces that a subject has a specific relation to.
+        This function queries the inventory service to find workspaces based on the subject's permissions.
+        This variant supports asynchronous iteration over results.
+
+        Example:
+
+        ```python
+        userSubject = principalSubject("john.doe", "redhat.com")
+        async for workspace in listWorkspacesAsync(inventoryClient, userSubject, "member"):
+            print(f"User has access to workspace: {workspace.resourceId}")
+        ```
+      params:
+        - name: inventory
+          type:
+            name: KesselInventoryServiceStub
+          description: The inventory service client stub for making the request (async channel)
+        - name: subject
+          type:
+            name: SubjectReference
+            link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.SubjectReference
+          description: The subject to check permissions for
+        - name: relation
+          type:
+            name: string
+          description: The relationship type to check
+      returns:
+        name: "AsyncIterator[ResourceReference]"
+        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.ResourceReference
+        description: An async iterator of workspace resources that the subject has the specified relation to
 ---
 
 Package for RBAC v2 client methods.
