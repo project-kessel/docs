@@ -2,40 +2,6 @@
 language: "Python"
 order: 20
 ---
-
-## Basic Client Setup
-
-Create a basic Kessel client for local development:
-
-```python
-from kessel.inventory.v1beta2 import ClientBuilder
-
-# For insecure local development:
-stub, channel = ClientBuilder(KESSEL_ENDPOINT).insecure().build()
-```
-
-## Auth Client Setup
-
-Set up an authenticated client for production environments:
-
-```python
-from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
-from kessel.inventory.v1beta2 import ClientBuilder
-
-# Fetch OIDC discovery information
-discovery = fetch_oidc_discovery(ISSUER_URL)
-
-# Create OAuth2 credentials
-auth_credentials = OAuth2ClientCredentials(
-    client_id=CLIENT_ID,
-    client_secret=CLIENT_SECRET,
-    token_endpoint=discovery.token_endpoint,
-)
-
-# Build authenticated client
-stub, channel = ClientBuilder(KESSEL_ENDPOINT).oauth2_client_authenticated(auth_credentials).build()
-```
-
 ## Creating Check Requests
 
 Build a permission check request:
@@ -102,6 +68,9 @@ from kessel.inventory.v1beta2 import (
     resource_reference_pb2,
     reporter_reference_pb2,
     check_request_pb2,
+    report_resource_request_pb2,
+    resource_representations_pb2,
+    representation_metadata_pb2,
 )
 
 def run():
@@ -118,7 +87,42 @@ def run():
     stub, channel = ClientBuilder(KESSEL_ENDPOINT).insecure().build()
 
     with channel:
-        # Prepare the subject reference object
+        # 1) Report a resource first
+        common_struct = struct_pb2.Struct()
+        common_struct.update({"workspace_id": "workspace-1"})
+
+        reporter_struct = struct_pb2.Struct()
+        reporter_struct.update({
+            "document_id": "doc-123",
+            "document_name": "My Important Document",
+            "document_type": "document",
+            "created_at": "2025-08-31T10:30:00Z",
+            "file_size": 2048576,
+            "owner_id": "user-1",
+        })
+
+        metadata = representation_metadata_pb2.RepresentationMetadata(
+            local_resource_id="doc-123",
+            api_href="https://drive.example.com/document/123",
+            console_href="https://www.console.com/drive/documents",
+            reporter_version="2.7.16",
+        )
+
+        representations = resource_representations_pb2.ResourceRepresentations(
+            metadata=metadata,
+            common=common_struct,
+            reporter=reporter_struct,
+        )
+
+        report_req = report_resource_request_pb2.ReportResourceRequest(
+            type="document",
+            reporter_type="drive",
+            reporter_instance_id="drive-1",
+            representations=representations,
+        )
+        _ = stub.ReportResource(report_req)
+
+        # 2) Then perform a permission check
         subject = subject_reference_pb2.SubjectReference(
             resource=resource_reference_pb2.ResourceReference(
                 reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
@@ -127,14 +131,12 @@ def run():
             )
         )
 
-        # Prepare the resource reference object
         resource_ref = resource_reference_pb2.ResourceReference(
             resource_id="doc-123",
             resource_type="document",
             reporter=reporter_reference_pb2.ReporterReference(type="drive"),
         )
-        
-        # Build the complete check request
+
         check_request = check_request_pb2.CheckRequest(
             subject=subject,
             relation="view",

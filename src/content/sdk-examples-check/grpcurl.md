@@ -2,28 +2,6 @@
 language: "grpcurl"
 order: 15
 ---
-
-## Basic Client Setup
-
-Set up basic grpcurl configuration for local development:
-
-```bash
-# Set your Kessel gRPC endpoint
-KESSEL_GRPC_ENDPOINT="localhost:9000"
-
-# For insecure local development:
-GRPC_OPTS="-plaintext"
-```
-
-## Auth Client Setup
-
-Configure grpcurl with authentication for production environments:
-
-```bash
-# Set grpcurl options with authentication
-GRPC_OPTS="-H 'authorization: Bearer $ACCESS_TOKEN'"
-```
-
 ## Creating Check Requests
 
 Build the check request payload:
@@ -54,9 +32,18 @@ GRPC_OPTS="-plaintext"
 
 # For authenticated environments:
 # GRPC_OPTS="-H 'authorization: Bearer $ACCESS_TOKEN'"
-MESSAGE='{"object": {"resource_type": "document", "resource_id": "doc-123", "reporter": {"type": "drive"}}, "relation": "view", "subject": {"resource": {"resource_type": "principal", "resource_id": "sarah", "reporter": {"type": "rbac"}}}}'
+
+# 1) Report a resource first
+REPORT_MESSAGE='{"type": "document", "reporter_type": "drive", "reporter_instance_id": "drive-1","representations": {"metadata": {"local_resource_id": "doc-123","api_href": "https://drive.example.com/document/123","console_href": "https://www.console.com/drive/documents","reporter_version": "2.7.16"},"common": {"workspace_id": "workspace-1"},"reporter": {"document_id": "doc-123","document_name": "My Important Document","document_type": "document","created_at": "2025-08-31T10:30:00Z","file_size": 2048576,"owner_id": "user-1"}}}'
 grpcurl $GRPC_OPTS \
-  -d "$MESSAGE" \
+  -d "$REPORT_MESSAGE" \
+  "$KESSEL_GRPC_ENDPOINT" \
+  kessel.inventory.v1beta2.KesselInventoryService.ReportResource
+
+# 2) Then perform a permission check
+CHECK_MESSAGE='{"object": {"resource_type": "document", "resource_id": "doc-123", "reporter": {"type": "drive"}}, "relation": "view", "subject": {"resource": {"resource_type": "principal", "resource_id": "sarah", "reporter": {"type": "rbac"}}}}'
+grpcurl $GRPC_OPTS \
+  -d "$CHECK_MESSAGE" \
   "$KESSEL_GRPC_ENDPOINT" \
   kessel.inventory.v1beta2.KesselInventoryService.Check
 ```

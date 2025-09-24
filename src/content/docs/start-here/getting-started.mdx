@@ -183,20 +183,169 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
   ```bash
   pip install kessel-sdk
   ```
+
+  #### Basic Client Setup
+
+  ```python
+  from kessel.inventory.v1beta2 import ClientBuilder
+
+  # For insecure local development:
+  stub, channel = ClientBuilder(KESSEL_ENDPOINT).insecure().build()
+  ```
+
+  #### Auth Client Setup
+
+  Install the SDK with auth dependencies:
+  ```bash
+  pip install "kessel-sdk[auth]"
+  ```
+
+  ```python
+  from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
+  from kessel.inventory.v1beta2 import ClientBuilder
+
+  # Fetch OIDC discovery information
+  discovery = fetch_oidc_discovery(ISSUER_URL)
+
+  # Create OAuth2 credentials
+  auth_credentials = OAuth2ClientCredentials(
+      client_id=CLIENT_ID,
+      client_secret=CLIENT_SECRET,
+      token_endpoint=discovery.token_endpoint,
+  )
+
+  # Build authenticated client
+  stub, channel = ClientBuilder(KESSEL_ENDPOINT).oauth2_client_authenticated(auth_credentials).build()
+  ```
   </TabItem>
   <TabItem label="Go">
   ```bash
   go get github.com/project-kessel/kessel-sdk-go
+  ```
+
+  #### Basic Client Setup
+
+  ```go
+  import "github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
+
+  // For insecure local development:
+  inventoryClient, conn, err := v1beta2.NewClientBuilder(kesselEndpoint).
+      Insecure().
+      Build()
+  if err != nil {
+      log.Fatal("Failed to create gRPC client:", err)
+  }
+  defer conn.Close()
+  ```
+
+  #### Auth Client Setup
+
+  ```go
+  import (
+      "github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
+      "github.com/project-kessel/kessel-sdk-go/kessel/auth"
+  )
+
+  // Fetch OIDC discovery information
+  discovered, err := auth.FetchOIDCDiscovery(ctx, os.Getenv("AUTH_DISCOVERY_ISSUER_URL"), auth.FetchOIDCDiscoveryOptions{
+      HttpClient: nil, // Optionally specify an http client - defaults to http.DefaultClient
+  })
+  if err != nil {
+      panic(err)
+  }
+
+  // Create OAuth2 credentials
+  oauthCredentials := auth.NewOAuth2ClientCredentials(
+      os.Getenv("AUTH_CLIENT_ID"), 
+      os.Getenv("AUTH_CLIENT_SECRET"), 
+      discovered.TokenEndpoint,
+  )
+
+  // Build authenticated client
+  inventoryClient, conn, err := v1beta2.NewClientBuilder(os.Getenv("KESSEL_ENDPOINT")).
+      OAuth2ClientAuthenticated(&oauthCredentials, nil).
+      Build()
   ```
   </TabItem>
   <TabItem label="Javascript">
   ```bash
   npm install @project-kessel/kessel-sdk
   ```
+
+  #### Basic Client Setup
+
+  ```javascript
+  import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
+
+  // For insecure local development:
+  const client = new ClientBuilder(process.env.KESSEL_ENDPOINT).insecure().buildAsync();
+  ```
+
+  #### Auth Client Setup
+
+  ```javascript
+  import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
+  import {
+    fetchOIDCDiscovery,
+    OAuth2ClientCredentials,
+  } from "@project-kessel/kessel-sdk/kessel/auth";
+
+  // Fetch OIDC discovery information
+  const discovery = await fetchOIDCDiscovery(process.env.AUTH_DISCOVERY_ISSUER_URL);
+
+  // Create OAuth2 credentials
+  const oAuth2ClientCredentials = new OAuth2ClientCredentials({
+    clientId: process.env.AUTH_CLIENT_ID,
+    clientSecret: process.env.AUTH_CLIENT_SECRET,
+    tokenEndpoint: discovery.tokenEndpoint,
+  });
+
+  // Build authenticated client
+  const client = new ClientBuilder(process.env.KESSEL_ENDPOINT)
+    .oauth2ClientAuthenticated(oAuth2ClientCredentials)
+    .buildAsync();
+  ```
   </TabItem>
   <TabItem label="Ruby">
   ```bash
   gem install kessel-sdk
+  ```
+
+  #### Basic Client Setup
+
+  ```ruby
+  require 'kessel-sdk'
+  include Kessel::Inventory::V1beta2
+  include Kessel::GRPC
+
+  # For insecure local development:
+  client = KesselInventoryService::ClientBuilder.new(ENV.fetch('KESSEL_ENDPOINT', 'localhost:9000'))
+                                                .insecure
+                                                .build
+  ```
+
+  #### Auth Client Setup
+
+  ```ruby
+  require 'kessel-sdk'
+  include Kessel::Inventory::V1beta2
+  include Kessel::GRPC
+  include Kessel::Auth
+
+  # Fetch OIDC discovery information
+  discovery = fetch_oidc_discovery(ENV.fetch('AUTH_DISCOVERY_ISSUER_URL'))
+
+  # Create OAuth2 credentials
+  oauth = OAuth2ClientCredentials.new(
+    client_id: ENV.fetch('AUTH_CLIENT_ID'),
+    client_secret: ENV.fetch('AUTH_CLIENT_SECRET'),
+    token_endpoint: discovery.token_endpoint,
+  )
+
+  # Build authenticated client
+  client = KesselInventoryService::ClientBuilder.new(ENV.fetch('KESSEL_ENDPOINT'))
+                                                .oauth2_client_authenticated(oauth2_client_credentials: oauth)
+                                                .build
   ```
   </TabItem>
   <TabItem label="Java (Maven)">
