@@ -313,13 +313,14 @@ package:
       description: |
         Lists all workspaces that a subject has a specific relation to.
         This function queries the inventory service to find workspaces based on the subject's permissions.
+        Default pagination limit is 1000 items per page.
 
         Example:
 
         ```python
         userSubject = principalSubject("john.doe", "redhat.com")
-        for workspace in listWorkspaces(inventoryClient, userSubject, "member"):
-            print(f"User has access to workspace: {workspace.resourceId}")
+        for resp in listWorkspaces(inventoryClient, userSubject, "member"):
+            print(resp)
         ```
       params:
         - name: inventory
@@ -335,23 +336,28 @@ package:
           type:
             name: string
           description: The relationship type to check
+        - name: continuationToken
+          type:
+            name: string
+          description: Optional token to resume listing from a previous page
+          optional: true
       returns:
-        name: "Iterable[ResourceReference]"
-        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.ResourceReference
-        description: An iterator of workspace resources that the subject has the specified relation to
+        name: "Iterable[StreamedListObjectsResponse]"
+        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.StreamedListObjectsResponse
+        description: An iterator of streamed responses containing workspace objects and pagination info
 
     - name: listWorkspacesAsync
       description: |
         Lists all workspaces that a subject has a specific relation to.
         This function queries the inventory service to find workspaces based on the subject's permissions.
-        This variant supports asynchronous iteration over results.
+        Default pagination limit is 1000 items per page.
 
         Example:
 
         ```python
         userSubject = principalSubject("john.doe", "redhat.com")
-        async for workspace in listWorkspacesAsync(inventoryClient, userSubject, "member"):
-            print(f"User has access to workspace: {workspace.resourceId}")
+        async for resp in listWorkspacesAsync(inventoryClient, userSubject, "member"):
+            print(resp)
         ```
       params:
         - name: inventory
@@ -367,10 +373,15 @@ package:
           type:
             name: string
           description: The relationship type to check
+        - name: continuationToken
+          type:
+            name: string
+          description: Optional token to resume listing from a previous page
+          optional: true
       returns:
-        name: "AsyncIterator[ResourceReference]"
-        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.ResourceReference
-        description: An async iterator of workspace resources that the subject has the specified relation to
+        name: "AsyncIterator[StreamedListObjectsResponse]"
+        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.StreamedListObjectsResponse
+        description: An async iterator of streamed responses containing workspace objects and pagination info
 ---
 
 Package for RBAC v2 client methods.
