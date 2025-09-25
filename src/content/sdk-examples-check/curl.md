@@ -25,7 +25,7 @@ curl "${HEADERS[@]}" \
 
 ```bash
 # Set your Kessel endpoint
-KESSEL_BASE_URL="http://localhost:8080"
+KESSEL_BASE_URL="http://localhost:9000"
 
 # Set common headers for API requests
 HEADERS=(

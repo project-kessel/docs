@@ -3,22 +3,83 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 import { getCollection } from 'astro:content';
 
 interface Props {
-    content: string;
+    setupCollection?: string;  
+    reportCollection?: string; 
+    checkCollection?: string;
 }
 
-const { content } = Astro.props;
+const {
+    setupCollection = 'sdk-examples-setup',
+    reportCollection = 'sdk-examples-report-resources',
+    checkCollection = 'sdk-examples-check',
+} = Astro.props as Props;
 
-const unorderedExamples = await getCollection(content);
-const orderedExamples = unorderedExamples.sort((a, b) => a.data.order - b.data.order);
+const setupEntries = await getCollection(setupCollection);
+const reportEntries = await getCollection(reportCollection);
+const checkEntries = await getCollection(checkCollection);
 
+const reportByLanguage = new Map<string, typeof reportEntries[number]>();
+for (const entry of reportEntries) {
+    reportByLanguage.set(entry.data.language, entry);
+}
+
+const checkByLanguage = new Map<string, typeof checkEntries[number]>();
+for (const entry of checkEntries) {
+    checkByLanguage.set(entry.data.language, entry);
+}
+
+const setupByLanguage = new Map<string, typeof setupEntries[number]>();
+for (const entry of setupEntries) {
+    setupByLanguage.set(entry.data.language, entry);
+}
+
+const languages = new Set<string>([
+    ...Array.from(setupByLanguage.keys()),
+    ...Array.from(reportByLanguage.keys()),
+    ...Array.from(checkByLanguage.keys()),
+]);
+
+type Combined = {
+    language: string;
+    order: number;
+    setup?: typeof setupEntries[number];
+    report?: typeof reportEntries[number];
+    check?: typeof checkEntries[number];
+};
+
+const combined: Combined[] = Array.from(languages).map((lang) => {
+    const setup = setupByLanguage.get(lang);
+    const report = reportByLanguage.get(lang);
+    const check = checkByLanguage.get(lang);
+    const order = setup?.data.order ?? report?.data.order ?? check?.data.order;
+    return { language: lang, order, setup, report, check };
+});
+
+combined.sort((a, b) => a.order - b.order);
 ---
 <Tabs syncKey="language">
-    {orderedExamples.map(async example => {
-        const { Content } = await example.render();
+    {await Promise.all(combined.map(async ({ language, setup, report, check }) => {
+        const SetupContent = setup ? (await setup.render()).Content : null;
+        const ReportContent = report ? (await report.render()).Content : null;
+        const CheckContent = check ? (await check.render()).Content : null;
         return (
-            <TabItem label={example.data.language}>
-                <Content />
+            <TabItem label={language}>
+                {SetupContent && (
+                    <section>
+                        <SetupContent />
+                    </section>
+                )}
+                {ReportContent && (
+                    <section>
+                        <ReportContent />
+                    </section>
+                )}
+                {CheckContent && (
+                    <section>
+                        <CheckContent />
+                    </section>
+                )}
             </TabItem>
-        )
-    })}
+        );
+    }))}
 </Tabs>

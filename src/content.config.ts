@@ -20,6 +20,4 @@ const sdkExamples = defineCollection({
 
 export const collections = {
   docs,
-  'sdk-examples-check': sdkExamples,
-  'sdk-examples-report-resources': sdkExamples,
 };
