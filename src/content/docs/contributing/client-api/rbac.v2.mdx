@@ -50,9 +50,9 @@ package:
 
         # Fetch the root workspace
         rootWorkspace = fetchRootWorkspace(
-            auth=auth,
             rbacBaseEndpoint="https://console.stage.redhat.com/",
-            orgId="12345"
+            orgId="12345",
+            auth=auth
         )
         print(f"Root workspace: {rootWorkspace.name}")
         workspaceId = rootWorkspace.id
@@ -119,9 +119,9 @@ package:
 
         # Fetch the default workspace
         defaultWorkspace = fetchDefaultWorkspace(
-            auth=auth,
             rbacBaseEndpoint="https://console.stage.redhat.com/",
-            orgId="12345"
+            orgId="12345",
+            auth=auth
         )
         print(f"Default workspace: {defaultWorkspace.name}")
         workspaceId = defaultWorkspace.id
