@@ -1,0 +1,30 @@
+---
+import MethodsList from "./MethodsList.astro";
+import MarkdownDescription from "./MarkdownDescription.astro";
+import type { Interface } from "../../schemas/client-package";
+import type { MarkdownHeading } from "astro";
+
+interface Props {
+  interfaceData: Interface;
+}
+
+const { interfaceData } = Astro.props;
+
+
+// Export heading generation function for TOC middleware
+export function generateInterfaceHeadings(interfaceData: Interface): MarkdownHeading[] {
+  return [
+    {
+      depth: 3,
+      slug: `interface-${interfaceData.name}`,
+      text: interfaceData.name,
+    },
+  ];
+}
+---
+
+<section id={`interface-${interfaceData.name}`} class="mb-4">
+  <h3>{interfaceData.name}</h3>
+  <MarkdownDescription description={interfaceData.description} />
+  <MethodsList methods={interfaceData.methods} title="Methods" />
+</section>

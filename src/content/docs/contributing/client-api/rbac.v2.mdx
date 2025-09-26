@@ -27,16 +27,16 @@ package:
       description: |
         Fetches the root workspace for the specified organization.
         This function queries RBAC v2 to find the root workspace for the given orgId.
-        
+
         GET /api/rbac/v2/workspaces/?type=root
-        
+
         Example:
-        
+
         ```python
         from kessel.auth import fetchOIDCDiscovery, OAuth2ClientCredentials
         from kessel.requests import oauth2Auth
         from kessel.rbac.v2 import fetchRootWorkspace
-        
+
         # Configure OAuth2 credentials
         discovery = fetchOIDCDiscovery("https://sso.example.com/auth/")
         authCredentials = OAuth2ClientCredentials(
@@ -44,10 +44,10 @@ package:
             clientSecret="your-client-secret",
             tokenEndpoint=discovery.tokenEndpoint,
         )
-        
+
         # Create auth adapter
         auth = oauth2Auth(authCredentials)
-        
+
         # Fetch the root workspace
         rootWorkspace = fetchRootWorkspace(
             auth=auth,
@@ -57,14 +57,8 @@ package:
         print(f"Root workspace: {rootWorkspace.name}")
         workspaceId = rootWorkspace.id
         ```
-        
+
       params:
-        - name: auth
-          type:
-            name: OAuth2Auth
-          description: |
-            Authentication object compatible with requests/http library. Injects auth into http headers. 
-            Create this using oauth2_auth(credentials). 
         - name: rbacBaseEndpoint
           type:
             name: string
@@ -73,14 +67,25 @@ package:
           type:
             name: string
           description: Organization ID to use for the request.
+        - name: auth
+          type:
+            name: AuthRequest
+            link: "../auth#interface-AuthRequest"
+          optional: true
+          description: |
+            Used to perform authenticated requests.
         - name: httpClient
           type:
             name: HttpClient
           optional: true
           description: |
-            Optional HTTP client instance (e.g., requests, http.Client). 
+            Optional HTTP client instance (e.g., requests, http.Client) if applicable.
             If not provided, uses the default HTTP client for the language.
             Allows users to inject custom HTTP clients with additional headers or configuration.
+            This is not expected to support any custom HTTP client, some of the language constructs
+            will be used and thus we will only support the default or most used client. e.g. python will
+            support `requests` and any requests-compatible client. Node.js will support the `fetch` API and Go will
+            only use `http.Client`.
       returns:
         name: Workspace
         link: "#class-Workspace"
@@ -91,16 +96,16 @@ package:
       description: |
         Fetches the default workspace for the specified organization.
         This function queries RBAC v2 to find the default workspace for the given orgId.
-        
+
         GET /api/rbac/v2/workspaces/?type=default
-        
+
         Example:
-        
+
         ```python
         from kessel.auth import fetchOIDCDiscovery, OAuth2ClientCredentials
         from kessel.requests import oauth2Auth
         from kessel.rbac.v2 import fetchDefaultWorkspace
-        
+
         # Configure OAuth2 credentials
         discovery = fetchOIDCDiscovery("https://sso.example.com/auth/")
         authCredentials = OAuth2ClientCredentials(
@@ -108,10 +113,10 @@ package:
             clientSecret="your-client-secret",
             tokenEndpoint=discovery.tokenEndpoint,
         )
-        
+
         # Create auth adapter
         auth = oauth2Auth(authCredentials)
-        
+
         # Fetch the default workspace
         defaultWorkspace = fetchDefaultWorkspace(
             auth=auth,
@@ -121,14 +126,8 @@ package:
         print(f"Default workspace: {defaultWorkspace.name}")
         workspaceId = defaultWorkspace.id
         ```
-        
+
       params:
-        - name: auth
-          type:
-            name: OAuth2Auth
-          description: |
-            Authentication object compatible with requests/http library. Injects auth into http headers. 
-            Create this using oauth2Auth(credentials).
         - name: rbacBaseEndpoint
           type:
             name: string
@@ -137,14 +136,25 @@ package:
           type:
             name: string
           description: Organization ID to use for the request.
+        - name: auth
+          type:
+            name: AuthRequest
+            link: "../auth#interface-AuthRequest"
+          optional: true
+          description: |
+            Used to perform authenticated requests.
         - name: httpClient
           type:
             name: HttpClient
           optional: true
           description: |
-            Optional HTTP client instance (e.g., requests, http.Client). 
+            Optional HTTP client instance (e.g., requests, http.Client) if applicable.
             If not provided, uses the default HTTP client for the language.
             Allows users to inject custom HTTP clients with additional headers or configuration.
+            This is not expected to support any custom HTTP client, some of the language constructs
+            will be used and thus we will only support the default or most used client. e.g. python will
+            support `requests` and any requests-compatible client. Node.js will support the `fetch` API and Go will
+            only use `http.Client`.
       returns:
         name: Workspace
         link: "#class-Workspace"

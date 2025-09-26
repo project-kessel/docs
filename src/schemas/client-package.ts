@@ -57,7 +57,14 @@ const ClassSchema = z.object({
   statics: z.array(MethodLikeSchema).optional(),
 });
 
+const InterfaceSchema = z.object({
+  name: z.string(),
+  description: Description,
+  methods: z.array(MethodLikeSchema).optional(),
+});
+
 const ClassesArraySchema = z.array(ClassSchema);
+const InterfacesArraySchema = z.array(InterfaceSchema);
 
 /** ───────────────────── Functions section ───────────────────── */
 
@@ -68,6 +75,7 @@ const FunctionsArraySchema = z.array(FunctionSchema);
 
 export const ClientPackageSchema = z
   .object({
+    interfaces: InterfacesArraySchema.optional(),
     classes: ClassesArraySchema.optional(),
     functions: FunctionsArraySchema.optional(),
   })
@@ -80,4 +88,5 @@ export type Constructor = z.infer<typeof ConstructorSchema>;
 export type Property = z.infer<typeof PropertySchema>;
 export type MethodLike = z.infer<typeof MethodLikeSchema>;
 export type Class = z.infer<typeof ClassSchema>;
+export type Interface = z.infer<typeof InterfaceSchema>;
 export type Type = z.infer<typeof TypeSchema>;

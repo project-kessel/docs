@@ -2,6 +2,27 @@
 title: "Package: auth"
 docType: client-package
 package:
+  interfaces:
+    - name: AuthRequest
+      description: |
+        Object used to perform authenticated HTTP requests. 
+        In languages where such constructs are already provided (e.g. python, see [1]), they should be used instead of this object to take
+        advantage of the existing ecosystem.
+        
+        This can be created from the [OAuth2ClientCredentials](#class-OAuth2ClientCredentials) Object by using [oauth2AuthRequest](#functions-oauth2AuthRequest).
+        
+        [1] https://requests.readthedocs.io/en/latest/user/authentication/
+      methods:
+        - name: configureRequest
+          description: |
+            Configures the HTTP request as needed to use a specific authorization type.
+            This method allows adopters to implement a specific authorization type depending their environment.
+          params:
+            - name: request
+              type: 
+                name: Request
+              description: |
+                Request or equivalent object used in the language.
   classes:
     - name: OAuth2ClientCredentials
       description: >-
@@ -71,6 +92,19 @@ package:
       returns:
         name: OIDCDiscoveryMetadata
         link: "#class-OIDCDiscoveryMetadata"
+    - name: oAuth2AuthRequest
+      description: |
+        Wraps an [OAuth2ClientCredentials](#class-OAuth2ClientCredentials) object into an [AuthRequest](#interface-AuthRequest) (or the specific construct used in the language) 
+        to allow injecting the token provided by the [OAuth2ClientCredentials](#class-OAuth2ClientCredentials) into the request.
+      params:
+        - name: oAuth2ClientCredentials
+          type:
+            name: OAuth2ClientCredentials
+            link: "#class-OAuth2ClientCredentials"
+          description: OAuth token provider used to authenticate the requests.
+      returns:
+        name: AuthRequest
+        link: "#interface-AuthRequest"
 ---
 
 The `auth` package defines generic authentication abstractions that are usable across multiple protocols.

@@ -1,0 +1,46 @@
+---
+import InterfaceItem, { generateInterfaceHeadings } from "./InterfaceItem.astro";
+import type { Interface } from "../../schemas/client-package";
+import type { MarkdownHeading } from "astro";
+
+interface Props {
+  interfaces?: Interface[];
+}
+
+const { interfaces } = Astro.props;
+
+// Export heading generation function for TOC middleware
+export function generateInterfacesSectionHeadings(
+  interfaces?: Interface[]
+): MarkdownHeading[] {
+  if (!interfaces || interfaces.length === 0) {
+    return [];
+  }
+
+  const headings: MarkdownHeading[] = [
+    {
+      depth: 2,
+      slug: "interfaces",
+      text: "Interfaces",
+    },
+  ];
+
+  // Add individual class headings
+  for (const interfaceData of interfaces) {
+    headings.push(...generateInterfaceHeadings(interfaceData));
+  }
+
+  return headings;
+}
+---
+
+{
+  interfaces && (
+    <>
+      <h2 id="interfaces">Interfaces</h2>
+      {interfaces.map((interfaceItem) => (
+        <InterfaceItem interfaceData={interfaceItem} />
+      ))}
+    </>
+  )
+}
