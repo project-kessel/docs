@@ -13,6 +13,17 @@ interface Props {
 const { functions } = Astro.props;
 
 // Export heading generation function for TOC middleware
+export function generateFunctionHeadings(functionData: MethodLike): MarkdownHeading[] {
+    return [
+        {
+            depth: 3,
+            slug: `function-${functionData.name}`,
+            text: functionData.name,
+        },
+    ];
+}
+
+// Export heading generation function for TOC middleware
 export function generateFunctionsHeadings(
   functions?: MethodLike[]
 ): MarkdownHeading[] {
@@ -20,13 +31,19 @@ export function generateFunctionsHeadings(
     return [];
   }
 
-  return [
+  const headings = [
     {
       depth: 2,
       slug: "functions",
       text: "Functions",
     },
   ];
+
+  for (const functionData of functions) {
+    headings.push(...generateFunctionHeadings(functionData));
+  }
+
+  return headings;
 }
 ---
 
@@ -36,7 +53,7 @@ export function generateFunctionsHeadings(
       <h2 id="functions">Functions</h2>
       <ul>
         {functions.map((func) => (
-          <li>
+          <li id={`function-${func.name}`}>
             <code>{func.name}</code>
             {func.async && <code> async</code>}
             (<ParameterList params={func.params} />)
