@@ -23,7 +23,7 @@ order: 60
 ```
 
 #### Add dependency (Gradle)
-```gradle
+```groovy
 dependencies {
   implementation 'io.grpc:grpc-netty-shaded'
   implementation "org.project-kessel:kessel-sdk:1.0.0"
