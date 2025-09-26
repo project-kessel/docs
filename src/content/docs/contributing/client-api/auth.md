@@ -9,7 +9,7 @@ package:
         In languages where such constructs are already provided (e.g. python, see [1]), they should be used instead of this object to take
         advantage of the existing ecosystem.
         
-        This can be created from the [OAuth2ClientCredentials](#class-OAuth2ClientCredentials) Object by using [oauth2AuthRequest](#functions-oAuth2AuthRequest).
+        This can be created from the [OAuth2ClientCredentials](#class-OAuth2ClientCredentials) Object by using [oauth2AuthRequest](#function-oAuth2AuthRequest).
         
         [1] https://requests.readthedocs.io/en/latest/user/authentication/
       methods:
