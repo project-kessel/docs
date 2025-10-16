@@ -18,7 +18,13 @@ const sdkExamples = defineCollection({
   schema: CodeExampleSchema,
 })
 
+const tlsExamples = defineCollection({
+  type: 'content',
+  schema: CodeExampleSchema,
+})
+
 export const collections = {
   docs,
   'sdk-examples': sdkExamples,
+  'tls-examples': tlsExamples,
 };
