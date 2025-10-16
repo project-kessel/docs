@@ -1,11 +1,20 @@
 ---
-title: Enable TLS with Go SDK
-description: How to configure TLS transport security with OAuth 2.0 authentication using the kessel-sdk-go client library.
+title: Enable TLS with Kessel SDKs
+description: How to configure TLS transport security with OAuth 2.0 authentication for secure communication with Kessel services.
 ---
+
+import SdkExamples from 'src/components/SdkExamples.astro';
 
 The Kessel SDKs support TLS for secure communication with Kessel services. 
 When deployed in stage and production environments, you'll need to configure both TLS transport credentials and OAuth 2.0 authentication.
 
+## Overview
+
+Setting up TLS with authentication requires three steps:
+
+1. **Configure Transport Credentials** - Load your CA certificate to verify the server
+2. **Configure Call Credentials** - Set up OAuth 2.0 authentication
+3. **Combine Both** - Use your SDK's builder to apply both credential types
 
 ## Kubernetes/OpenShift Deployment
 
@@ -21,204 +30,10 @@ volumes:
       name: openshift-service-ca.crt
 ```
 
-Then reference the mounted certificate in your application:
+This mounts the CA certificate at `/ca-certs/service-ca.crt`, which you can reference in your application code.
 
-```go
-cfg := Config{
-    CACertFile: "/ca-certs/service-ca.crt",
-}
-```
+## Code Examples
 
-## Setting Up TLS Credentials
+Below are complete examples showing how to configure TLS with OAuth 2.0 authentication in each supported language:
 
-### Reading the CA Certificate
-
-First, create a function to load your CA certificate and configure TLS:
-
-```go
-import (
-    "crypto/tls"
-    "crypto/x509"
-    "fmt"
-    "os"
-    
-    "google.golang.org/grpc/credentials"
-)
-
-func configureTLS(caPath string) (credentials.TransportCredentials, error) {
-    caCert, err := os.ReadFile(caPath)
-    if err != nil {
-        return nil, fmt.Errorf("failed to read the ca cert file at provided path %s: %w", caPath, err)
-    }
-    return configureTLSFromData(caCert)
-}
-
-func configureTLSFromData(caCert []byte) (credentials.TransportCredentials, error) {
-    certPool := x509.NewCertPool()
-    if !certPool.AppendCertsFromPEM(caCert) {
-        return nil, fmt.Errorf("failed to add the server CA's certificate to new cert pool")
-    }
-    config := &tls.Config{
-        RootCAs: certPool,
-    }
-    return credentials.NewTLS(config), nil
-}
-```
-## Combining TLS with OAuth 2.0 Authentication
-
-The Kessel SDK's `Authenticated()` method allows you to combine OAuth 2.0 call credentials with TLS transport credentials:
-
-```go
-import (
-    "github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
-    "github.com/project-kessel/kessel-sdk-go/kessel/auth"
-    kesselgrpc "github.com/project-kessel/kessel-sdk-go/kessel/grpc"
-)
-
-// Configure OAuth 2.0 credentials
-oauthCredentials := auth.NewOAuth2ClientCredentials(
-    clientId,
-    clientSecret,
-    tokenEndpoint,
-)
-
-// Configure TLS transport credentials
-channelCreds, err := configureTLS(caCertFile)
-if err != nil {
-    return fmt.Errorf("failed to setup transport credentials for TLS: %w", err)
-}
-
-// Build client with both authentication and TLS
-client, conn, err := v1beta2.NewClientBuilder(inventoryURL).
-    Authenticated(kesselgrpc.OAuth2CallCredentials(&oauthCredentials), channelCreds).
-    Build()
-
-if err != nil {
-    return fmt.Errorf("failed to create gRPC client: %w", err)
-}
-defer conn.Close()
-```
-
-## Complete Example
-
-Here's a complete example showing how to set up a Kessel client with both TLS and OAuth 2.0 authentication:
-
-```go
-package main
-
-import (
-    "context"
-    "crypto/tls"
-    "crypto/x509"
-    "fmt"
-    "log"
-    "os"
-
-    "google.golang.org/grpc/credentials"
-    "google.golang.org/protobuf/types/known/structpb"
-
-    "github.com/project-kessel/kessel-sdk-go/kessel/auth"
-    kesselgrpc "github.com/project-kessel/kessel-sdk-go/kessel/grpc"
-    "github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
-)
-
-type Config struct {
-    InventoryURL   string
-    CACertFile     string
-    ClientId       string
-    ClientSecret   string
-    TokenEndpoint  string
-}
-
-func configureTLS(caPath string) (credentials.TransportCredentials, error) {
-    caCert, err := os.ReadFile(caPath)
-    if err != nil {
-        return nil, fmt.Errorf("failed to read the ca cert file at provided path %s: %w", caPath, err)
-    }
-    return configureTLSFromData(caCert)
-}
-
-func configureTLSFromData(caCert []byte) (credentials.TransportCredentials, error) {
-    certPool := x509.NewCertPool()
-    if !certPool.AppendCertsFromPEM(caCert) {
-        return nil, fmt.Errorf("failed to add the server CA's certificate to new cert pool")
-    }
-    config := &tls.Config{
-        RootCAs: certPool,
-    }
-    return credentials.NewTLS(config), nil
-}
-
-func createAuthenticatedClient(cfg Config) (*v1beta2.InventoryServiceClient, error) {
-    // Configure OAuth 2.0 credentials
-    oauthCredentials := auth.NewOAuth2ClientCredentials(
-        cfg.ClientId,
-        cfg.ClientSecret,
-        cfg.TokenEndpoint,
-    )
-
-    // Configure TLS credentials
-    channelCreds, err := configureTLS(cfg.CACertFile)
-    if err != nil {
-        return nil, fmt.Errorf("failed to setup transport credentials for TLS: %w", err)
-    }
-
-    // Build client with both authentication and TLS
-    client, _, err := v1beta2.NewClientBuilder(cfg.InventoryURL).
-        Authenticated(kesselgrpc.OAuth2CallCredentials(&oauthCredentials), channelCreds).
-        Build()
-
-    if err != nil {
-        return nil, fmt.Errorf("failed to create gRPC client: %w", err)
-    }
-
-    return &client, nil
-}
-
-func main() {
-    cfg := Config{
-        InventoryURL:  os.Getenv("KESSEL_ENDPOINT"),
-        CACertFile:    "/ca-certs/service-ca.crt",
-        ClientId:      os.Getenv("CLIENT_ID"),
-        ClientSecret:  os.Getenv("CLIENT_SECRET"),
-        TokenEndpoint: os.Getenv("TOKEN_ENDPOINT"),
-    }
-
-    client, err := createAuthenticatedClient(cfg)
-    if err != nil {
-        log.Fatalf("Failed to create authenticated client: %v", err)
-    }
-
-    ctx := context.Background()
-
-    // Example: Report a resource
-    reportRequest := &v1beta2.ReportResourceRequest{
-        Type:               "document",
-        ReporterType:       "drive",
-        ReporterInstanceId: "drive-1",
-        Representations: &v1beta2.ResourceRepresentations{
-            Metadata: &v1beta2.RepresentationMetadata{
-                LocalResourceId: "doc-123",
-                ApiHref:         "https://drive.example.com/document/123",
-                ReporterVersion: addr("2.7.16"),
-            },
-            Common: &structpb.Struct{
-                Fields: map[string]*structpb.Value{
-                    "workspace_id": structpb.NewStringValue("workspace-1"),
-                },
-            },
-        },
-    }
-
-    response, err := client.ReportResource(ctx, reportRequest)
-    if err != nil {
-        log.Fatalf("Failed to report resource: %v", err)
-    }
-
-    fmt.Printf("Successfully reported resource: %+v\n", response)
-}
-
-func addr[T any](t T) *T { return &t }
-```
-
-
+<SdkExamples content="tls-examples" />
