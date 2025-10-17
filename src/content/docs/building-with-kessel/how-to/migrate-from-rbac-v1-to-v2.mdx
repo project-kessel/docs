@@ -253,6 +253,10 @@ See [Default workspace](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0
 
 The [Native, workspace-level list pattern](https://docs.google.com/document/d/1XnINsHuYeHEi22q_1cS0gUalX-eXl3V19gGf0Wr8NsE/edit?tab=t.0#heading=h.17ytnrwi9six) is typically implemented by resolving the ids of all the workspaces for which the given principal possesses the given permission and then using these workspace ids to filter the assets in application database query.
 
+<Aside type="note" title="Performance consideration">
+    The number of workspace IDs returned can be large, which may impact query performance if the application database is not optimized with appropriate indexes.
+</Aside>
+
 The workspace ids are obtained using the [StreamedListObjects](https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.KesselInventoryService.StreamedListObjects) method and its parameters should be defined as follows:
 
 ```go
