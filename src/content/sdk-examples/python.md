@@ -13,6 +13,9 @@ pip install kessel-sdk
 ```python
 from kessel.inventory.v1beta2 import ClientBuilder
 
+# Your Kessel gRPC Endpoint
+KESSEL_ENDPOINT = "localhost:9000"
+
 # For insecure local development:
 stub, channel = ClientBuilder(KESSEL_ENDPOINT).insecure().build()
 ```
@@ -27,6 +30,9 @@ pip install "kessel-sdk[auth]"
 ```python
 from kessel.auth import fetch_oidc_discovery, OAuth2ClientCredentials
 from kessel.inventory.v1beta2 import ClientBuilder
+
+# Your Kessel gRPC Endpoint
+KESSEL_ENDPOINT = "localhost:9000"
 
 # Fetch OIDC discovery information
 discovery = fetch_oidc_discovery(ISSUER_URL)
@@ -178,6 +184,9 @@ from kessel.inventory.v1beta2 import (
     resource_representations_pb2,
     representation_metadata_pb2,
 )
+
+# Your Kessel gRPC endpoint
+KESSEL_ENDPOINT = "localhost:9000"
 
 def run():
     # For authenticated environments, uncomment and configure the following:
