@@ -150,6 +150,11 @@ your local relations port is 9000
 </Aside>
 
 <Steps>
+    0. Install gRPCurl
+        gRPCurl is like curl, but for gRPC. See [the docs](https://github.com/fullstorydev/grpcurl) for more ways to install.
+        ```bash
+        go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
+        ```
     1. Link workspace to role binding
         ```bash
         MESSAGE='{"tuples":[{"resource":{"id":"workspace-1","type":{"name":"workspace","namespace":"rbac"}},"relation":"user_grant","subject":{"subject":{"id":"drive-team-binding","type":{"name":"role_binding","namespace":"rbac"}}}}]}'
