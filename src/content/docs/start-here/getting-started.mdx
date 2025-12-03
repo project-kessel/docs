@@ -90,7 +90,11 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
         git clone git@github.com:project-kessel/inventory-api.git
         cd inventory-api
         # copy the schema.zed file we created earlier to deploy/schema.zed
-        cp ../schema.zed deploy/schema.zed        
+        cp ../schema.zed deploy/schema.zed
+        # copy the document resource schema to the inventory API
+        cp -r ../document data/schema/resources/
+        # preload the schema cache with the document resource
+        go run main.go preload-schema
         make inventory-up-relations-ready
         ```
 
