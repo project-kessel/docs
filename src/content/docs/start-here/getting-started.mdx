@@ -102,15 +102,7 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
         cd relations-api
         cp ../schema.zed deploy/schema.zed
         make relations-api-up
-        # Load the schema in SpiceDB
-        # NOTE: `foobar` is a hard-coded default value when
-        # running locally. Be sure to change this value for production deployments.
-        zed schema write --endpoint localhost:50051 --insecure --token foobar < deploy/schema.zed
         ```
-
-        <Aside type="note">
-        The <a href="https://authzed.com/docs/spicedb/getting-started/installing-zed" target="_blank" rel="noopener noreferrer">zed CLI</a> is required to load the schema into SpiceDB.
-        </Aside>
 
     3. Start RBAC
 
