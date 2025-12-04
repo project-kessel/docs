@@ -104,6 +104,10 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
         make relations-api-up
         ```
 
+        <Aside type="tip">
+        If you modify your schema, run `make relations-api-down`, then copy the updated `schema.zed` as above and run `make relations-api-up` again.
+        </Aside>
+
     3. Start RBAC
 
        TODO. For now we will create the Relationships directly
