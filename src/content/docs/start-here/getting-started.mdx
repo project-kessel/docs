@@ -37,9 +37,11 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
 
     <Code code={documentConfig} lang="yaml" title="document/config.yaml" />
 
-    <Code code={driveConfig} lang="yaml" title="document/reporters/drive_service/config.yaml" />
+    <Code code={commonRepresentation} lang="json" title="document/common_representation.json" />
 
-    <Code code={driveHost} lang="json" title="document/reporters/drive_service/document.json" />
+    <Code code={driveConfig} lang="yaml" title="document/reporters/drive/config.yaml" />
+
+    <Code code={driveHost} lang="json" title="document/reporters/drive/document.json" />
 
     <Code code={kesselSchema} lang="text" title="kessel.ksl" />
 
@@ -87,6 +89,9 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
         ```bash
         git clone git@github.com:project-kessel/inventory-api.git
         cd inventory-api
+        cp -r ../document data/schema/resources/
+        # preload the schema cache with the document resource
+        go run main.go preload-schema
         make inventory-up-relations-ready
         ```
 
@@ -95,11 +100,14 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
         ```bash
         git clone git@github.com:project-kessel/relations-api.git
         cd relations-api
-        # copy the schema.zed file we created earlier to deploy/schema.zed
         cp ../schema.zed deploy/schema.zed
-        make relations-api-up 
+        make relations-api-up
         ```
-      
+
+        <Aside type="tip">
+        If you modify your schema, run `make relations-api-down`, then copy the updated `schema.zed` as above and run `make relations-api-up` again.
+        </Aside>
+
     3. Start RBAC
 
        TODO. For now we will create the Relationships directly
@@ -144,8 +152,18 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
 </Tabs>
 
 ### Set up access with RBAC
+<Aside title="Note">
+If you're following along and used `make relations-api-up`,
+your local relations port is 9000.
+</Aside>
 
 <Steps>
+    0. Install gRPCurl
+
+        gRPCurl is like curl, but for gRPC. See <a href="https://github.com/fullstorydev/grpcurl" target="_blank" rel="noopener noreferrer">the docs</a> for more ways to install.
+        ```bash
+        go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
+        ```
     1. Link workspace to role binding
         ```bash
         MESSAGE='{"tuples":[{"resource":{"id":"workspace-1","type":{"name":"workspace","namespace":"rbac"}},"relation":"user_grant","subject":{"subject":{"id":"drive-team-binding","type":{"name":"role_binding","namespace":"rbac"}}}}]}'
