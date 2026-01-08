@@ -3,7 +3,7 @@ title: Getting Started with RBAC
 description: Step-by-step instructions for installing and running Kessel with your first managed and access controlled resource.
 ---
 
-import { Aside, Card, CardGrid, LinkButton, Steps, Tabs, TabItem, Code } from '@astrojs/starlight/components';
+import { Aside, Badge, Card, CardGrid, LinkButton, Steps, Tabs, TabItem, Code } from '@astrojs/starlight/components';
 import SdkExamples from 'src/components/SdkExamples.astro';
 
 import commonRepresentation from 'src/examples/document/common_representation.json?raw';
@@ -14,8 +14,10 @@ import driveSchema from 'src/examples/drive.ksl?raw';
 import rbacSchema from 'src/examples/rbac.ksl?raw';
 import kesselSchema from 'src/examples/kessel.ksl?raw';
 import schemaZed from 'src/examples/schema.zed?raw';
+import createRoleScript from 'src/examples/scripts/create-role.sh?raw';
+import createRoleBindingScript from 'src/examples/scripts/create-role-binding.sh?raw';
 
-This tutorial walks you through setting up Kessel from scratch with a basic document management example. 
+**This tutorial walks you through setting up Kessel from scratch with a basic document management example.**
 You'll learn how to configure schemas, set up RBAC permissions, install client libraries, 
 and implement both resource reporting and access control using Kessel's APIs across multiple programming languages.
 
@@ -23,17 +25,75 @@ and implement both resource reporting and access control using Kessel's APIs acr
 If you are migrating an existing Red Hat Insights application to Kessel, follow [Migrate from RBAC v1 to RBAC v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) which is a guide that will walk you through all the steps of this specific use-case.
 </Aside>
 
+<Aside type="caution" title="Under Construction">Many aspects of Kessel are under construction, and this guide contains various workarounds and temporary solutions. 
+Take a look at the [roadmap](#next-steps-and-roadmap) to learn more about where we're going.</Aside>
 
 ## Quick start
 
-### Configure Resources
 
-A new installation of Kessel begins as a blank slate. To integrate a Resource (e.g. for access control), you have to configure a Resource _schema_.
+### Prerequisites
 
-Configure a basic resource that ties into RBAC for permissions. Following is an example of a drive like schema as described in [understanding kessel](../understanding-kessel).
+Let's get some prerequisites out of the way. These are temporary solutions, so don't worry about them too much.
 
 <Steps>
-1. Author schemas
+1. We need a schema compiler.
+
+    <Tabs>
+      <TabItem label="Install via go install (recommended)">
+        Install the KSL compiler directly from GitHub:
+
+        ```bash
+        go install github.com/project-kessel/ksl-schema-language/cmd/ksl@latest
+        ```
+      </TabItem>
+      <TabItem label="Build from source">
+        Alternatively, you can clone the repository and build locally:
+
+        ```bash
+        git clone https://github.com/project-kessel/ksl-schema-language.git
+        cd ksl-schema-language
+        make build
+        ```
+      </TabItem>
+    </Tabs>
+
+2. We need gRPCurl to perform some setup operations. gRPCurl is like curl, but for gRPC.
+
+    <Tabs>
+      <TabItem label="Go">
+        ```bash
+        go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
+        ```
+      </TabItem>
+      <TabItem label="Homebrew">
+        ```bash
+        brew install grpcurl
+        ```
+      </TabItem>
+      <TabItem label="Other">
+        See <a href="https://github.com/fullstorydev/grpcurl#installation" target="_blank" rel="noopener noreferrer">the grpcurl docs</a> for additional installation methods including Snap, Docker, and prebuilt binaries.
+      </TabItem>
+    </Tabs>
+
+3. And we need to configure some built-in schemas manually. We'll talk more about schemas in the next section.
+
+    <Code code={kesselSchema} lang="text" title="kessel.ksl" />
+
+    <Code code={rbacSchema} lang="text" title="rbac.ksl" />
+
+</Steps>
+
+### Configure Resources
+
+Now the interesting part. To protect and share your application's <i>resources</i>, you first have to configure resource _schema_.
+
+The following is an example of a drive like schema as described in [understanding kessel](../understanding-kessel).
+It will consistent of a simple document which is organized into Kessel's Workspaces.
+It will have assignable permissions which leverage the common Kessel RBAC model.
+
+
+<Steps>
+1. **First we have to tell Kessel about the resource.** We include its attributes and relationships, which are used for access control.
 
     <Code code={documentConfig} lang="yaml" title="document/config.yaml" />
 
@@ -43,9 +103,6 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
 
     <Code code={driveHost} lang="json" title="document/reporters/drive/document.json" />
 
-    <Code code={kesselSchema} lang="text" title="kessel.ksl" />
-
-    <Code code={rbacSchema} lang="text" title="rbac.ksl" />
     
     <Code code={driveSchema} lang="text" title="drive.ksl" />
 
@@ -79,12 +136,12 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
     </details>
 </Steps>
 
-### Install and run Kessel with RBAC
+### Install and run Kessel
 
 <Tabs>
   <TabItem label="Docker compose">
     <Steps>
-    1. Start Kessel Inventory
+    1. **Start Kessel Inventory**. Inventory is the service that stores the resources and their relationships.
 
         ```bash
         git clone git@github.com:project-kessel/inventory-api.git
@@ -95,7 +152,7 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
         make inventory-up-relations-ready
         ```
 
-    2. Start Relations and SpiceDB
+    2. **Start Relations and [SpiceDB](https://authzed.com/docs/spicedb/getting-started/discovering-spicedb)**. These form the underlying relationship storage and query engine based on relationship-based access control.
 
         ```bash
         git clone git@github.com:project-kessel/relations-api.git
@@ -107,10 +164,6 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
         <Aside type="tip">
         If you modify your schema, run `make relations-api-down`, then copy the updated `schema.zed` as above and run `make relations-api-up` again.
         </Aside>
-
-    3. Start RBAC
-
-       TODO. For now we will create the Relationships directly
     </Steps>
 
   </TabItem>
@@ -152,48 +205,61 @@ Configure a basic resource that ties into RBAC for permissions. Following is an 
 </Tabs>
 
 ### Set up access with RBAC
-<Aside title="Note">
-If you're following along and used `make relations-api-up`,
-your local relations port is 9000.
-</Aside>
+
+Now Kessel is running. You configured the "built-in" RBAC schemas in prerequisites.
+Then you configured a document resource and extended RBAC resources like <i>role</i> and <i>workspace</i> with relevant permissions.
+
+To get access, we need three things to come together:
+
+- One or more permissions. These are aggregated into a role.
+- A resource. These can be aggregated into a workspace (or other resources as defined by schema).
+- A subject (e.g. a user). These can be aggregated into a group.
+
+The union of these three things is a <i>role binding</i>. So for our next step, we will create a role to group together some permissions.
+Then, we'll create a role binding by combining a **role** (the one we just created), a **resource** (some workspace), and a **subject** (some user).
+
+
+This results in that user having the access described by the role to that workspace, and any documents with a "parent" relation to it. 
 
 <Steps>
-    0. Install gRPCurl
+1. **Create a role**
 
-        gRPCurl is like curl, but for gRPC. See <a href="https://github.com/fullstorydev/grpcurl" target="_blank" rel="noopener noreferrer">the docs</a> for more ways to install.
-        ```bash
-        go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
-        ```
-    1. Link workspace to role binding
-        ```bash
-        MESSAGE='{"tuples":[{"resource":{"id":"workspace-1","type":{"name":"workspace","namespace":"rbac"}},"relation":"user_grant","subject":{"subject":{"id":"drive-team-binding","type":{"name":"role_binding","namespace":"rbac"}}}}]}'
-        grpcurl -plaintext -d $MESSAGE \
-        localhost: <your local port for relations> \
-        kessel.relations.v1beta1.KesselTupleService.CreateTuples
-        ```
-    2. Grant document permissions to role
-        ```bash
-        MESSAGE='{"tuples":[{"resource":{"id":"drive-admin-role","type":{"name":"role","namespace":"rbac"}},"relation":"view_document","subject":{"subject":{"id":"*","type":{"name":"principal","namespace":"rbac"}}}},{"resource":{"id":"drive-admin-role","type":{"name":"role","namespace":"rbac"}},"relation":"edit_document","subject":{"subject":{"id":"*","type":{"name":"principal","namespace":"rbac"}}}},{"resource":{"id":"drive-admin-role","type":{"name":"role","namespace":"rbac"}},"relation":"delete_document","subject":{"subject":{"id":"*","type":{"name":"principal","namespace":"rbac"}}}}]}'
-        grpcurl -plaintext -d $MESSAGE \
-        localhost: <your local port for relations> \
-        kessel.relations.v1beta1.KesselTupleService.CreateTuples
-        ```
-     3. Link the role binding to a role
-        ```bash
-        MESSAGE='{"tuples":[{"resource":{"id":"drive-team-binding","type":{"name":"role_binding","namespace":"rbac"}},"relation":"granted","subject":{"subject":{"id":"drive-admin-role","type":{"name":"role","namespace":"rbac"}}}}]}'
-        grpcurl -plaintext -d $MESSAGE \
-        localhost: <your local port for relations> \
-        kessel.relations.v1beta1.KesselTupleService.CreateTuples
-        ```
-     4. Link the user sarah to the role binding
-        ```bash
-        MESSAGE='{"tuples":[{"resource":{"id":"drive-team-binding","type":{"name":"role_binding","namespace":"rbac"}},"relation":"subject","subject":{"subject":{"id":"sarah","type":{"name":"principal","namespace":"rbac"}}}}]}'    
-        grpcurl -plaintext -d $MESSAGE \
-        localhost: <your local port for relations> \
-        kessel.relations.v1beta1.KesselTupleService.CreateTuples
-        ```
-    </Steps>
+    A role defines a set of permissions. Edit the `ROLE_NAME` and `PERMISSIONS` variables to customize, then run the script.
+
+    <Code code={createRoleScript} lang="bash" title="create-role.sh" />
+
+2. **Create a role binding**
+
+    A role binding grants a user access to a role for a specific resource (e.g., a workspace).
+    Edit the `ROLE_NAME`, `USER_ID`, and `RESOURCE_ID` variables, then run the script.
+    The binding ID is auto-generated from these inputs.
+
+    <Code code={createRoleBindingScript} lang="bash" title="create-role-binding.sh" />
+
+</Steps>
 
 ### Report and Check Examples
 
 <SdkExamples content="sdk-examples" />
+
+## Next steps and roadmap
+
+### Exercises
+
+Try to experiment with the schema and relationships. Can you...
+
+- Create a new role?
+- Assign that role to a user?
+- Add a new permission to the document?
+
+### How to contribute
+
+We're open to contributions! Check us out on GitHub at [project-kessel](https://github.com/project-kessel).
+
+### Where are we going?
+
+| Feature                 | Today                                                                                       | Roadmap / What's Next                                                                              |
+|-------------------------|---------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| **Schema Language**     | Use multiple files and languages for schema, with overlap and duplicated information        | Unify all these into a single schema language—no duplication or repeated information               |
+| **Configuration Method**| Edit schema and config via files                                                            | Configure everything at runtime via an API                                                         |
+| **RBAC Management**     | Use temporary scripts or the pre-Kessel RBAC v1 API                                         | Use an RBAC management API (v2) to encapsulate access grants and workspace management              |
