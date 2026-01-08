@@ -312,9 +312,11 @@ We'll start by setting up a client you can use to interact with Kessel. We have 
 
 ### Reporting resources
 
-Before you can check access about a resource, Kessel needs to know about it. Kessel learns about resources by "reporting" them.
+Before you can check access about a resource, Kessel needs to know about it. 
+Kessel learns about resources by <i>reporting</i> them.
 
-In this example, the document resource is reported which includes its relationship to 
+In this example, the document resource is reported which includes its relationship to a workspace.
+This inherents the access granted at at the workspace level, as defined by the document schema.
 
 <CodeExamples files={gettingStartedExamples} regions="report" />
 
