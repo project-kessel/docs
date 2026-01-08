@@ -3,12 +3,14 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 import { getCollection } from 'astro:content';
 
 interface Props {
-    content: string;
+    subfolder: string;
 }
 
-const { content } = Astro.props;
+const { subfolder } = Astro.props;
 
-const unorderedExamples = await getCollection(content);
+const unorderedExamples = await getCollection('sdk-examples', ({ id }) => 
+    id.startsWith(subfolder + '/')
+);
 const orderedExamples = unorderedExamples.sort((a, b) => a.data.order - b.data.order);
 
 ---
