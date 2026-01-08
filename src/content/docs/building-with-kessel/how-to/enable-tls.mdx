@@ -1,20 +1,21 @@
 ---
-title: Enable TLS with Kessel SDKs
+title: Enable TLS with Kessel SDKs (Client-side)
 description: How to configure TLS transport security with OAuth 2.0 authentication for secure communication with Kessel services.
 ---
 
-import SdkExamples from 'src/components/SdkExamples.astro';
+import { Steps } from '@astrojs/starlight/components';
+import CodeExamples from 'src/components/CodeExamples.astro';
+
+export const tlsExamples = import.meta.glob('/src/examples/tls/example.*', { query: '?raw', eager: true, import: 'default' });
 
 The Kessel SDKs support TLS for secure communication with Kessel services. 
-When deployed in stage and production environments, you'll need to configure both TLS transport credentials and OAuth 2.0 authentication.
+To use OAuth 2.0 authentication, you must also configure TLS transport credentials.
 
-Setting up TLS with authentication requires three steps:
+## Prerequisites
 
-1. **Configure Transport Credentials** - Load your CA certificate to verify the server
-2. **Configure Call Credentials** - Set up OAuth 2.0 authentication
-3. **Combine Both** - Use your SDK's builder to apply both credential types
+Before configuring TLS, your process will need to have access to the CA certificate(s) used to sign the Kessel service certificates.
 
-## Kubernetes/OpenShift Deployment
+### Kubernetes/OpenShift Deployment using OpenShift Service CA
 
 When deploying in Kubernetes or OpenShift, you can mount CA certificates using ConfigMaps:
 
@@ -30,8 +31,22 @@ volumes:
 
 This mounts the CA certificate at `/ca-certs/service-ca.crt`, which you can reference in your application code.
 
-## Code Examples
+## Setup
 
-Below are complete examples showing how to configure TLS with OAuth 2.0 authentication in each supported language:
+<Steps>
+1. **Configure Transport Credentials.** Load your CA certificate to verify the server.
 
-<SdkExamples subfolder="tls" />
+    <CodeExamples files={tlsExamples} regions="configure-tls" />
+
+2. **Configure Call Credentials.** Set up OAuth 2.0 authentication for your client.
+
+    <CodeExamples files={tlsExamples} regions="configure-oauth" />
+
+3. **Combine Both.** Use your SDK's builder to apply both credential types and create the client.
+
+    <CodeExamples files={tlsExamples} regions="combine-both" />
+</Steps>
+
+## Complete Example
+
+<CodeExamples files={tlsExamples} />
