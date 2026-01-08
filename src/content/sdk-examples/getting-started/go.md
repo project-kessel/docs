@@ -185,8 +185,6 @@ import (
     "fmt"
     "log"
 
-    _ "github.com/joho/godotenv/autoload"
-
     "google.golang.org/protobuf/types/known/structpb"
 
     "github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"

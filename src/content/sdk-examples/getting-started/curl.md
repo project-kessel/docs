@@ -11,11 +11,6 @@ KESSEL_BASE_URL="http://localhost:9000"
 HEADERS=(
   -H "Content-Type: application/json"
 )
-
-# For authenticated environments, add authorization header:
-# HEADERS+=(
-#   -H "Authorization: Bearer $ACCESS_TOKEN"
-# )
 ```
 
 ## Creating Report Resource Requests

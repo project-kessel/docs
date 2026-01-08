@@ -1,0 +1,156 @@
+---
+import { Tabs, TabItem, Code } from '@astrojs/starlight/components';
+
+interface Props {
+    files: Record<string, string>;  // path -> content mapping from import.meta.glob
+    regions?: string | string[];    // e.g., "report" or ["setup", "report"] - omit to render entire file
+}
+
+const { files, regions: regionsProp } = Astro.props;
+
+// Normalize regions to array (or undefined)
+const regions = regionsProp ? (Array.isArray(regionsProp) ? regionsProp : [regionsProp]) : undefined;
+
+// Region marker patterns
+const cStyleRegionPattern = {
+    start: /^\s*\/\/#region\s+(\w+)\s*$/,
+    end: /^\s*\/\/#endregion\s*$/,
+};
+const hashStyleRegionPattern = {
+    start: /^\s*#\s*region\s+(\w+)\s*$/,
+    end: /^\s*#\s*endregion\s*$/,
+};
+
+// Language configuration: display name, syntax highlighting, sort order, and region patterns
+type RegionPattern = { start: RegExp; end: RegExp };
+type LangConfig = { 
+    name: string; 
+    lang: string; 
+    order: number; 
+    regionPattern: RegionPattern;
+};
+
+const LANGUAGES: Record<string, LangConfig> = {
+    '.sh':   { name: 'Bash', lang: 'bash', order: 10, regionPattern: hashStyleRegionPattern },
+    '.py':   { name: 'Python', lang: 'python', order: 20, regionPattern: hashStyleRegionPattern },
+    '.go':   { name: 'Go', lang: 'go', order: 30, regionPattern: cStyleRegionPattern },
+    '.js':   { name: 'JavaScript', lang: 'javascript', order: 40, regionPattern: cStyleRegionPattern },
+    '.ts':   { name: 'TypeScript', lang: 'typescript', order: 45, regionPattern: cStyleRegionPattern },
+    '.rb':   { name: 'Ruby', lang: 'ruby', order: 50, regionPattern: hashStyleRegionPattern },
+    '.java': { name: 'Java', lang: 'java', order: 60, regionPattern: cStyleRegionPattern },
+};
+
+// Dedent lines: remove common leading whitespace from all lines
+function dedent(lines: string[]): string {
+    // Remove leading/trailing empty lines
+    while (lines.length > 0 && lines[0].trim() === '') lines.shift();
+    while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop();
+    
+    if (lines.length === 0) return '';
+    
+    // Find minimum indentation (ignoring empty lines)
+    const minIndent = lines
+        .filter(line => line.trim() !== '')
+        .reduce((min, line) => {
+            const match = line.match(/^(\s*)/);
+            const indent = match ? match[1].length : 0;
+            return Math.min(min, indent);
+        }, Infinity);
+    
+    // Remove that indentation from all lines
+    if (minIndent > 0 && minIndent !== Infinity) {
+        return lines.map(line => line.slice(minIndent)).join('\n');
+    }
+    return lines.join('\n');
+}
+
+// Parse regions from file content using the provided region patterns
+function parseRegions(content: string, pattern: RegionPattern): Map<string, string> {
+    const lines = content.split('\n');
+    const regionMap = new Map<string, string>();
+    
+    let currentRegion: string | null = null;
+    let regionLines: string[] = [];
+    
+    for (const line of lines) {
+        const startMatch = line.match(pattern.start);
+        const endMatch = line.match(pattern.end);
+        
+        if (startMatch) {
+            currentRegion = startMatch[1];
+            regionLines = [];
+        } else if (endMatch && currentRegion) {
+            regionMap.set(currentRegion, dedent(regionLines));
+            currentRegion = null;
+            regionLines = [];
+        } else if (currentRegion) {
+            regionLines.push(line);
+        }
+    }
+    
+    return regionMap;
+}
+
+// Strip region markers from content (for displaying entire file)
+function stripRegionMarkers(content: string, pattern: RegionPattern): string {
+    return content
+        .split('\n')
+        .filter(line => !pattern.start.test(line) && !pattern.end.test(line))
+        .join('\n');
+}
+
+// Parse filename: "example.curl.sh" -> { variant: "curl", ext: ".sh" }
+// Parse filename: "example.go" -> { variant: null, ext: ".go" }
+function parseFilename(path: string): { variant: string | null; ext: string } {
+    const filename = path.substring(path.lastIndexOf('/') + 1);
+    const parts = filename.split('.');
+    // example.curl.sh -> ["example", "curl", "sh"]
+    // example.go -> ["example", "go"]
+    if (parts.length >= 3) {
+        return { variant: parts[parts.length - 2], ext: '.' + parts[parts.length - 1] };
+    }
+    return { variant: null, ext: '.' + parts[parts.length - 1] };
+}
+
+// Process the provided files
+const exampleFiles = Object.entries(files)
+    .map(([path, content]) => {
+        const { variant, ext } = parseFilename(path);
+        const langConfig = LANGUAGES[ext];
+        if (!langConfig) return null;
+        
+        let displayContent: string;
+        if (regions) {
+            const regionMap = parseRegions(content, langConfig.regionPattern);
+            const regionContents = regions.map(r => 
+                regionMap.get(r) || `// Region "${r}" not found`
+            );
+            displayContent = regionContents.join('\n\n');
+        } else {
+            displayContent = stripRegionMarkers(content, langConfig.regionPattern);
+        }
+        
+        return {
+            path,
+            ext,
+            content: displayContent,
+            name: variant || langConfig.name,  // Use variant if present, else default
+            lang: langConfig.lang,
+            order: langConfig.order,
+        };
+    })
+    .filter((f): f is NonNullable<typeof f> => f !== null)
+    .sort((a, b) => a.order - b.order);
+---
+
+{exampleFiles.length > 0 ? (
+    <Tabs syncKey="language">
+        {exampleFiles.map((file) => (
+            <TabItem label={file.name}>
+                <Code code={file.content} lang={file.lang} />
+            </TabItem>
+        ))}
+    </Tabs>
+) : (
+    <p>No supported example files found</p>
+)}

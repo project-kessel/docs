@@ -5,6 +5,9 @@ description: Step-by-step instructions for installing and running Kessel with yo
 
 import { Aside, Badge, Card, CardGrid, LinkButton, Steps, Tabs, TabItem, Code } from '@astrojs/starlight/components';
 import SdkExamples from 'src/components/SdkExamples.astro';
+import CodeExamples from 'src/components/CodeExamples.astro';
+
+export const gettingStartedExamples = import.meta.glob('/src/examples/getting-started/example.*', { query: '?raw', eager: true, import: 'default' });
 
 import commonRepresentation from 'src/examples/document/common_representation.json?raw';
 import documentConfig from 'src/examples/document/config.yaml?raw';
@@ -238,9 +241,93 @@ This results in that user having the access described by the role to that worksp
 
 </Steps>
 
-### Report and Check Examples
+### Setting up your environment
 
-<SdkExamples subfolder="getting-started" />
+Kessel is configured and access is granted at the workspace level. Now onto your code and your resources.
+
+We'll start by setting up a client you can use to interact with Kessel. We have SDKs for many popular languages, or you can use the raw API with your favorite tool.
+
+<Steps>
+1. **Install dependencies.**
+
+    <Tabs syncKey="language">
+      <TabItem label="curl">
+        No SDK installation required. Just ensure `curl` is available:
+        ```bash
+        curl --version
+        ```
+      </TabItem>
+      <TabItem label="grpcurl">
+        If you followed along with [Prerequisites](#prerequisites), you're good to go.
+      </TabItem>
+      <TabItem label="Python">
+        ```bash
+        pip install kessel-sdk
+        ```
+      </TabItem>
+      <TabItem label="Go">
+        ```bash
+        go get github.com/project-kessel/kessel-sdk-go
+        ```
+      </TabItem>
+      <TabItem label="TypeScript">
+        ```bash
+        npm install @project-kessel/kessel-sdk
+        ```
+      </TabItem>
+      <TabItem label="Ruby">
+        ```bash
+        gem install kessel-sdk
+        ```
+      </TabItem>
+      <TabItem label="Java">
+        <Tabs>
+          <TabItem label="Maven">
+            ```xml
+            <dependency>
+              <groupId>io.grpc</groupId>
+              <artifactId>grpc-netty-shaded</artifactId>
+            </dependency>
+            <dependency>
+              <groupId>org.project-kessel</groupId>
+              <artifactId>kessel-sdk</artifactId>
+              <version>1.0.0</version>
+            </dependency>
+            ```
+          </TabItem>
+          <TabItem label="Gradle">
+            ```groovy
+            dependencies {
+              implementation 'io.grpc:grpc-netty-shaded'
+              implementation "org.project-kessel:kessel-sdk:1.0.0"
+            }
+            ```
+          </TabItem>
+        </Tabs>
+      </TabItem>
+    </Tabs>
+
+2. **Configure a client.**
+    <CodeExamples files={gettingStartedExamples} regions="setup" />
+</Steps>
+
+### Reporting resources
+
+Before you can check access about a resource, Kessel needs to know about it. Kessel learns about resources by "reporting" them.
+
+In this example, the document resource is reported which includes its relationship to 
+
+<CodeExamples files={gettingStartedExamples} regions="report" />
+
+### Checking permissions
+
+Once Kessel knows about a resource (and its relationships), you can check access by virtue of checking if the user has an expected <i>relationship</i> to the resource, as defined by your schema.
+
+<CodeExamples files={gettingStartedExamples} regions="check" />
+
+### Complete example
+
+<CodeExamples files={gettingStartedExamples} />
 
 ## Next steps and roadmap
 
