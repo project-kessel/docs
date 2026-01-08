@@ -136,12 +136,12 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
     </details>
 </Steps>
 
-### Install and run Kessel with RBAC
+### Install and run Kessel
 
 <Tabs>
   <TabItem label="Docker compose">
     <Steps>
-    1. Start Kessel Inventory
+    1. **Start Kessel Inventory**. Inventory is the service that stores the resources and their relationships.
 
         ```bash
         git clone git@github.com:project-kessel/inventory-api.git
@@ -152,7 +152,7 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
         make inventory-up-relations-ready
         ```
 
-    2. Start Relations and SpiceDB
+    2. **Start Relations and [SpiceDB](https://authzed.com/docs/spicedb/getting-started/discovering-spicedb)**. These form the underlying relationship storage and query engine based on relationship-based access control.
 
         ```bash
         git clone git@github.com:project-kessel/relations-api.git
@@ -164,10 +164,6 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
         <Aside type="tip">
         If you modify your schema, run `make relations-api-down`, then copy the updated `schema.zed` as above and run `make relations-api-up` again.
         </Aside>
-
-    3. Start RBAC
-
-       TODO. For now we will create the Relationships directly
     </Steps>
 
   </TabItem>
@@ -210,12 +206,20 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
 
 ### Set up access with RBAC
 
-<Aside type="caution" title="Under Construction">
-These scripts are temporary until the RBAC API is completed.
-</Aside>
+Now Kessel is running. You configured the "built-in" RBAC schemas in prerequisites.
+Then you configured a document resource and extended RBAC resources like <i>role</i> and <i>workspace</i> with relevant permissions.
 
-The scripts below encapsulate the lower-level relationship tuples that Kessel uses internally.
-Edit the configuration variables at the top of each script, then run them to set up your RBAC permissions.
+To get access, we need three things to come together:
+
+- One or more permissions. These are aggregated into a role.
+- A resource. These can be aggregated into a workspace (or other resources as defined by schema).
+- A subject (e.g. a user). These can be aggregated into a group.
+
+The union of these three things is a <i>role binding</i>. So for our next step, we will create a role to group together some permissions.
+Then, we'll create a role binding by combining a **role** (the one we just created), a **resource** (some workspace), and a **subject** (some user).
+
+
+This results in that user having the access described by the role to that workspace, and any documents with a "parent" relation to it. 
 
 <Steps>
 1. **Create a role**
