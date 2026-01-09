@@ -1,8 +1,9 @@
 #!/bin/bash
 # Create a role binding that grants a user access to a role for a specific resource
 #
-# Usage: Edit the configuration below, then run:
-#   chmod +x create-role-binding.sh && ./create-role-binding.sh
+# Usage: Edit the configuration below.
+# 
+# The script can be copied directly into a terminal or saved as a file.
 
 # ============ CONFIGURATION ============
 # Modify these values for your use case

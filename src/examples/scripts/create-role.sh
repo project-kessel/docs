@@ -1,8 +1,9 @@
 #!/bin/bash
 # Create a role with specified permissions
 #
-# Usage: Edit the configuration below, then run:
-#   chmod +x create-role.sh && ./create-role.sh
+# Usage: Edit the configuration below.
+# 
+# The script can be copied directly into a terminal or saved as a file.
 
 # ============ CONFIGURATION ============
 # Modify these values for your use case

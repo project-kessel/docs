@@ -3,19 +3,18 @@ namespace drive
 
 import rbac
 
+// Extend RBAC model with relevant document permissions
 @rbac.add_permission(name:'view_document')
 @rbac.add_permission(name:'edit_document')
 @rbac.add_permission(name:'delete_document')
 
 public type document {
     relation workspace: [ExactlyOne rbac.workspace]
-    
-    // Direct permissions from workspace
-    relation view_document: workspace.view_document
-    relation edit_document: workspace.edit_document
-    relation delete_document: workspace.delete_document
-    
-    relation view: view_document
-    relation edit: edit_document
-    relation manage: delete_document
+
+    // Define document permissions, 
+    // which are inherited from the workspace-level permissions
+    // that we defined above.
+    relation view: workspace.view_document
+    relation edit: workspace.edit_document
+    relation delete: workspace.delete_document
 }

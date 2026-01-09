@@ -1,10 +1,7 @@
 definition drive/document {
-	permission delete_document = t_workspace->delete_document
-	permission edit = edit_document
-	permission edit_document = t_workspace->edit_document
-	permission manage = delete_document
-	permission view = view_document
-	permission view_document = t_workspace->view_document
+	permission edit = t_workspace->edit_document
+	permission delete = t_workspace->delete_document
+	permission view = t_workspace->view_document
 	permission workspace = t_workspace
 	relation t_workspace: rbac/workspace
 }
