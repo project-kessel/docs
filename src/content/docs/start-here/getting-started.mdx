@@ -19,6 +19,8 @@ import schemaZed from 'src/examples/schema.zed?raw';
 import createRoleScript from 'src/examples/scripts/create-role.sh?raw';
 import createRoleBindingScript from 'src/examples/scripts/create-role-binding.sh?raw';
 
+export const createFile = (path, content) => `cat > ${path} << 'EOF'\n${content.trim()}\nEOF`;
+
 **This tutorial walks you through setting up Kessel from scratch with a basic document management example.**
 You'll learn how to configure schemas, set up RBAC permissions, install client libraries, 
 and implement both resource reporting and access control using Kessel's APIs across multiple programming languages.
@@ -59,6 +61,8 @@ Let's get some prerequisites out of the way. These are temporary solutions, so d
       </TabItem>
     </Tabs>
 
+    Ensure `ksl` is in your `$PATH`, or adjust the path in the scripts below.
+
 2. We need gRPCurl to perform some setup operations. gRPCurl is like curl, but for gRPC.
 
     <Tabs>
@@ -77,11 +81,18 @@ Let's get some prerequisites out of the way. These are temporary solutions, so d
       </TabItem>
     </Tabs>
 
-3. And we need to configure some built-in schemas manually. We'll talk more about schemas in the next section.
+3. We need a clean working directory for some config files. If you don't have one already, create one and change to it now.
 
-    <Code code={kesselSchema} lang="text" title="kessel.ksl" />
+    ```bash
+    mkdir -p kessel-getting-started
+    cd kessel-getting-started
+    ```
 
-    <Code code={rbacSchema} lang="text" title="rbac.ksl" />
+4. Some built-in schemas need to be configured manually for now. We'll talk more about schemas in the next section.
+
+    <Code code={createFile('kessel.ksl', kesselSchema)} lang="bash" />
+
+    <Code code={createFile('rbac.ksl', rbacSchema)} lang="bash" />
 
 </Steps>
 
@@ -89,7 +100,7 @@ Let's get some prerequisites out of the way. These are temporary solutions, so d
 
 Now the interesting part. To protect and share your application's <i>resources</i>, you first have to configure resource _schema_.
 
-The following is an example of a drive like schema as described in [understanding kessel](../understanding-kessel).
+The following is an example of a drive like schema as described in [Understanding Kessel](../understanding-kessel).
 It will consistent of a simple document which is organized into Kessel's Workspaces.
 It will have assignable permissions which leverage the common Kessel RBAC model.
 
@@ -97,34 +108,35 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
 <Steps>
 1. **First we have to tell Kessel about the resource.** We include its attributes and relationships, which are used for access control.
 
-    <Code code={documentConfig} lang="yaml" title="document/config.yaml" />
-
-    <Code code={commonRepresentation} lang="json" title="document/common_representation.json" />
-
-    <Code code={driveConfig} lang="yaml" title="document/reporters/drive/config.yaml" />
-
-    <Code code={driveHost} lang="json" title="document/reporters/drive/document.json" />
-
-    
-    <Code code={driveSchema} lang="text" title="drive.ksl" />
-
-2. Compile to SpiceDB schema
-
-    Install the KSL compiler directly from github:
-
     ```bash
-    go install github.com/project-kessel/ksl-schema-language/cmd/ksl@latest
+    mkdir -p document/reporters/drive
     ```
 
-    Alternatively, you can clone the repository and build locally:
+    We configure a "document" resource, which has one <i>reporter</i> called "drive".
 
-    ```bash
-    git clone https://github.com/project-kessel/ksl-schema-language.git
-    cd ksl-schema-language
-    make build
-    ```
+    <Code code={createFile('document/config.yaml', documentConfig)} lang="bash" />
 
-    Then, you can use the `ksl` command to compile the schemas:
+    Documents have a "common" <i>representation</i> (JSON data). Common representation is "common" regardless of the reporter.
+    Here we configure the common representation schema.
+    The workspace is common, because a document is always in a single workspace,
+    regardless of how many reporters there are. 
+
+    <Code code={createFile('document/common_representation.json', commonRepresentation)} lang="bash" />
+
+    Reporters also have representations specific to their own state.
+    Here we configure the "drive" reporter and its document representation schema.
+
+    <Code code={createFile('document/reporters/drive/config.yaml', driveConfig)} lang="bash" />
+
+    <Code code={createFile('document/reporters/drive/document.json', driveHost)} lang="bash" />
+
+    And finally we configure permissions.
+
+    <Code code={createFile('drive.ksl', driveSchema)} lang="bash" />
+
+2. **Compile to [SpiceDB](https://authzed.com/docs/spicedb/getting-started/discovering-spicedb) schema**.
+
+    We install the `ksl` schema compiler earlier. Use it now to compile the schemas:
 
     ```bash
     ksl kessel.ksl rbac.ksl drive.ksl
@@ -154,7 +166,7 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
         make inventory-up-relations-ready
         ```
 
-    2. **Start Relations and [SpiceDB](https://authzed.com/docs/spicedb/getting-started/discovering-spicedb)**. These form the underlying relationship storage and query engine based on relationship-based access control.
+    2. **Start Relations and SpiceDB**. These form the underlying relationship storage and query engine based on relationship-based access control.
 
         ```bash
         git clone git@github.com:project-kessel/relations-api.git
@@ -221,14 +233,14 @@ The union of these three things is a <i>role binding</i>. So for our next step, 
 Then, we'll create a role binding by combining a **role** (the one we just created), a **resource** (some workspace), and a **subject** (some user).
 
 
-This results in that user having the access described by the role to that workspace, and any documents with a "parent" relation to it. 
+This results in that user having the access described by the role to that workspace, and any documents with a "workspace" relation to it. 
 
 <Steps>
 1. **Create a role**
 
     A role defines a set of permissions. Edit the `ROLE_NAME` and `PERMISSIONS` variables to customize, then run the script.
 
-    <Code code={createRoleScript} lang="bash" title="create-role.sh" />
+    <Code code={createRoleScript} lang="bash" />
 
 2. **Create a role binding**
 
@@ -236,7 +248,7 @@ This results in that user having the access described by the role to that worksp
     Edit the `ROLE_NAME`, `USER_ID`, and `RESOURCE_ID` variables, then run the script.
     The binding ID is auto-generated from these inputs.
 
-    <Code code={createRoleBindingScript} lang="bash" title="create-role-binding.sh" />
+    <Code code={createRoleBindingScript} lang="bash" />
 
 </Steps>
 
