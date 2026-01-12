@@ -14,7 +14,7 @@
   display: inline-block;
   width: 24px;
   height: 24px;
-  background-image: url('assets/redhat.svg');
+  background-image: url('/src/assets/redhat.svg');
   background-size: contain;
   background-repeat: no-repeat;
   margin-left: 5px;
