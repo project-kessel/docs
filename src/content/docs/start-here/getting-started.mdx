@@ -223,11 +223,11 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
 Now Kessel is running. You configured the "built-in" RBAC schemas in prerequisites.
 Then you configured a document resource and extended RBAC resources like <i>role</i> and <i>workspace</i> with relevant permissions.
 
-To get access, we need three things to come together:
+For a user to get access, three things need to come together:
 
-- One or more permissions. These are aggregated into a role.
-- A resource. These can be aggregated into a workspace (or other resources as defined by schema).
-- A subject (e.g. a user). These can be aggregated into a group.
+1. One or more permissions. These are aggregated into a role.
+2. A resource. These can be aggregated into a workspace (or other resources as defined by schema).
+3. A subject (e.g. a user). These can be aggregated into a group.
 
 The union of these three things is a <i>role binding</i>. So for our next step, we will create a role to group together some permissions.
 Then, we'll create a role binding by combining a **role** (the one we just created), a **resource** (some workspace), and a **subject** (some user).
