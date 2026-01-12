@@ -12,7 +12,7 @@ include Kessel::Auth
 
 # region setup
 # For insecure local development:
-client = KesselInventoryService::ClientBuilder.new(ENV.fetch('KESSEL_ENDPOINT', 'localhost:9000'))
+client = KesselInventoryService::ClientBuilder.new(ENV.fetch('KESSEL_ENDPOINT', 'localhost:9081'))
                                               .insecure
                                               .build
 # endregion

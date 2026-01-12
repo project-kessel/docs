@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const KESSEL_ENDPOINT = "localhost:9000"
+const KESSEL_ENDPOINT = "localhost:9081"
 
 func main() {
 	ctx := context.Background()

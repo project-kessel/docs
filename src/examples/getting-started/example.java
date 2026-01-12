@@ -9,7 +9,7 @@ import org.project_kessel.api.inventory.v1beta2.*;
 public class Example {
     public static void main(String[] args) {
         //#region setup
-        String kesselEndpoint = System.getenv().getOrDefault("KESSEL_ENDPOINT", "localhost:9000");
+        String kesselEndpoint = System.getenv().getOrDefault("KESSEL_ENDPOINT", "localhost:9081");
 
         Pair<KesselInventoryServiceBlockingStub, ManagedChannel> clientAndChannel =
             new ClientBuilder(kesselEndpoint)

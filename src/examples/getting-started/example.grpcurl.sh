@@ -2,7 +2,7 @@
 
 # region setup
 # Set your Kessel gRPC endpoint
-KESSEL_GRPC_ENDPOINT="localhost:9000"
+KESSEL_GRPC_ENDPOINT="localhost:9081"
 
 # For insecure local development:
 GRPC_OPTS="-plaintext"

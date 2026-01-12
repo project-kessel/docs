@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # region setup
-KESSEL_BASE_URL="http://localhost:9000"
+KESSEL_BASE_URL="http://localhost:9081"
 
 HEADERS=(
   -H "Content-Type: application/json"

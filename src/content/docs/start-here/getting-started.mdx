@@ -136,7 +136,7 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
 
 2. **Compile to [SpiceDB](https://authzed.com/docs/spicedb/getting-started/discovering-spicedb) schema**.
 
-    We install the `ksl` schema compiler earlier. Use it now to compile the schemas:
+    We installed the `ksl` schema compiler earlier. Use it now to compile the schemas:
 
     ```bash
     ksl kessel.ksl rbac.ksl drive.ksl
@@ -328,7 +328,7 @@ Before you can check access about a resource, Kessel needs to know about it.
 Kessel learns about resources by <i>reporting</i> them.
 
 In this example, the document resource is reported which includes its relationship to a workspace.
-This inherents the access granted at at the workspace level, as defined by the document schema.
+This inherits the access granted at at the workspace level, as defined by the document schema.
 
 <CodeExamples files={gettingStartedExamples} regions="report" />
 

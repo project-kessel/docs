@@ -14,7 +14,7 @@ const regions = regionsProp ? (Array.isArray(regionsProp) ? regionsProp : [regio
 // Region marker patterns
 const cStyleRegionPattern = {
     start: /^\s*\/\/\s*#region\s+([\w-]+)\s*$/,
-    end: /^\s*\/\/#endregion\s*$/,
+    end: /^\s*\/\/\s*#endregion\s*$/,
 };
 const hashStyleRegionPattern = {
     start: /^\s*#\s*region\s+([\w-]+)\s*$/,
