@@ -22,8 +22,14 @@ import createRoleBindingScript from 'src/examples/scripts/create-role-binding.sh
 export const createFile = (path, content) => `cat > ${path} << 'EOF'\n${content.trim()}\nEOF`;
 
 **This tutorial walks you through setting up Kessel from scratch with a basic document management example.**
-You'll learn how to configure schemas, set up RBAC permissions, install client libraries, 
-and implement both resource reporting and access control using Kessel's APIs across multiple programming languages.
+You'll learn how to use Kessel to allow customers to organize and share documents in a Google Drive-like application.
+Along the way, you'll get introduced to the following concepts:
+
+- [**Resources and reporter representations**](../../building-with-kessel/concepts/resources-representations): The basic building block for leveraging Kessel's access control and inventory capabilities.
+- [**Schema**](../../building-with-kessel/concepts/schema): The language for describing resources and their relationships.
+- [**RBAC**](../../building-with-kessel/concepts/rbac): The access control and tenancy model for Kessel.
+- [**Reporting resources**](../../building-with-kessel/how-to/report-resources): The process of telling Kessel about a resource and its relationships.
+- [**Protecting resource access**](../../building-with-kessel/how-to/protect-endpoint): How to protect access to a resource.
 
 <Aside type="tip" title="Tip: Insights migration guide">
 If you are migrating an existing Red Hat Insights application to Kessel, follow [Migrate from RBAC v1 to RBAC v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) which is a guide that will walk you through all the steps of this specific use-case.
@@ -106,19 +112,34 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
 
 
 <Steps>
-1. **First we have to tell Kessel about the resource.** We include its attributes and relationships, which are used for access control.
+1. **First we have to tell Kessel about the resource type.** 
+   In order to insert rows into a database, you have to define the tables and their columns.
+   In Kessel, it is the same thing. Instead of a table, you have a resource type.
+   Instead of columns, you have JSON-like attributes and the relationships they imply. 
+   Relationships can be used for access control.
+
+   **In Kessel, a single resource can have multiple <i>representations</i> shared by different <i>reporters</i>.**
+   For this tutorial, we'll define a single resource type called "document" which will be shared by a single reporter called "drive".
+
+   The metadata for resources and reporters follows a directory structure.
 
     ```bash
-    mkdir -p document/reporters/drive
+    # Create a folder for the document resource type
+    mkdir -p document/
     ```
 
-    We configure a "document" resource, which has one <i>reporter</i> called "drive".
+    The document resource type has a single a 'drive' reporter.
 
     <Code code={createFile('document/config.yaml', documentConfig)} lang="bash" />
 
     Documents have a "common" <i>representation</i> (JSON data). Common representation is "common" regardless of the reporter.
-    Here we configure the common representation schema.
-    The workspace is common, because a document is always in a single workspace,
+    Here we configure the common representation schema. It includes a required attribute called "workspace_id".
+
+    A <i>workspace</i> is a resource built-in to Kessel that groups other resources (including workspaces) together.
+    This can be use to construct a resource hierarchy, common to many SaaS applications.
+    In this tutorial, we use this instead of Drive folders.
+
+    The workspace is in the common representation, because a document is always in a single workspace,
     regardless of how many reporters there are. 
 
     <Code code={createFile('document/common_representation.json', commonRepresentation)} lang="bash" />
@@ -126,11 +147,21 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
     Reporters also have representations specific to their own state.
     Here we configure the "drive" reporter and its document representation schema.
 
+    ```bash
+    # Create a folder for the drive reporter's representation of a document.
+    mkdir -p document/reporters/drive
+    ```
+
     <Code code={createFile('document/reporters/drive/config.yaml', driveConfig)} lang="bash" />
 
     <Code code={createFile('document/reporters/drive/document.json', driveHost)} lang="bash" />
 
-    And finally we configure permissions.
+    And finally we configure permissions. Permissions are defined in a KSL schema file.
+
+    <Aside type="caution">
+    This is a temporary solution. 
+    We are working on a new schema language that will unify attributes and permissions (relationships) into a single language and fewer files.
+    </Aside>
 
     <Code code={createFile('drive.ksl', driveSchema)} lang="bash" />
 
