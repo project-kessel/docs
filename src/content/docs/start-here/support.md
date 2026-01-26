@@ -10,7 +10,7 @@ To help us help you, please verify that you have completed the core setup steps.
 
 ### **Self-Service Checklist**
 
-1. Follow the [Getting Started Guide](https://improved-adventure-16jykz5.pages.github.io/start-here/getting-started/):  
+1. Follow the [Getting Started Guide](./getting-started/):  
    * Have you met all the Prerequisites?  
    * Did you complete the Installation steps successfully?  
    * Have you walked through the Quick Start example?  
