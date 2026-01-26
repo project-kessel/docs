@@ -1,3 +1,8 @@
+---
+title: Support
+description: How to get help with Project Kessel.
+---
+
 # Support for Kessel
 
 Welcome to the Kessel project! To ensure we provide high-quality assistance while maintaining a focus on core service development, we follow an **Asynchronous Support Model**.
