@@ -14,7 +14,7 @@ REPORT_MESSAGE='{"type": "document", "reporter_type": "drive", "reporter_instanc
 curl "${HEADERS[@]}" \
   -X POST \
   -d "$REPORT_MESSAGE" \
-  "$KESSEL_BASE_URL/api/inventory/v1beta2/resources"
+  "$KESSEL_BASE_URL/api/kessel/v1beta2/resources"
 # endregion
 
 # region check
@@ -24,5 +24,5 @@ CHECK_MESSAGE='{"object": {"resource_type": "document", "resource_id": "doc-123"
 curl "${HEADERS[@]}" \
   -X POST \
   -d "$CHECK_MESSAGE" \
-  "$KESSEL_BASE_URL/api/inventory/v1beta2/check"
+  "$KESSEL_BASE_URL/api/kessel/v1beta2/check"
 # endregion

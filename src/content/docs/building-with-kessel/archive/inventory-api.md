@@ -2,6 +2,8 @@
 title: Kessel Asset Inventory APIs
 ---
 
+> ⚠️ **Deprecated**: This document references the v1beta1 API which is deprecated. Please refer to the v1beta2 API documentation for the current API format.
+
 This document does not supersede any information in the API specification. This is meant to help explain why the API works the way that it does. In other words, think of the API specification as the API “syntax” documentation and this as the API “semantics” documentation.
 
 **Notes:**
@@ -13,9 +15,9 @@ This document does not supersede any information in the API specification. This 
 
 A management service creates, modifies or deletes a managed resource in its local inventory. To aid in the integration of the Red Hat Hybrid Cloud Management solution, they will report all of these operations to the Kessel via the Asset Inventory APIs. With the Asset Inventory APIs, these services are referenced as Reporters.
 
-When a new resource is created in the Reporter’s private inventory, the Reporter will issue a POST to Kessel. The endpoint is structured as follows: `/api/inventory/{api-version}/resources/{resource-type}`.
+When a new resource is created in the Reporter’s private inventory, the Reporter will issue a POST to Kessel. The endpoint is structured as follows: `/api/kessel/{api-version}/resources/{resource-type}`.
 
-An example would be: `/api/inventory/v1beta1/resources/k8s-clusters`.
+An example would be: `/api/kessel/v1beta1/resources/k8s-clusters`. *(Deprecated - use v1beta2)*
 
 ### The Request Body
 
@@ -123,9 +125,9 @@ For example, there is a _k8s-policy_ (foo) in Asset Inventory with its set of at
 
 When a new resource relationship is created in the Reporter’s private inventory, the Reporter will issue a POST to Kessel. The endpoint are structured as follows:
 
-`/api/inventory/{api-version}/resource-relationships/{relationship-type}` where _relationship-type_ is defined as “subject_relationship_object”.
+`/api/kessel/{api-version}/resource-relationships/{relationship-type}` where _relationship-type_ is defined as “subject_relationship_object”.
 
-An example would be: `/api/inventory/v1beta1/resource-relationships/k8s-policy_is-propagated-to_k8s-cluster`
+An example would be: `/api/kessel/v1beta1/resource-relationships/k8s-policy_is-propagated-to_k8s-cluster` *(Deprecated - use v1beta2)*
 
 The subject and object resources must both exist in Asset Inventory for the POST/PUT to be valid.
 
