@@ -35,4 +35,4 @@ MESSAGE="{\"tuples\":[
 
 grpcurl -plaintext -d "${MESSAGE}" \
     "localhost:${RELATIONS_PORT}" \
-    kessel.relations.v1beta1.KesselTupleService.CreateTuples
+    kessel.relations.v1beta2.KesselTupleService.CreateTuples

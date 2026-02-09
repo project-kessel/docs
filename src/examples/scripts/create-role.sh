@@ -30,4 +30,4 @@ MESSAGE="{\"tuples\":[${TUPLES}]}"
 echo "Creating role '${ROLE_NAME}' with permissions: ${PERMISSIONS[*]}"
 grpcurl -plaintext -d "${MESSAGE}" \
     "localhost:${RELATIONS_PORT}" \
-    kessel.relations.v1beta1.KesselTupleService.CreateTuples
+    kessel.relations.v1beta2.KesselTupleService.CreateTuples
