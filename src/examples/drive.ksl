@@ -8,7 +8,7 @@ import rbac
 @rbac.add_permission(name:'edit_document')
 @rbac.add_permission(name:'delete_document')
 
-// This defines a resource type called 'document' in the 'drive' namespace, which is also a reporter type
+// Defines a resource type called 'document' which is 1:1 with the 'document' resource type associated with the 'drive' reporter type
 public type document {
     relation workspace: [ExactlyOne rbac.workspace]
 
