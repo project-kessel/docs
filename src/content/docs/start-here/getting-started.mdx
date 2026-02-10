@@ -365,7 +365,10 @@ This inherits the access granted at at the workspace level, as defined by the do
 
 ### Checking permissions
 
-Once Kessel knows about a resource (and its relationships), you can check access by virtue of checking if the user has an expected <i>relationship</i> to the resource, as defined by your schema.
+Once Kessel knows about a resource (and its relationships), you can check access by virtue of checking if the user has an expected <i>relationship</i> to the resource, as defined by the `relation` statements your schema,
+particularly the ones referring to permissions (ie: the view, edit, and delete relations from the example above that refer to workspace permissions.) The reporter and resource types likewise come from your schema- the reporter
+type is defined by the folder the inventory schema file is placed in (see example above) and the namespace statement in the ksl file (see example above), which must match. The resource type is defined by the filename of
+the inventory schema file and the type statement in the ksl file, which must match.
 
 <CodeExamples files={gettingStartedExamples} regions="check" />
 
