@@ -365,7 +365,9 @@ This inherits the access granted at at the workspace level, as defined by the do
 
 ### Checking permissions
 
-Once Kessel knows about a resource (and its relationships), you can check access by virtue of checking if the user has an expected <i>relationship</i> to the resource, as defined by your schema.
+Once Kessel knows about a resource (and its relationships), you can check access by virtue of checking if the user has an expected <i>relationship</i> to the resource, as defined by the `relation` statements your schema,
+particularly the ones referring to permissions (ie: the view, edit, and delete relations from the example above that refer to workspace permissions.) The reporter and resource types likewise come from your schema- 
+both are specified in the config.yaml in inventory and must match the corresponding `namespace` and `type` statements respectively in the KSL file describing relationships and permissions. See Configure Resources above for examples.
 
 <CodeExamples files={gettingStartedExamples} regions="check" />
 
