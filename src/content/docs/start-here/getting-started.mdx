@@ -35,7 +35,7 @@ Along the way, you'll get introduced to the following concepts:
 If you are migrating an existing Red Hat Insights application to Kessel, follow [Migrate from RBAC v1 to RBAC v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) which is a guide that will walk you through all the steps of this specific use-case.
 </Aside>
 
-<Aside type="caution" title="Under Construction">Many aspects of Kessel are under construction, and this guide contains various workarounds and temporary solutions. 
+<Aside type="caution" title="Under Construction">Many aspects of Kessel are under construction, and this guide contains various workarounds and temporary solutions.
 Take a look at the [roadmap](#next-steps-and-roadmap) to learn more about where we're going.</Aside>
 
 ## Quick start
@@ -112,10 +112,10 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
 
 
 <Steps>
-1. **First we have to tell Kessel about the resource type.** 
+1. **First we have to tell Kessel about the resource type.**
    In order to insert rows into a database, you have to define the tables and their columns.
    In Kessel, it is the same thing. Instead of a table, you have a resource type.
-   Instead of columns, you have JSON-like attributes and the relationships they imply. 
+   Instead of columns, you have JSON-like attributes and the relationships they imply.
    Relationships can be used for access control.
 
    **In Kessel, a single resource can have multiple <i>representations</i> shared by different <i>reporters</i>.**
@@ -140,7 +140,7 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
     In this tutorial, we use this instead of Drive folders.
 
     The workspace is in the common representation, because a document is always in a single workspace,
-    regardless of how many reporters there are. 
+    regardless of how many reporters there are.
 
     <Code code={createFile('document/common_representation.json', commonRepresentation)} lang="bash" />
 
@@ -159,7 +159,7 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
     And finally we configure permissions. Permissions are defined in a KSL schema file.
 
     <Aside type="caution">
-    This is a temporary solution. 
+    This is a temporary solution.
     We are working on a new schema language that will unify attributes and permissions (relationships) into a single language and fewer files.
     </Aside>
 
@@ -212,7 +212,7 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
     </Steps>
 
   </TabItem>
-  
+
   <TabItem label="bonfire">
     <Aside title="Red Hatter?">
     TODO: If you need information on ephemeral cluster access, go here.
@@ -223,7 +223,7 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
         ```bash
         bonfire deploy kessel -C kessel-inventory
         ```
-        
+
     2. Load Schema
 
         ```bash
@@ -232,19 +232,19 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
         # apply the configmap
         oc apply -f spicedb-schema-configmap.yaml
         ```
-    
+
     3. Fetch the API URL and Credentials
 
         ```bash
         bonfire namespace describe
         ```
-    4. Enable port forwarding to Kessel Inventory 
+    4. Enable port forwarding to Kessel Inventory
 
         ```bash
-        oc port-forward svc/kessel-inventory-api <your local port>:9000 -n <Name of current project from step 3> 
-        oc port-forward svc/kessel-relations-api <your local port>:9000 -n <Name of current project from step 3> 
+        oc port-forward svc/kessel-inventory-api <your local port>:9000 -n <Name of current project from step 3>
+        oc port-forward svc/kessel-relations-api <your local port>:9000 -n <Name of current project from step 3>
         ```
-        
+
     </Steps>
   </TabItem>
 </Tabs>
@@ -264,7 +264,7 @@ The union of these three things is a <i>role binding</i>. So for our next step, 
 Then, we'll create a role binding by combining a **role** (the one we just created), a **resource** (some workspace), and a **subject** (some user).
 
 
-This results in that user having the access described by the role to that workspace, and any documents with a "workspace" relation to it. 
+This results in that user having the access described by the role to that workspace, and any documents with a "workspace" relation to it.
 
 <Steps>
 1. **Create a role**
@@ -327,21 +327,16 @@ We'll start by setting up a client you can use to interact with Kessel. We have 
           <TabItem label="Maven">
             ```xml
             <dependency>
-              <groupId>io.grpc</groupId>
-              <artifactId>grpc-netty-shaded</artifactId>
-            </dependency>
-            <dependency>
               <groupId>org.project-kessel</groupId>
               <artifactId>kessel-sdk</artifactId>
-              <version>1.0.0</version>
+              <version>1.2.1</version>
             </dependency>
             ```
           </TabItem>
           <TabItem label="Gradle">
             ```groovy
             dependencies {
-              implementation 'io.grpc:grpc-netty-shaded'
-              implementation "org.project-kessel:kessel-sdk:1.0.0"
+              implementation 'org.project-kessel:kessel-sdk:1.2.1'
             }
             ```
           </TabItem>
@@ -349,13 +344,22 @@ We'll start by setting up a client you can use to interact with Kessel. We have 
       </TabItem>
     </Tabs>
 
+    <Aside type="tip" title="SDK Installation Notes">
+    Kessel SDKs depend on gRPC. **Installation times are not affected:**
+    - **Go, Java, and Node.js**: Pure language implementations with no native code
+    - **Python and Ruby**: Pre-built binaries available for all major platforms (Linux, macOS, Windows)
+
+    Compilation from source only occurs with Python/Ruby on unusual platforms or very new language versions.
+    For CI/CD optimization strategies, see [Setting up SDKs for CI](/docs/building-with-kessel/how-to/setup-sdk-for-ci/).
+    </Aside>
+
 2. **Configure a client.**
     <CodeExamples files={gettingStartedExamples} regions="setup" />
 </Steps>
 
 ### Reporting resources
 
-Before you can check access about a resource, Kessel needs to know about it. 
+Before you can check access about a resource, Kessel needs to know about it.
 Kessel learns about resources by <i>reporting</i> them.
 
 In this example, the document resource is reported which includes its relationship to a workspace.
