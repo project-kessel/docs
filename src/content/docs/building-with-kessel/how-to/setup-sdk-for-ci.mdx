@@ -1,0 +1,211 @@
+---
+title: gRPC Compilation Issues in CI
+description: Understanding and fixing gRPC native compilation timeouts in CI pipelines and hermetic builds
+sidebar:
+  order: 15
+---
+
+import { Aside, Steps, Tabs, TabItem, Code } from '@astrojs/starlight/components';
+
+The Kessel client SDKs depend on gRPC. **When using Python or Ruby, you may encounter severe CI slowdowns or timeouts** if forced to compile gRPC from source. This guide explains the problem and how to fix it.
+
+<Aside type="tip" title="Good News: Most Users Unaffected">
+**Pre-built binaries are available** for Python and Ruby on all common platforms. Installation is fast and requires no compilation. This issue only affects:
+- Hermetic build systems
+- Unusual platforms without pre-built wheels
+- Alpine Docker images (musl vs glibc)
+
+**Node.js, Go, and Java are never affected** - they don't use native gRPC.
+</Aside>
+
+## Understanding the gRPC Dependency
+
+### Language-Specific Implementations
+
+gRPC has different implementations depending on the language:
+
+- **Native library implementations** (Python, Ruby): Use C-based gRPC core for performance
+  - Require compilation or pre-built binaries
+  - Installation complexity (mitigated by pre-built binaries)
+
+- **Pure language implementations** (Go, Java, Node.js): No native dependencies
+  - Go: Pure Go implementation ([grpc-go](https://github.com/grpc/grpc-go))
+  - Java: Pure Java implementation (Netty-based)
+  - Node.js: Pure JavaScript implementation ([@grpc/grpc-js](https://www.npmjs.com/package/@grpc/grpc-js))
+  - No external compilation needed (no C compiler required)
+
+### Pre-built Binaries vs. Compilation
+
+**For languages using native libraries (Python, Ruby), installation times are not affected when using pre-built binaries.** The gRPC project publishes pre-compiled wheels and gems for:
+
+| Language | SDK Repository | Pre-built Platforms |
+|----------|---------------|-------------------|
+| **Python** | [kessel-sdk-py](https://github.com/project-kessel/kessel-sdk-py) | Linux (x86_64, ARM64), macOS (universal2), Windows |
+| **Ruby** | [kessel-sdk-ruby](https://github.com/project-kessel/kessel-sdk-ruby) | Linux (gnu/musl, x86_64/ARM64), macOS (Intel/ARM), Windows |
+
+**Compilation is only needed when:**
+- Using an unsupported platform or architecture
+- Using a very new language version (e.g., Python 3.15 pre-release)
+- Pre-built wheels/gems are unavailable for your specific OS/architecture combination
+- You explicitly force compilation (e.g., `pip install --no-binary :all:` in Python)
+
+**When compilation does occur**, it:
+- Requires a C/C++ compiler toolchain (gcc, clang, or MSVC)
+- Only happens on first install (or when gRPC versions change)
+
+<Aside type="note">
+For local development, compilation is a one-time cost. The sections below focus on optimizing for CI/CD, Docker, and hermetic builds where build times matter most.
+</Aside>
+
+## Local Development
+
+<Aside type="note">
+For local development, installation typically works out of the box using pre-built binaries. If you encounter build errors on an unusual platform, refer to the [official gRPC installation guides](https://grpc.io/docs/languages/) for language-specific build requirements.
+</Aside>
+
+For SDK installation instructions and version requirements, see the [Getting Started guide](/docs/start-here/getting-started/#setting-up-your-environment) or the individual SDK repositories:
+- [Python SDK](https://github.com/project-kessel/kessel-sdk-py)
+- [Ruby SDK](https://github.com/project-kessel/kessel-sdk-ruby)
+- [Node.js SDK](https://github.com/project-kessel/kessel-sdk-node)
+- [Go SDK](https://github.com/project-kessel/kessel-sdk-go)
+- [Java SDK](https://github.com/project-kessel/kessel-sdk-java)
+
+## CI/CD Considerations
+
+In most cases, CI builds use pre-built binaries and install quickly with no special configuration needed. Enable standard package manager caching (`cache: 'pip'` in GitHub Actions, etc.) for faster builds.
+
+**You only need special configuration when forced to compile from source** (hermetic builds, unusual platforms). See the [compilation limits section](#limiting-parallel-compilation-in-ci) below for those cases.
+
+## When You Need to Compile
+
+In most cases, pre-built binaries handle everything automatically. **If you're doing hermetic builds** or working on an unusual platform where pre-built binaries aren't available, you may need to compile from source.
+
+<Aside type="caution" title="Critical: CI Timeout Issues (Python & Ruby)">
+**When compiling gRPC from source in CI with Python or Ruby, you may experience severe slowdowns or timeouts.** The problem occurs when both the package manager (pip, bundler) and gRPC's native build process try to use all available CPUs simultaneously, causing resource contention.
+
+**Note:** Node.js, Go, and Java do not have this issue (Node.js uses pure JavaScript gRPC, Go/Java have no native dependencies).
+
+**Solution:** Limit parallel build threads for both the package manager and gRPC compilation.
+</Aside>
+
+### Limiting Parallel Compilation in CI
+
+When building from source, **limit the number of parallel compilation threads** to prevent CI hangs and timeouts:
+
+<Tabs syncKey="language">
+  <TabItem label="Python">
+    ```bash
+    # Limit gRPC compilation to 4 parallel jobs
+    export GRPC_PYTHON_BUILD_EXT_COMPILER_JOBS=4
+    pip install kessel-sdk
+    ```
+
+    **In Dockerfile:**
+    ```dockerfile
+    ENV GRPC_PYTHON_BUILD_EXT_COMPILER_JOBS=4
+    RUN pip install kessel-sdk
+    ```
+
+    **In GitHub Actions:**
+    ```yaml
+    - name: Install dependencies
+      env:
+        GRPC_PYTHON_BUILD_EXT_COMPILER_JOBS: 4
+      run: pip install kessel-sdk
+    ```
+
+    See: [grpcio parallel compilation](https://github.com/grpc/grpc/blob/master/src/python/grpcio/_parallel_compile_patch.py)
+  </TabItem>
+
+  <TabItem label="Ruby">
+    ```bash
+    # Limit Bundler and gRPC compilation
+    export BUNDLE_JOBS=4
+    export GRPC_RUBY_BUILD_PROCS=4
+    export MAKEFLAGS="-j4"
+    bundle install
+    ```
+
+    **In Dockerfile:**
+    ```dockerfile
+    ENV GRPC_RUBY_BUILD_PROCS=4
+    ENV MAKEFLAGS="-j4"
+    RUN bundle install
+    ```
+
+    **In GitHub Actions:**
+    ```yaml
+    - name: Install dependencies
+      env:
+        BUNDLE_JOBS: 4
+        GRPC_RUBY_BUILD_PROCS: 4
+        MAKEFLAGS: "-j4"
+      run: bundle install
+    ```
+
+    Real-world example: [Red Hat Insights compliance-backend PR #2621](https://github.com/RedHatInsights/compliance-backend/pull/2621/files)
+  </TabItem>
+</Tabs>
+
+**Why this happens:**
+1. Package managers (pip, bundler) spawn parallel download/install processes
+2. gRPC's C compilation also spawns parallel build processes (one per CPU by default)
+3. This double parallelism might cause memory pressure and CPU thrashing
+4. Result: Builds slow down dramatically or timeout
+
+### Build Requirements
+
+If compilation is needed (Python, Ruby only), ensure these tools are available:
+
+- **Python**: gcc, g++, python3-dev
+- **Ruby**: gcc, make, ruby-dev
+
+**Note:** Node.js, Go, and Java do not require build tools as they don't use native dependencies.
+
+See the [official gRPC installation guides](https://grpc.io/docs/languages/) for language-specific details.
+
+### Hermetic Build Systems
+
+For hermetic builds that force compilation from source:
+
+1. **Include build dependencies** (gcc, g++, python3-dev or ruby-dev)
+2. **Limit parallel compilation** (see above) to avoid resource contention and timeouts
+3. **Expect longer build times**
+
+See [gRPC build documentation](https://github.com/grpc/grpc/blob/master/BUILDING.md) for language-specific details.
+
+## Troubleshooting
+
+### Build Errors
+
+If you encounter build errors, they're typically due to missing compiler tools. Package managers provide clear error messages. Common solutions:
+
+- **Python missing compiler**: Install `build-essential` (Linux) or `xcode-select --install` (macOS)
+- **Architecture issues**: Ensure your Python/Ruby version matches your system architecture (especially on Apple Silicon)
+- **Long CI build times**: Enable caching (see [CI/CD section](#cicd-considerations))
+
+For detailed build requirements, refer to the [official gRPC installation guides](https://grpc.io/docs/languages/).
+
+## Summary
+
+**Key points about gRPC compilation:**
+
+1. **Pre-built binaries are available** - Python and Ruby have pre-built wheels/gems for common platforms, avoiding compilation
+2. **When forced to compile** (hermetic builds, unusual platforms) - **LIMIT parallel build threads** to prevent CI timeouts (see [compilation limits](#limiting-parallel-compilation-in-ci))
+3. **Python and Ruby only** - Node.js, Go, and Java don't use native gRPC and never need external compilation
+4. **Docker: Use glibc-based images** - Red Hat UBI or Debian images work with pre-built binaries; Alpine (musl) may force compilation
+
+## Additional Resources
+
+### Kessel SDK Repositories
+- [Python SDK (kessel-sdk-py)](https://github.com/project-kessel/kessel-sdk-py)
+- [Ruby SDK (kessel-sdk-ruby)](https://github.com/project-kessel/kessel-sdk-ruby)
+- [Node.js SDK (kessel-sdk-node)](https://github.com/project-kessel/kessel-sdk-node)
+- [Go SDK (kessel-sdk-go)](https://github.com/project-kessel/kessel-sdk-go)
+- [Java SDK (kessel-sdk-java)](https://github.com/project-kessel/kessel-sdk-java)
+
+### Documentation
+- [gRPC Installation Guide](https://grpc.io/docs/languages/python/quickstart/)
+- [Client SDK Specification](/docs/contributing/client-libraries/)
+- [Authenticate with Python SDK](/docs/building-with-kessel/how-to/authenticate-with-python-sdk/)
+- [Getting Started with Kessel](/docs/start-here/getting-started/)
