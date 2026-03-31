@@ -330,7 +330,130 @@ Follow the instructions in the [README](https://github.com/project-kessel/insigh
 ### Enabling authentication
 
 Applications using Kessel for access control need to authenticate with Kessel and RBAC in stage/prod environments.
-The following steps enable authentication with Kessel so that it can be validated in the ephemeral environment.
+The following sections describe two approaches to enable authentication with Kessel in the ephemeral environment.
+
+#### Option 1: Using local Keycloak (Recommended for testing)
+
+You can create a service account in the local Keycloak instance running in your ephemeral environment. This approach is simpler and doesn't require access to Stage SSO.
+
+To create and retrieve the service account credentials for configuring your application, run the following commands:
+
+1. Get the Keycloak admin credentials:
+
+	```shell
+	ENV_NAMESPACE="env-$(oc project -q)"
+	ADMIN_USER=$(oc get secret "$ENV_NAMESPACE-keycloak" -o jsonpath='{.data.username}' | base64 -d)
+	ADMIN_PASS=$(oc get secret "$ENV_NAMESPACE-keycloak" -o jsonpath='{.data.password}' | base64 -d)
+	KEYCLOAK_URL=$(oc get route -l app=${ENV_NAMESPACE} -o json | jq '.items[] | select(.metadata.name | contains("auth")) | select(.spec.port.targetPort == "keycloak").spec.host' -r)
+	```
+
+1. Get an admin access token:
+
+	```shell
+	TOKEN=$(curl -s -X POST "https://${KEYCLOAK_URL}/auth/realms/master/protocol/openid-connect/token" \
+	    -H "Content-Type: application/x-www-form-urlencoded" \
+	    -d "username=${ADMIN_USER}" \
+	    -d "password=${ADMIN_PASS}" \
+	    -d "grant_type=password" \
+	    -d "client_id=admin-cli" | jq -r '.access_token')
+	```
+
+	:::note
+	The admin token expires quickly (typically within a few minutes). If you're executing these commands manually and encounter authentication errors, re-run this command to refresh the token.
+	:::
+
+1. Create the service account client in Keycloak:
+
+	```shell
+	CLIENT_ID="service-account-console"
+	curl -X POST "https://${KEYCLOAK_URL}/auth/admin/realms/redhat-external/clients" \
+	    -H "Authorization: Bearer ${TOKEN}" \
+	    -H "Content-Type: application/json" \
+	    -d '{
+	      "clientId": "'${CLIENT_ID}'",
+	      "enabled": true,
+	      "serviceAccountsEnabled": true,
+	      "publicClient": false,
+	      "standardFlowEnabled": false,
+	      "directAccessGrantsEnabled": false
+	    }'
+	```
+
+1. Retrieve the service account client secret:
+
+	```shell
+	INTERNAL_CLIENT_ID=$(curl -s "https://${KEYCLOAK_URL}/auth/admin/realms/redhat-external/clients" \
+	  -H "Authorization: Bearer ${TOKEN}" | jq -r '.[] | select(.clientId=="'${CLIENT_ID}'") | .id')
+	CLIENT_SECRET=$(curl -s "https://${KEYCLOAK_URL}/auth/admin/realms/redhat-external/clients/${INTERNAL_CLIENT_ID}/client-secret" \
+	  -H "Authorization: Bearer ${TOKEN}" | jq -r '.value')
+	```
+
+1. Get the OIDC issuer URL:
+
+	```shell
+	ISSUER_URL=$(curl -s "https://${KEYCLOAK_URL}/auth/realms/redhat-external/.well-known/openid-configuration" | jq -r '.issuer')
+	```
+
+1. Display the credentials:
+
+	```shell
+	echo "Client ID: ${CLIENT_ID}"
+	echo "Client Secret: ${CLIENT_SECRET}"
+	echo "Issuer URL: ${ISSUER_URL}"
+	```
+
+1. Get the subject (`sub` claim) for the service account:
+
+	```shell
+	SUB=$(curl -s ${ISSUER_URL}/protocol/openid-connect/token -d grant_type=client_credentials -d client_id=${CLIENT_ID} -d client_secret=${CLIENT_SECRET} | jq -r '.access_token' | awk -F. '{print $2}' | base64 --decode 2>/dev/null | jq -r '.sub')
+	```
+
+1. Configure RBAC to grant unlimited access to the service account:
+
+	```shell
+	oc create secret generic system-users --dry-run=client -o yaml --from-literal="system-users.json={
+	  \"$SUB\": {
+	    \"admin\": true,
+	    \"is_service_account\": true,
+	    \"allow_any_org\": true
+	  }
+	}" | oc apply -f -
+	```
+
+1. Enable token validation in RBAC:
+
+	```shell
+	oc get clowdapp rbac -o json | \
+		jq '(.spec.deployments[] | select(.name=="service") | .podSpec.env[] | select(.name=="IT_BYPASS_TOKEN_VALIDATION") | .value) = "False"' | \
+		oc apply -f -
+	```
+
+1. Update the Kessel Inventory service configuration to enable authentication.
+   Run `oc edit cm inventory-api-config` to edit the kessel-inventory configuration ConfigMap and in the editor update the authn section like this:
+
+	```yaml
+	    authn:
+	      oidc:
+	        authn-server-url: https://${KEYCLOAK_URL}/auth/realms/redhat-external
+	        client-id: foo
+	        skip-client-id-check: true
+	        insecure-client: false
+	```
+
+	Note: Replace `${KEYCLOAK_URL}` with the actual Keycloak URL from step 1.
+
+1. Restart the RBAC and Kessel services to apply the changes:
+
+	```shell
+	oc delete pod -l pod=rbac-service
+	oc delete pod -l pod=kessel-inventory-api
+	```
+
+Use these credentials to configure your application to authenticate with Kessel and RBAC.
+
+#### Option 2: Using Stage SSO credentials
+
+Alternatively, you can use service account credentials from Stage SSO. This approach is useful if you want to test with real Stage SSO authentication:
 
 1. Navigate to [Identity & Access Management in Stage](https://console.stage.redhat.com/iam/service-accounts) to create a new service account and obtain the client ID and client secret.
    This is a service account that our application will use to authenticate with Kessel and RBAC.
@@ -358,7 +481,7 @@ The following steps enable authentication with Kessel so that it can be validate
 	    \"is_service_account\": true,
 	    \"allow_any_org\": true
 	  }
-	}" | kubectl apply -f -
+	}" | oc apply -f -
 	```
 
 1. Next, reconfigure the RBAC service to validate access tokens using Stage SSO:
