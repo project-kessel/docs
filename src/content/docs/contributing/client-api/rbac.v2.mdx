@@ -319,7 +319,7 @@ package:
         link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.SubjectReference
         description: A reference to a Subject or, if a relation is provided, a Subject Set.
 
-    - name: principalFromIdentity
+    - name: principalFromRHIdentity
       description: |
         Builds a principal SubjectReference from a parsed platform identity object.
 
@@ -342,7 +342,7 @@ package:
         Example:
 
         ```python
-        from kessel.rbac.v2 import principalFromIdentity
+        from kessel.rbac.v2 import principalFromRHIdentity
 
         # User identity (e.g. from request.auth in Django, or Identity object)
         identity = {
@@ -350,7 +350,7 @@ package:
             "org_id": "12345",
             "user": {"user_id": "7393748", "username": "jdoe"}
         }
-        subject = principalFromIdentity(identity)
+        subject = principalFromRHIdentity(identity)
 
         # ServiceAccount identity
         sa_identity = {
@@ -361,7 +361,7 @@ package:
                 "username": "service-account-b69eaf9e"
             }
         }
-        subject = principalFromIdentity(sa_identity)
+        subject = principalFromRHIdentity(sa_identity)
         ```
 
       params:
@@ -373,7 +373,7 @@ package:
             (e.g. `{"type": "User", "org_id": "...", "user": {...}}`).
             This is the parsed identity — not the full `{"identity": {...}}` envelope
             and not the raw base64 string. Use
-            [principalFromIdentityHeader](#function-principalFromIdentityHeader)
+            [principalFromRHIdentityHeader](#function-principalFromRHIdentityHeader)
             if you have the raw header.
         - name: domain
           type:
@@ -385,20 +385,20 @@ package:
         link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.SubjectReference
         description: |
           A SubjectReference for the resolved principal.
-          Raises an error if the header is malformed or the user ID cannot be resolved.
+          Raises an error if the identity type is unsupported or the user ID cannot be resolved.
 
-    - name: principalFromIdentityHeader
+    - name: principalFromRHIdentityHeader
       description: |
         Builds a principal SubjectReference from a raw base64-encoded `x-rh-identity` header.
 
         Example:
 
         ```python
-        from kessel.rbac.v2 import principalFromIdentityHeader
+        from kessel.rbac.v2 import principalFromRHIdentityHeader
 
         # Directly from the HTTP header
         header = request.headers["x-rh-identity"]
-        subject = principalFromIdentityHeader(header)
+        subject = principalFromRHIdentityHeader(header)
 
         # Use in a permission check
         checkResponse = checkClient.check(
