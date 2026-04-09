@@ -319,6 +319,112 @@ package:
         link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.SubjectReference
         description: A reference to a Subject or, if a relation is provided, a Subject Set.
 
+    - name: principalFromIdentity
+      description: |
+        Builds a principal SubjectReference from a parsed platform identity object.
+
+        This function eliminates the need for consumers to manually inspect identity types,
+        extract user IDs, and construct subject references. It accepts the inner identity
+        dict/object from the `x-rh-identity` header and handles the resolution internally.
+
+        **Supported identity types:**
+
+        | Type | Accepted fields |
+        |------|----------------|
+        | `User` | `user.user_id` |
+        | `ServiceAccount` | `service_account.user_id`, `service_account.client_id` |
+
+        Unsupported types (`System`, `X509`, `Associate`) raise an error.
+        The resolved user ID is combined with the `domain` to produce a resource ID
+        of the form `{domain}/{userId}` (e.g. `redhat/7393748`), which is passed to
+        [principalSubject](#function-principalSubject).
+
+        Example:
+
+        ```python
+        from kessel.rbac.v2 import principalFromIdentity
+
+        # User identity (e.g. from request.auth in Django, or Identity object)
+        identity = {
+            "type": "User",
+            "org_id": "12345",
+            "user": {"user_id": "7393748", "username": "jdoe"}
+        }
+        subject = principalFromIdentity(identity)
+
+        # ServiceAccount identity
+        sa_identity = {
+            "type": "ServiceAccount",
+            "org_id": "456",
+            "service_account": {
+                "client_id": "b69eaf9e-e6a6-4f9e-805e-02987daddfbd",
+                "username": "service-account-b69eaf9e"
+            }
+        }
+        subject = principalFromIdentity(sa_identity)
+        ```
+
+      params:
+        - name: identity
+          type:
+            name: "dict | object"
+          description: |
+            The inner identity dict/object from the `x-rh-identity` header
+            (e.g. `{"type": "User", "org_id": "...", "user": {...}}`).
+            This is the parsed identity — not the full `{"identity": {...}}` envelope
+            and not the raw base64 string. Use
+            [principalFromIdentityHeader](#function-principalFromIdentityHeader)
+            if you have the raw header.
+        - name: domain
+          type:
+            name: string
+          description: The domain or organization the user belongs to. Defaults to `"redhat"`.
+          optional: true
+      returns:
+        name: SubjectReference
+        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.SubjectReference
+        description: |
+          A SubjectReference for the resolved principal.
+          Raises an error if the header is malformed or the user ID cannot be resolved.
+
+    - name: principalFromIdentityHeader
+      description: |
+        Builds a principal SubjectReference from a raw base64-encoded `x-rh-identity` header.
+
+        Example:
+
+        ```python
+        from kessel.rbac.v2 import principalFromIdentityHeader
+
+        # Directly from the HTTP header
+        header = request.headers["x-rh-identity"]
+        subject = principalFromIdentityHeader(header)
+
+        # Use in a permission check
+        checkResponse = checkClient.check(
+            resource=workspaceResource(workspaceId),
+            permission="workspace_view",
+            subject=subject,
+        )
+        ```
+      params:
+        - name: header
+          type:
+            name: string
+          description: |
+            The base64-encoded `x-rh-identity` header value.
+        - name: domain
+          type:
+            name: string
+          description: The domain or organization the user belongs to. Defaults to `"redhat"`.
+          optional: true
+      returns:
+        name: SubjectReference
+        link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.SubjectReference
+        description: |
+          A SubjectReference for the resolved principal.
+          Raises an error if the header is malformed or the user ID cannot be resolved.
+
     - name: listWorkspaces
       description: |
         Lists all workspaces that a subject has a specific relation to.
