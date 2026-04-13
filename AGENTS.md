@@ -15,6 +15,33 @@ Detailed domain-specific guidelines are maintained in the `docs/` directory. Rea
 | [docs/error-handling-guidelines.md](docs/error-handling-guidelines.md) | Language-specific gRPC error handling, retry patterns, monitoring metrics, TLS errors, Astro/Zod schema errors |
 | [docs/database-guidelines.md](docs/database-guidelines.md) | Inventory DB schema conventions, outbox table structure, Debezium CDC, Kafka event schemas, Mermaid diagrams |
 
+## Source Repositories
+
+This documentation project references multiple source code repositories. The `docs/sources.yaml` file lists all relevant repositories and metadata. AI agents use this file to:
+
+- Discover which repositories to analyze
+- Understand repository types (api, sdk, schema, service)
+- Get GitHub URLs for cloning if needed
+- Generate documentation from implementation details
+
+The file structure:
+
+```yaml
+repositories:
+  - name: inventory-api
+    type: api
+    github: https://github.com/project-kessel/inventory-api
+    description: Brief description
+    technologies: [Go, gRPC, ...]
+```
+
+**To locate repositories locally:**
+1. Check parent directory: `../repository-name/`
+2. Search common project directories
+3. If not found, ask the user for the path or offer to clone from GitHub
+
+When generating documentation from source code (e.g., explaining architectural patterns, documenting APIs), always check `docs/sources.yaml` first to discover relevant repositories. If you discover new repositories that should be documented, suggest updating this file.
+
 ## What This Repository Is
 
 This is an **Astro/Starlight documentation site**, not an application runtime. There is no database, no server, no deployed backend code. The content documents Kessel integration patterns for external service providers. Understand this distinction before making changes -- do not introduce runtime logic, backend code, or application error handling into the site itself.
