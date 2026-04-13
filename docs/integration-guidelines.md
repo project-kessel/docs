@@ -48,10 +48,7 @@ When documenting resource reporting, follow these established patterns:
 
 ## Monitoring and Observability
 
-- KPIs for integration health: message processing failure rate, consumer error rate, Kafka error rate, consumer lag, end-to-end lag.
-- Metrics sources: librdkafka internal stats, Streams for Apache Kafka Prometheus JMX Exporter, Kafka Lag Exporter, and custom application metrics.
-- Custom metrics to document: Messages Processed, Message Process Failures, Consumer Errors, Kafka Error Events, Outbox Event Writes.
-- Monitoring stack: Prometheus for aggregation, Grafana for dashboards, Alertmanager for alerts.
+For data replication and consistency monitoring patterns (KPIs, metrics sources, custom metrics), see the [Data Replication and Consistency Monitoring](performance-guidelines.md#data-replication-and-consistency-monitoring) section in performance-guidelines.md.
 
 ## Documentation Conventions for Integration Content
 

@@ -101,7 +101,7 @@ Python TLS examples should let file I/O errors propagate naturally (no explicit 
 
 ### Example code regions
 
-All example files use region markers (`//#region`, `//endregion`, `# region`, `# endregion`) to enable selective inclusion in documentation via `import.meta.glob`. Error handling code MUST be inside the appropriate region so it is included when the documentation renders the example.
+All example files use region markers (`//#region`, `//#endregion`, `# region`, `# endregion`) to enable selective inclusion in documentation via `import.meta.glob`. Error handling code MUST be inside the appropriate region so it is included when the documentation renders the example.
 
 ## Consistency and Failure Patterns in Documentation
 

@@ -1,29 +1,30 @@
 # Contributing
 
-## 🚀 Project Structure
+## Project Structure
 
-Inside of your Astro + Starlight project, you'll see the following folders and files:
+This is the Kessel documentation site built with Astro and Starlight. The structure is organized as follows:
 
 ```
-.
-├── public/
-├── src/
-│   ├── assets/
-│   ├── content/
-│   │   ├── docs/
-│   │   └── config.ts
-│   └── env.d.ts
-├── astro.config.mjs
-├── package.json
-├── tailwind.config.mjs
-└── tsconfig.json
+src/
+  content/docs/             # Documentation pages (.md and .mdx)
+    building-with-kessel/     # How-to guides, concepts, reference, archive
+    contributing/             # SDK spec, client API reference, writing guide
+    running-kessel/           # Architecture, installation, monitoring
+    start-here/               # Getting started, understanding Kessel
+  components/               # Custom Astro components
+  examples/                 # Code examples (Go, Python, TypeScript, Ruby, Java, Bash)
+  middleware/               # Starlight route middleware
+  schemas/                  # Zod schemas for frontmatter validation
+  styles/                   # Global CSS
+docs/                       # AI agent guidelines
+public/                     # Static assets (favicon)
+astro.config.mjs            # Astro and Starlight configuration
+config-overlay.mjs          # Fork/overlay hooks for internal documentation
 ```
 
 Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
-
-Static assets, like favicons, can be placed in the `public/` directory.
+Code examples are organized by topic in `src/examples/` with implementations in multiple languages. They use region markers for selective inclusion in documentation.
 
 ## 🧞 Commands
 

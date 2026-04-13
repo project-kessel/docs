@@ -4,10 +4,13 @@ This is the Kessel documentation site (Astro/Starlight). It documents API contra
 
 ## API Versioning
 
-- The current API version is **v1beta2**. The v1beta1 API is deprecated and archived.
-- API paths follow the pattern `/api/kessel/{api-version}/...` (e.g., `/api/kessel/v1beta2/resources`, `/api/kessel/v1beta2/check`).
-- gRPC service names use the pattern `kessel.{service}.v1beta2.{ServiceName}` (e.g., `kessel.inventory.v1beta2.KesselInventoryService`, `kessel.relations.v1beta2.KesselTupleService`).
-- Protobuf definitions are hosted on the Buf Schema Registry at `buf.build/project-kessel/inventory-api`.
+- **Inventory API** uses **v1beta2** as the current version. The v1beta1 API is deprecated and archived.
+- **Relations API** uses **v1beta1** for all protos.
+- API paths follow the pattern `/api/kessel/{api-version}/...` (e.g., `/api/kessel/v1beta2/resources` for inventory).
+- gRPC service names use the pattern `kessel.{service}.{version}.{ServiceName}`:
+  - Inventory: `kessel.inventory.v1beta2.KesselInventoryService`
+  - Relations: `kessel.relations.v1beta1.KesselTupleService`
+- Protobuf definitions are hosted on the Buf Schema Registry at `buf.build/project-kessel/inventory-api` and `buf.build/project-kessel/relations-api`.
 - The OpenAPI spec is pulled from `https://raw.githubusercontent.com/project-kessel/inventory-api/refs/heads/main/openapi.yaml`.
 
 ## SDK Client Library Conventions
@@ -89,20 +92,16 @@ Resource types are configured via a directory structure under `data/schema/resou
 
 ## Relations API (Tuples)
 
-- Roles are created by writing tuples to `kessel.relations.v1beta2.KesselTupleService.CreateTuples`.
+- Roles are created by writing tuples to `kessel.relations.v1beta1.KesselTupleService.CreateTuples`.
 - Resource/subject references use `type.name` + `type.namespace` (e.g., `name: "role", namespace: "rbac"`).
 - Role bindings require three tuples in a single `CreateTuples` call: binding->granted->role, binding->subject->principal, workspace->user_grant->binding.
 - Binding IDs follow the deterministic pattern `{role}--{user}--{resource}`.
 
-## SDK Package Frontmatter Schema
+## Code Example and Documentation Conventions
 
-Client API reference docs use `docType: client-package` in frontmatter with a structured `package` field containing `interfaces`, `classes`, and `functions`. This schema is validated by `src/schemas/client-package.ts` (Zod). Each class can have `constructors`, `properties`, `methods`, and `statics`. Methods/functions can be scoped to specific languages via an optional `languages` array.
+For SDK package documentation patterns, code example structure, and region markers, see the [Code Examples](../AGENTS.md#code-examples) and [Client Package Documentation System](../AGENTS.md#client-package-documentation-system) sections in AGENTS.md.
 
-## Code Example Conventions
-
-- Examples in `src/examples/getting-started/` cover all supported languages: Go, Python, TypeScript, Ruby, Java, curl, and grpcurl.
-- Examples use region markers (`//#region`, `//#endregion`, `# region`, `# endregion`) for selective inclusion in docs via the `CodeExamples` component.
-- All SDK examples demonstrate the same scenario with identical resource data across languages.
+Additional API-specific conventions:
 - Async messaging examples (Kafka consumers, outbox pattern) use the Go `confluent-kafka-go` library as the reference implementation.
 - SASL authentication with SCRAM-SHA-512 is the standard for Kafka consumers.
 
