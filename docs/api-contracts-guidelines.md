@@ -97,11 +97,9 @@ Resource types are configured via a directory structure under `data/schema/resou
 - Role bindings require three tuples in a single `CreateTuples` call: binding->granted->role, binding->subject->principal, workspace->user_grant->binding.
 - Binding IDs follow the deterministic pattern `{role}--{user}--{resource}`.
 
-## Code Example and Documentation Conventions
+## API-Specific Code Example Conventions
 
-For SDK package documentation patterns, code example structure, and region markers, see the [Code Examples](../AGENTS.md#code-examples) and [Client Package Documentation System](../AGENTS.md#client-package-documentation-system) sections in AGENTS.md.
-
-Additional API-specific conventions:
+- All SDK examples demonstrate the same scenario with identical resource data across languages.
 - Async messaging examples (Kafka consumers, outbox pattern) use the Go `confluent-kafka-go` library as the reference implementation.
 - SASL authentication with SCRAM-SHA-512 is the standard for Kafka consumers.
 
