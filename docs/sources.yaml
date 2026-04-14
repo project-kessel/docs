@@ -1,0 +1,93 @@
+# Documentation Sources
+#
+# This file lists the source code repositories and other sources of truth that are relevant
+# for documentation generation. AI agents (like the doc-gaps skill) use this to discover
+# what to analyze when generating or updating documentation.
+#
+# AI Agent Instructions:
+# - To locate repositories locally, search common patterns:
+#   1. Check parent directory: ../repository-name/
+#   2. Check grandparent: ../../repository-name/
+#   3. Search for repository name in common locations
+# - If not found locally, ask the user for the path or offer to clone from GitHub
+
+repositories:
+  - name: inventory-api
+    type: api
+    github: https://github.com/project-kessel/inventory-api
+    description: Kessel Inventory API - main service for resource reporting and authorization
+    technologies:
+      - Go
+      - gRPC
+      - PostgreSQL
+      - Kafka
+
+  - name: relations-api
+    type: api
+    github: https://github.com/project-kessel/relations-api
+    description: Relations API - wrapper around SpiceDB for authorization
+    technologies:
+      - Go
+      - gRPC
+      - SpiceDB
+
+  - name: kessel-sdk-go
+    type: sdk
+    github: https://github.com/project-kessel/kessel-sdk-go
+    description: Go SDK for Kessel clients
+    technologies:
+      - Go
+      - gRPC
+
+  - name: kessel-sdk-py
+    type: sdk
+    github: https://github.com/project-kessel/kessel-sdk-py
+    description: Python SDK for Kessel clients
+    technologies:
+      - Python
+      - gRPC
+
+  - name: kessel-sdk-ruby
+    type: sdk
+    github: https://github.com/project-kessel/kessel-sdk-ruby
+    description: Ruby SDK for Kessel clients
+    technologies:
+      - Ruby
+      - gRPC
+
+  - name: kessel-sdk-node
+    type: sdk
+    github: https://github.com/project-kessel/kessel-sdk-node
+    description: Node.js/TypeScript SDK for Kessel clients
+    technologies:
+      - TypeScript
+      - gRPC
+
+  - name: kessel-sdk-java
+    type: sdk
+    github: https://github.com/project-kessel/kessel-sdk-java
+    description: Java SDK for Kessel clients
+    technologies:
+      - Java
+      - gRPC
+
+  - name: ksl-schema-language
+    type: schema
+    github: https://github.com/project-kessel/ksl-schema-language
+    description: Kessel Schema Language (KSL) compiler
+    technologies:
+      - TypeScript
+
+  - name: insights-rbac
+    type: service
+    github: https://github.com/RedHatInsights/insights-rbac
+    description: RBAC service provider for workspaces, users, roles, groups, and role bindings (Insights/Kessel hybrid)
+    technologies:
+      - Python
+      - Django
+      - PostgreSQL
+
+# Usage notes:
+# - Add new repositories here when they become relevant for documentation
+# - Remove or comment out repositories that are no longer maintained
+# - The file is version-controlled and portable across different development setups
