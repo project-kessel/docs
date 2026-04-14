@@ -16,7 +16,7 @@ package:
         | Type | Accepted fields |
         |------|----------------|
         | `User` | `user.user_id` |
-        | `ServiceAccount` | `service_account.user_id`, `service_account.client_id` |
+        | `ServiceAccount` | `service_account.user_id` |
 
         Unsupported types (`System`, `X509`, `Associate`) raise an error.
         The resolved user ID is combined with the `domain` to produce a resource ID
@@ -41,8 +41,8 @@ package:
             "type": "ServiceAccount",
             "org_id": "456",
             "service_account": {
-                "client_id": "b69eaf9e-e6a6-4f9e-805e-02987daddfbd",
-                "username": "service-account-b69eaf9e"
+                "user_id": "2647318",
+                "username": "service-account-2647318"
             }
         }
         subject = principalFromRHIdentity(sa_identity)
