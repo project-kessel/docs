@@ -18,3 +18,7 @@ In many such resource-based APIs, you often need to design for several things:
 This can be particularly challenging in environments with many such APIs that need to share consistent semantics. Let's use an example platform that supports many resource types: a Google Drive-like application with documents, spreadsheets, and slides. If these are not all built within a monolithic service or by a single team, it can be difficult to get them to all _feel_ like they are part of the same application and experience to users. Using the same example, let's say you want to allow users to organize those resources in folders. You need them all to map to those folders the same way across each application, so organization, bulk actions, and sharing are consistent.
 
 Kessel Inventory provides the primitives to deliver these capabilities, at scale, without reinventing them. Additionally, Kessel RBAC is a service which provides an opinionated (but highly reusable) RBAC and tenancy model out of the box, so you can get right to work on what's valuable.
+
+## Next Steps
+
+To understand whether Kessel is the right solution for your platform, see [When to Use Kessel](../when-to-use-kessel), which explains the problems Kessel solves, when it's a good fit, and when simpler alternatives may be better.
