@@ -170,6 +170,15 @@ Do not expose internal authorization details in error messages.
 
 Kessel uses an eventually consistent authorization model. After reporting a resource or modifying permissions, there is a replication window before changes are visible to `Check` calls.
 
+**Quick reference:**
+
+| Scenario | Consistency Mode | Typical Latency |
+|----------|------------------|-----------------|
+| Dashboard list view | `minimize_latency` (default) | 10-50ms |
+| User just shared a resource, checking if collaborator has access | `at_least_as_acknowledged` | 20-80ms |
+| Client provides a known consistency token from previous operation | `at_least_as_fresh` | Medium |
+| Mutation operation (update/delete) requiring pre-authorization | Use `CheckForUpdate` (always strong) | 20-80ms |
+
 ### `minimize_latency` (dashboards and read-heavy paths)
 
 For dashboard pages and non-critical read paths, use the `minimize_latency` consistency mode (this is the default). This allows the system to serve from the nearest replica, providing the lowest latency at the cost of potentially stale data.

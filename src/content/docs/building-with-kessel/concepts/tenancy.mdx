@@ -22,7 +22,7 @@ Kessel defines four workspace types:
 | **ROOT** | "Root Workspace" | Top of the hierarchy; contains all other workspaces | Must have no parent |
 | **DEFAULT** | "Default Workspace" | Primary workspace where most resources live | Must have ROOT as parent |
 | **STANDARD** | (user-defined) | User-created workspaces for organizing resources | Defaults to DEFAULT as parent if unspecified |
-| **UNGROUPED_HOSTS** | "Ungrouped Hosts" | System workspace for hosts not assigned to any user workspace | Must have a parent |
+| **UNGROUPED_HOSTS** | "Ungrouped Hosts" | System workspace for hosts not assigned to any user workspace. Use cases: newly discovered hosts pending classification, orphaned hosts after workspace deletion, hosts with invalid workspace references | Must have a parent |
 
 Every organization automatically gets a ROOT workspace and a DEFAULT workspace when the tenant is created. These are unique per tenant — you cannot create additional root or default workspaces.
 

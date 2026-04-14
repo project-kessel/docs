@@ -170,6 +170,10 @@ func (s *Server) SearchHosts(ctx context.Context, query string, page int) ([]*Ho
   Batch size is limited to 1000 items. For larger result sets, chunk into multiple `CheckSelfBulk` calls.
 </Aside>
 
+<Aside type="tip">
+  For a detailed comparison of bulk check operations (`CheckBulk`, `CheckSelfBulk`, `CheckForUpdateBulk`), including subject handling and consistency guarantees, see the [Bulk Check Operations table](/docs/running-kessel/architecture/#bulk-check-operations) in the Architecture guide.
+</Aside>
+
 ## Strategy 3: Workspace-Level Coarse Filtering
 
 **Use when:** Resources are organized by workspace and you want to filter at the workspace level before querying.
