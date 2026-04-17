@@ -434,7 +434,7 @@ To create and retrieve the service account credentials for configuring your appl
 	```yaml
 	    authn:
 	      oidc:
-	        authn-server-url: https://${ISSUER_URL}/auth/realms/redhat-external
+	        authn-server-url: ${ISSUER_URL}
 	        client-id: ${CLIENT_ID}
 	        skip-client-id-check: true
 	        insecure-client: false
