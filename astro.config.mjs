@@ -76,9 +76,6 @@ const baseStarlightConfig = {
           collapsed: true,
           items: [
             'building-with-kessel/archive/inventory-api',
-            'building-with-kessel/archive/kafka-event',
-            "building-with-kessel/archive/kessel-inventory",
-            "building-with-kessel/archive/resource-identification-history",
           ]
         },
       ]
