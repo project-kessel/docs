@@ -1,0 +1,352 @@
+---
+title: Integration Patterns
+description: Common patterns for integrating your service with Kessel for resource management, authorization, and event processing.
+sidebar:
+  order: 100
+---
+
+import { Aside, Tabs, TabItem, LinkCard, Steps } from "@astrojs/starlight/components";
+import CodeExamples from 'src/components/CodeExamples.astro';
+
+export const gettingStartedFiles = import.meta.glob('/src/examples/getting-started/example.*', { query: '?raw', eager: true, import: 'default' });
+export const tlsFiles = import.meta.glob('/src/examples/tls/example.*', { query: '?raw', eager: true, import: 'default' });
+
+This guide covers common patterns you will use when integrating your service with Kessel. Each section is a self-contained recipe that you can adopt independently. The patterns build on one another -- resource reporting feeds authorization checks, which in turn depend on schema definitions -- so reading in order is recommended for first-time integrators.
+
+All examples target the **v1beta2** API.
+
+<Aside type="tip">
+  Before starting, make sure you have a running Kessel instance. See the [Getting Started](/docs/start-here/getting-started/) guide for setup instructions.
+</Aside>
+
+## Bootstrapping your integration
+
+### Define your resource schema
+
+Kessel requires two schema artifacts: a **KSL permission schema** defining your resource types and their permissions, and a **JSON Schema directory** describing the data shape of each resource.
+
+The KSL schema declares resource types, their workspace relationship, and permissions inherited from RBAC:
+
+```
+version 0.1
+namespace drive
+
+import rbac
+
+@rbac.add_permission(name:'view_document')
+@rbac.add_permission(name:'edit_document')
+@rbac.add_permission(name:'delete_document')
+
+public type document {
+    relation workspace: [ExactlyOne rbac.workspace]
+
+    relation view: workspace.view_document
+    relation edit: workspace.edit_document
+    relation delete: workspace.delete_document
+}
+```
+
+The JSON Schema directory follows this structure under `data/schema/resources/` in the inventory-api repository:
+
+```
+document/
+  config.yaml                        # resource_type + list of reporters
+  common_representation.json         # JSON Schema for shared attributes
+  reporters/drive/
+    config.yaml                      # reporter_name + namespace
+    document.json                    # JSON Schema for reporter-specific attributes
+```
+
+The root `config.yaml` declares the resource type and its reporters:
+
+```yaml
+resource_type: document
+resource_reporters:
+  - drive
+```
+
+Each reporter's `config.yaml` binds the reporter to a namespace:
+
+```yaml
+resource_type: document
+reporter_name: drive
+namespace: drive
+```
+
+### Initialize the SDK client
+
+Use the `ClientBuilder` pattern to create a client. The builder supports several authentication modes depending on your environment.
+
+**For local development** (insecure, no TLS):
+
+<CodeExamples files={gettingStartedFiles} regions="setup" />
+
+**For production** (OAuth2 + TLS):
+
+<CodeExamples files={tlsFiles} regions="combine-both" />
+
+<Aside type="caution">
+  `insecure()` mode disables TLS and authentication. Use it only for local development. Production deployments must use OAuth2 with TLS.
+</Aside>
+
+See the [Enable TLS](/docs/building-with-kessel/how-to/enable-tls/) guide for detailed TLS configuration steps.
+
+### Report your first resource and check a permission
+
+Once the client is initialized, report a resource and verify a permission check:
+
+<CodeExamples files={gettingStartedFiles} regions="report" />
+
+Then run a permission check against the reported resource:
+
+<CodeExamples files={gettingStartedFiles} regions="check" />
+
+<Aside>
+  There may be a short delay between reporting a resource and the permission check reflecting the change. See the [Consistency strategies](#consistency-strategies) section below.
+</Aside>
+
+## Resource lifecycle patterns
+
+### Creating resources
+
+Use `ReportResource` to create a resource. The call is **idempotent** -- reporting the same resource with the same `reporter_type`, `reporter_instance_id`, and `local_resource_id` will update the existing record rather than creating a duplicate.
+
+Key fields that identify a resource:
+
+| Field | Purpose |
+|---|---|
+| `type` | The resource type (e.g., `"document"`) |
+| `reporter_type` | Which reporter is sending data (e.g., `"drive"`) |
+| `reporter_instance_id` | Specific reporter instance (e.g., `"drive-1"`) |
+| `local_resource_id` | The resource ID in your system (set in `metadata`) |
+
+### Updating resources
+
+To update a resource, call `ReportResource` again with the same identifying fields and updated data. Increment the `reporter_version` field in metadata to signal a new version of the data.
+
+### Deleting resources
+
+To delete a resource, call the `DeleteResource` RPC method with the resource's identifying fields (`resource_type`, `reporter_type`, `reporter_instance_id`, `local_resource_id`). The system uses a **tombstone pattern** -- the resource is marked as deleted rather than immediately removed, allowing downstream consumers to process the deletion event and revoke any associated permissions.
+
+### Multi-reporter coordination
+
+Multiple reporters can contribute data about the same resource type. Each reporter provides its own `reporter` struct with reporter-specific attributes, while the `common` struct contains shared attributes validated against the common JSON Schema. The `reporter_type` and `reporter_instance_id` fields distinguish contributions from different sources.
+
+## Permission check patterns
+
+### Single permission checks
+
+Use `Check` to verify whether a subject has a specific relation on a resource:
+
+<CodeExamples files={gettingStartedFiles} regions="check" />
+
+The `Check` call requires three components:
+- **Object**: the resource being accessed (`resource_type` + `resource_id` + `reporter`)
+- **Relation**: the permission to verify (e.g., `"view"`, `"edit"`, `"delete"`)
+- **Subject**: the principal requesting access (`resource_type: "principal"` with `reporter.type: "rbac"`)
+
+### Bulk checks for list filtering
+
+When protecting a list endpoint, avoid checking permissions one resource at a time in a loop. Instead, consider these strategies:
+
+1. **Pre-filtering** -- query only resources the user has access to, using coarse-grained workspace-level checks to narrow the result set before querying your data store.
+2. **Post-filtering** -- fetch a candidate list from your data store, then batch-check permissions and filter out denied resources before returning results.
+
+<LinkCard
+  title="Protect a list endpoint"
+  href="/docs/building-with-kessel/how-to/protect-list/"
+/>
+
+### Handling denials gracefully
+
+When a `Check` returns a denial, return an appropriate HTTP status to your caller:
+
+- **403 Forbidden** for explicitly denied operations
+- **404 Not Found** when you want to hide resource existence from unauthorized users
+
+Do not expose internal authorization details in error messages.
+
+## Consistency strategies
+
+Kessel uses an eventually consistent authorization model. After reporting a resource or modifying permissions, there is a replication window before changes are visible to `Check` calls.
+
+**Quick reference:**
+
+| Scenario | Consistency Mode | Typical Latency |
+|----------|------------------|-----------------|
+| Dashboard list view | `minimize_latency` (default) | 10-50ms |
+| User just shared a resource, checking if collaborator has access | `at_least_as_acknowledged` | 20-80ms |
+| Client provides a known consistency token from previous operation | `at_least_as_fresh` | Medium |
+| Mutation operation (update/delete) requiring pre-authorization | Use `CheckForUpdate` (always strong) | 20-80ms |
+
+### `minimize_latency` (dashboards and read-heavy paths)
+
+For dashboard pages and non-critical read paths, use the `minimize_latency` consistency mode (this is the default). This allows the system to serve from the nearest replica, providing the lowest latency at the cost of potentially stale data.
+
+### `at_least_as_acknowledged` (critical paths)
+
+For operations where the user just performed a write and expects to see the result immediately (e.g., "I just shared this document, can I verify my collaborator has access?"), use the `at_least_as_acknowledged` consistency mode to ensure the check reflects at least the writes you have already acknowledged.
+
+### Write-then-read visibility
+
+When your application writes a resource and immediately reads back permissions, be aware that the authorization system may not yet reflect the write. Options for handling this:
+
+- **Accept eventual consistency** -- display a "processing" state to the user.
+- **Use LISTEN/NOTIFY** -- if you report via async messaging, use PostgreSQL `LISTEN`/`NOTIFY` to wait for confirmation that the event was consumed before returning to the client.
+
+<Aside type="caution">
+  Do not add artificial `sleep()` delays in your code to wait for replication. Use proper consistency mechanisms or accept eventual consistency and handle it in your UX.
+</Aside>
+
+## Event consumption patterns
+
+### Kafka consumer setup
+
+To consume resource events from Kessel, configure a Kafka consumer with SASL authentication:
+
+```yaml
+security-protocol: sasl_plaintext
+sasl-mechanism: SCRAM-SHA-512
+sasl-username: my-consumer
+sasl-password: <PASSWORD>
+```
+
+### Parsing CloudEvents
+
+Kessel Inventory events follow the [CloudEvents v1.0](https://cloudevents.io/) specification. The event `type` field tells you what happened:
+
+| Event type pattern | Meaning |
+|---|---|
+| `redhat.inventory.resources.{type}.created` | A resource was created |
+| `redhat.inventory.resources.{type}.updated` | A resource was updated |
+| `redhat.inventory.resources.{type}.deleted` | A resource was deleted |
+
+The `data` payload contains three objects: `metadata`, `reporter_data`, and `resource_data`.
+
+### Event ordering guarantees
+
+Your consumer must enforce three guarantees for data integrity:
+
+1. **In-order processing** -- process messages in the order they are received within a partition. Do not parallelize within a partition.
+2. **At-least-once delivery** -- never skip a message. Do not advance the offset until the current message is confirmed processed.
+3. **Idempotent processing** -- reprocessing a message must produce the same outcome. Design your handlers to be safe for replay.
+
+### Error recovery
+
+Implement a two-tier retry strategy:
+
+1. **Operation-level retry** -- for transient failures (network blips, temporary unavailability), retry with exponential backoff. This blocks the consumer loop intentionally to preserve ordering.
+2. **Consumer-level retry** -- for unrecoverable consumer errors, recreate the entire consumer connection and resume from the last committed offset.
+
+Handle partition rebalances by committing stored offsets in a `RebalanceCallback` before partitions are revoked. This prevents duplicate processing when partitions move between consumers.
+
+<LinkCard
+  title="Report resources (detailed async patterns)"
+  href="/docs/building-with-kessel/how-to/report-resources/"
+/>
+
+## Error handling patterns
+
+### Language-specific gRPC error handling
+
+Each language has its own idiomatic way to handle gRPC errors. The key rule: **do not wrap gRPC exceptions** in your own error types. Let gRPC errors propagate with their status codes intact.
+
+<Tabs>
+<TabItem label="Go">
+```go
+response, err := client.Check(ctx, checkRequest)
+if err != nil {
+    if st, ok := status.FromError(err); ok {
+        switch st.Code() {
+        case codes.Unavailable:
+            log.Fatal("Service unavailable: ", err)
+        case codes.PermissionDenied:
+            log.Fatal("Permission denied: ", err)
+        default:
+            log.Fatal("gRPC error: ", err)
+        }
+    }
+}
+```
+</TabItem>
+<TabItem label="Python">
+```python
+try:
+    response = stub.Check(check_request)
+except grpc.RpcError as e:
+    print(f"Code: {e.code()}")
+    print(f"Details: {e.details()}")
+```
+</TabItem>
+<TabItem label="Java">
+```java
+try {
+    CheckResponse response = client.check(checkRequest);
+} catch (StatusRuntimeException e) {
+    System.err.println("gRPC error: " + e.getStatus());
+}
+```
+</TabItem>
+</Tabs>
+
+### Retry configuration
+
+Client-side deadlines, retries, and load balancing are **not** configured by the SDK. These are defined by the server and discovered by the client through [gRPC service config](https://github.com/grpc/proposal/blob/master/A2-service-configs-in-dns.md). Do not set client-side retry policies unless you have a specific reason to override server defaults.
+
+### Connection lifecycle
+
+Always close your gRPC connections when done:
+
+- **Go**: use `defer conn.Close()` and handle the close error
+- **Python**: use `with channel:` context manager
+- **Java**: call `channel.shutdown()` in a `finally` block
+
+Leaked connections consume server resources and can cause connection pool exhaustion.
+
+## Migration patterns
+
+### Dual-write via outbox
+
+When migrating an existing service to Kessel, use the **outbox pattern** to avoid the dual-write problem. Write both your business data and a Kessel event within the same database transaction:
+
+```sql
+BEGIN;
+INSERT INTO customers (id, name) VALUES ('123', 'John Doe');
+INSERT INTO outbox (id, aggregatetype, aggregateid, version, operation, payload)
+  VALUES (gen_random_uuid(), 'customer', '123', 'v1beta2', 'ReportResource',
+          '{"type": "customer", "reporter_type": "myservice", ...}');
+COMMIT;
+```
+
+Use [Debezium](https://debezium.io/) for Change Data Capture to publish outbox events to Kafka, which Kessel consumes for resource ingestion.
+
+<LinkCard
+  title="Report resources (outbox pattern details)"
+  href="/docs/building-with-kessel/how-to/report-resources/"
+/>
+
+### Feature flags for gradual rollout
+
+Roll out Kessel integration gradually:
+
+1. **Shadow mode** -- report resources to Kessel but continue using your existing authorization system. Compare results to build confidence.
+2. **Percentage rollout** -- route a percentage of authorization checks through Kessel. Increase the percentage as you verify correctness.
+3. **Full cutover** -- switch all authorization to Kessel and decommission the old system.
+
+### Backfilling existing resources
+
+For resources that existed before your Kessel integration, run a backfill job that iterates through your data store and calls `ReportResource` for each resource. Since `ReportResource` is idempotent, you can safely re-run the backfill if it is interrupted.
+
+## Common pitfalls
+
+**Replication lag expectations** -- Do not assume that a `Check` immediately after `ReportResource` will reflect the new data. There is always a replication window. Design your UX to handle eventual consistency.
+
+**Not closing connections** -- gRPC channels hold open HTTP/2 connections. Failing to close them leads to resource leaks. Always use language-appropriate cleanup patterns (`defer`, `with`, `finally`).
+
+**Wrapping gRPC errors** -- SDK clients should not wrap gRPC exceptions in custom error types. This obscures status codes that callers need for retry decisions and error categorization.
+
+**Setting client-side retries** -- Deadlines, retries, and load balancing must come from gRPC service config, not client defaults. Setting these on the client can conflict with server-side configuration and cause unexpected behavior.
+
+**Skipping the outbox** -- Writing to your database and calling the Kessel API in sequence without transactional guarantees risks data loss. If your process crashes between the two operations, your systems will be permanently out of sync. Use the outbox pattern for reliable integration.
+
+**Creating connections per request** -- Reuse gRPC channels and stubs across requests. Creating a new connection for every API call adds unnecessary latency and resource overhead. Use the `ClientBuilder` once at startup and share the resulting client.

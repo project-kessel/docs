@@ -1,10 +1,236 @@
 ---
 title: Protect an endpoint
+description: Learn how to add permission checks to your API endpoints using Kessel authorization.
 sidebar:
   order: 20
 ---
 
-TODO:
+import { Aside, Code, LinkCard, Tabs, TabItem } from '@astrojs/starlight/components';
 
-- show how to load a basic example resource with relations defined using Kessel RBAC extensions
-- show how to use the kessel client in supported languages to protect 
+This guide shows how to protect a single-resource endpoint by checking if the caller has permission to access it. Use this pattern for operations like viewing, updating, or deleting a specific resource.
+
+## The Pattern
+
+1. **Authenticate** - Identify the caller
+2. **Load the resource** - Fetch the resource from your database
+3. **Check permission** - Call Kessel to verify the caller can perform the action
+4. **Return result** - Serve the resource if authorized, otherwise return 403
+
+## Permission Check Methods
+
+Kessel provides three methods for single-resource checks:
+
+| Method | Subject | Consistency | Use Case |
+|--------|---------|-------------|----------|
+| `Check` | Explicit in request | Configurable | Service-to-service calls where you specify who you're checking for |
+| `CheckSelf` | Derived from caller's auth | Configurable | End-user requests ("can I access this?") |
+| `CheckForUpdate` | Explicit in request | Always strong | Pre-authorization before mutations (update/delete) |
+
+## Using CheckSelf (End-User Endpoints)
+
+For end-user-facing endpoints, use `CheckSelf` to check if the authenticated caller can access the resource.
+
+<Tabs syncKey="lang">
+<TabItem label="Go">
+
+```go
+import (
+    v1beta2 "github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
+    v2 "github.com/project-kessel/kessel-sdk-go/kessel/rbac/v2"
+)
+
+func (s *Server) GetHost(ctx context.Context, hostID string) (*Host, error) {
+    // Fetch resource
+    host, err := s.db.GetHost(hostID)
+    if err != nil {
+        return nil, err
+    }
+
+    // Check permission (caller derived from auth context)
+    resp, err := s.inventoryClient.CheckSelf(ctx, &v1beta2.CheckSelfRequest{
+        Object: &v1beta2.ResourceReference{
+            ResourceType: "host",
+            ResourceId:   hostID,
+            Reporter:     &v1beta2.ReporterReference{Type: "HBI"},
+        },
+        Relation: "view",
+    })
+    if err != nil {
+        return nil, err // 401/500
+    }
+
+    if !resp.Allowed {
+        return nil, ErrForbidden // 403
+    }
+
+    return host, nil
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python
+from kessel.inventory.v1beta2 import (
+    KesselInventoryServiceClient,
+    CheckSelfRequest,
+    ResourceReference,
+    ReporterReference,
+)
+
+async def get_host(host_id: str) -> Host:
+    # Fetch resource
+    host = await db.get_host(host_id)
+    
+    # Check permission
+    response = await inventory_client.check_self(
+        CheckSelfRequest(
+            object=ResourceReference(
+                resource_type="host",
+                resource_id=host_id,
+                reporter=ReporterReference(type="HBI"),
+            ),
+            relation="view",
+        )
+    )
+    
+    if not response.allowed:
+        raise Forbidden("You do not have permission to view this host")
+    
+    return host
+```
+
+</TabItem>
+</Tabs>
+
+**Why `CheckSelf`?**
+- The subject is automatically derived from the caller's authentication (x-rh-identity header or OAuth token)
+- Simpler than `Check` since you don't manually specify the subject
+- Enforced by meta-authorization: HTTP+x-rh-identity can only use `CheckSelf`
+
+## Using Check (Service-to-Service)
+
+For service-to-service calls where you're checking on behalf of a specific user, use `Check` with an explicit subject.
+
+<Tabs syncKey="lang">
+<TabItem label="Go">
+
+```go
+resp, err := inventoryClient.Check(ctx, &v1beta2.CheckRequest{
+    Object: &v1beta2.ResourceReference{
+        ResourceType: "host",
+        ResourceId:   "host-123",
+        Reporter:     &v1beta2.ReporterReference{Type: "HBI"},
+    },
+    Relation: "view",
+    Subject: v2.PrincipalSubject("alice", "redhat"),
+})
+```
+
+</TabItem>
+</Tabs>
+
+The `PrincipalSubject` helper constructs a subject reference for a user principal.
+
+## Using CheckForUpdate (Before Mutations)
+
+Before updating or deleting a resource, use `CheckForUpdate` to ensure the caller has permission. This method always uses strong consistency to prevent race conditions.
+
+<Tabs syncKey="lang">
+<TabItem label="Go">
+
+```go
+func (s *Server) UpdateHost(ctx context.Context, hostID string, updates *HostUpdates) error {
+    // Pre-authorization check
+    resp, err := s.inventoryClient.CheckForUpdate(ctx, &v1beta2.CheckForUpdateRequest{
+        Object: &v1beta2.ResourceReference{
+            ResourceType: "host",
+            ResourceId:   hostID,
+            Reporter:     &v1beta2.ReporterReference{Type: "HBI"},
+        },
+        Relation: "edit",
+        Subject: v2.PrincipalSubject(callerID, "redhat"),
+    })
+    if err != nil || !resp.Allowed {
+        return ErrForbidden
+    }
+
+    // Perform the mutation
+    return s.db.UpdateHost(hostID, updates)
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Consistency Modes
+
+Choose the right consistency mode based on your use case:
+
+| Mode | When to Use | Latency |
+|------|-------------|---------|
+| `minimize_latency` (default) | Dashboards, list views, read-heavy paths | Lowest |
+| `at_least_as_fresh` | Causal consistency (use token from previous write) | Medium |
+| `at_least_as_acknowledged` | Critical decisions where stale data is unacceptable | Higher |
+
+For most read operations, `minimize_latency` is sufficient. The replication lag is typically 100-500ms.
+
+## Error Handling
+
+Handle errors appropriately:
+
+<Tabs syncKey="lang">
+<TabItem label="Go">
+
+```go
+resp, err := inventoryClient.CheckSelf(ctx, req)
+if err != nil {
+    st, ok := status.FromError(err)
+    if !ok {
+        return fmt.Errorf("check failed: %w", err)
+    }
+    
+    switch st.Code() {
+    case codes.Unauthenticated:
+        return ErrUnauthorized // 401
+    case codes.PermissionDenied:
+        return ErrForbidden // 403
+    case codes.Unavailable:
+        return ErrServiceUnavailable // 503
+    default:
+        return fmt.Errorf("check failed: %s", st.Message())
+    }
+}
+
+if !resp.Allowed {
+    return ErrForbidden // 403
+}
+```
+
+</TabItem>
+</Tabs>
+
+**Important:** Distinguish between:
+- `Unauthenticated` (401) - Caller identity is missing or invalid
+- `PermissionDenied` (403) - Caller is authenticated but lacks permission
+- `resp.Allowed = false` - Also 403, but returned as a successful response
+
+## Next Steps
+
+<LinkCard
+  title="Protect a list endpoint"
+  description="Learn strategies for filtering lists by permissions."
+  href="/docs/building-with-kessel/how-to/protect-list/"
+/>
+
+<LinkCard
+  title="Integration patterns"
+  description="See more examples of permission checks and resource reporting."
+  href="/docs/building-with-kessel/how-to/integration-patterns/"
+/>
+
+<LinkCard
+  title="Consistency model"
+  description="Understand consistency guarantees and when to use each mode."
+  href="/docs/building-with-kessel/concepts/consistency/"
+/> 

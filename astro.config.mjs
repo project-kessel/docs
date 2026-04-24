@@ -42,8 +42,9 @@ const baseStarlightConfig = {
     {
       label: "Start Here",
       items: [
-        "start-here/getting-started",
         "start-here/understanding-kessel",
+        "start-here/when-to-use-kessel",
+        "start-here/getting-started",
       ],
     },
     {

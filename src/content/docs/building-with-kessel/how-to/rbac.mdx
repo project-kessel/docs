@@ -1,11 +1,434 @@
 ---
 title: Manage access with RBAC
+description: Learn how to create workspaces, roles, groups, and role bindings to manage access in Kessel.
 sidebar:
   order: 50
 ---
 
-Kessel includes an opinioned, out-of-the-box, but highly-flexible role-based access control service and tenancy model.
+import { Aside, Code, LinkCard } from '@astrojs/starlight/components';
 
-TODO: guide to using this
+This guide shows how to manage access control in Kessel by creating workspaces, roles, groups, and role bindings. These operations are typically performed by organization administrators.
 
-1. How to use RBAC schema extensions
+## Prerequisites
+
+- Access to the RBAC service API (`/api/rbac/v2/`)
+- Authentication via `x-rh-identity` header (for user requests) or `x-rh-rbac-org-id` header (for service-to-service requests)
+- Organization admin permissions for most operations
+
+## Typical Workflow
+
+1. **Create workspace** — Define a container for resources
+2. **Create custom role** (or use seeded role) — Define permissions
+3. **Create group** — Organize users
+4. **Add users to group** — Grant group membership
+5. **Create role binding** — Grant role to group on workspace
+
+## Create a Workspace
+
+Workspaces organize resources into hierarchies. Create a workspace under the Default workspace for team-level isolation.
+
+**API:** `POST /api/rbac/v2/workspaces/`
+
+```json
+{
+  "name": "Engineering",
+  "description": "Engineering team workspace",
+  "parent_id": "default-workspace-uuid"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "eng-workspace-uuid",
+  "name": "Engineering",
+  "description": "Engineering team workspace",
+  "parent_id": "default-workspace-uuid",
+  "type": "standard",
+  "created": "2026-04-09T10:00:00Z",
+  "modified": "2026-04-09T10:00:00Z"
+}
+```
+
+**Notes:**
+- If `parent_id` is omitted, the workspace is created under your organization's Default workspace
+- Workspace names must be unique per parent (case-insensitive)
+- Maximum hierarchy depth is enforced (typically 5 levels)
+
+**List workspaces:**
+```
+GET /api/rbac/v2/workspaces/?type=all&limit=50
+GET /api/rbac/v2/workspaces/?parent_id={uuid}
+GET /api/rbac/v2/workspaces/?name=Engineering
+```
+
+**Fetch ROOT workspace:**
+```
+GET /api/rbac/v2/workspaces/?type=root
+```
+
+**Fetch DEFAULT workspace:**
+```
+GET /api/rbac/v2/workspaces/?type=default
+```
+
+<Aside>
+  The ROOT and DEFAULT workspaces are automatically created for each organization and cannot be deleted.
+</Aside>
+
+## Create a Custom Role
+
+Roles define sets of permissions. Create a custom role tailored to your organization's needs.
+
+**API:** `POST /api/rbac/v2/roles/`
+
+```json
+{
+  "name": "Inventory Viewer",
+  "description": "Can view hosts and groups in inventory",
+  "permissions": [
+    {
+      "application": "inventory",
+      "resource_type": "hosts",
+      "operation": "read"
+    },
+    {
+      "application": "inventory",
+      "resource_type": "groups",
+      "operation": "read"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "id": "role-uuid",
+  "name": "Inventory Viewer",
+  "description": "Can view hosts and groups in inventory",
+  "permissions": [
+    {"application": "inventory", "resource_type": "hosts", "operation": "read"},
+    {"application": "inventory", "resource_type": "groups", "operation": "read"}
+  ],
+  "last_modified": "2026-04-09T10:05:00Z"
+}
+```
+
+**Permission format:** `application:resource_type:operation`
+
+**Wildcards:**
+- `inventory:*:*` — All inventory permissions
+- `inventory:hosts:*` — All host operations
+- `*` for resource_type or operation (not application)
+
+**List roles:**
+```
+GET /api/rbac/v2/roles/
+GET /api/rbac/v2/roles/?name=Inventory*
+```
+
+**Update role:**
+```
+PUT /api/rbac/v2/roles/{uuid}/
+```
+
+**Delete roles (batch only):**
+```
+POST /api/rbac/v2/roles:batchDelete/
+{
+  "ids": ["role-uuid-1", "role-uuid-2"]
+}
+```
+
+<Aside type="caution">
+  Only custom roles can be modified or deleted. System-provided seeded roles are read-only.
+</Aside>
+
+## Create a Group
+
+Groups collect users together so you can grant permissions to the entire team at once.
+
+**API:** `POST /api/rbac/v1/groups/`
+
+```json
+{
+  "name": "Engineering Team"
+}
+```
+
+**Response:**
+```json
+{
+  "uuid": "group-uuid",
+  "name": "Engineering Team",
+  "principals": []
+}
+```
+
+**List groups:**
+```
+GET /api/rbac/v1/groups/
+GET /api/rbac/v1/groups/?name=Engineering
+```
+
+## Add Users to Group
+
+Grant group membership to users or service accounts.
+
+**API:** `POST /api/rbac/v1/groups/{uuid}/principals/`
+
+**For users:**
+```json
+{
+  "principals": [
+    {"username": "alice"},
+    {"username": "bob"}
+  ]
+}
+```
+
+**For service accounts:**
+```json
+{
+  "principals": [
+    {"clientId": "service-account-uuid", "type": "service-account"}
+  ]
+}
+```
+
+**Remove users:**
+```
+DELETE /api/rbac/v1/groups/{uuid}/principals/?usernames=alice,bob
+DELETE /api/rbac/v1/groups/{uuid}/principals/?service-accounts=uuid1,uuid2
+```
+
+## Create Role Bindings
+
+Role bindings grant a role to a subject (group or user) on a specific resource (workspace or tenant). This is the step that actually grants permissions.
+
+**API:** `POST /api/rbac/v2/role-bindings:batchCreate/`
+
+**Bind role to group on workspace:**
+```json
+{
+  "requests": [
+    {
+      "resource": {
+        "id": "eng-workspace-uuid",
+        "type": "workspace"
+      },
+      "subject": {
+        "id": "group-uuid",
+        "type": "group"
+      },
+      "role": {
+        "id": "role-uuid"
+      }
+    }
+  ]
+}
+```
+
+**Bind role directly to a user:**
+```json
+{
+  "requests": [
+    {
+      "resource": {"id": "workspace-uuid", "type": "workspace"},
+      "subject": {"id": "principal-uuid", "type": "user"},
+      "role": {"id": "role-uuid"}
+    }
+  ]
+}
+```
+
+**Batch create up to 100 bindings:**
+```json
+{
+  "requests": [
+    {"resource": {...}, "subject": {...}, "role": {...}},
+    {"resource": {...}, "subject": {...}, "role": {...}},
+    ...
+  ]
+}
+```
+
+<Aside type="tip">
+  Prefer binding to groups rather than individual users. This makes access management easier as team membership changes.
+</Aside>
+
+## Update Role Bindings
+
+Use the declarative PUT endpoint to replace all roles for a subject on a resource.
+
+**API:** `PUT /api/rbac/v2/role-bindings/by-subject/`
+
+**Query parameters:**
+- `resource_id` — Workspace or tenant UUID
+- `resource_type` — `workspace` or `tenant`
+- `subject_id` — Group or user UUID
+- `subject_type` — `group` or `user`
+
+**Request body (desired state):**
+```json
+{
+  "roles": [
+    {"id": "role-uuid-1"},
+    {"id": "role-uuid-2"}
+  ]
+}
+```
+
+This atomically:
+1. Removes any previously assigned roles not in the list
+2. Adds any new roles in the list
+3. Leaves unchanged roles alone
+
+**Revoke all access for a subject:**
+```json
+{
+  "roles": []
+}
+```
+
+## List Role Bindings
+
+**List all bindings:**
+```
+GET /api/rbac/v2/role-bindings/
+```
+
+**Filter by resource:**
+```
+GET /api/rbac/v2/role-bindings/?resource_type=workspace&resource_id={uuid}
+```
+
+**Filter by role:**
+```
+GET /api/rbac/v2/role-bindings/?role_id={uuid}
+```
+
+**List bindings grouped by subject:**
+```
+GET /api/rbac/v2/role-bindings/by-subject/?resource_type=workspace&resource_id={uuid}
+```
+
+Response shows each subject with all their roles on that resource:
+```json
+{
+  "subject": {"id": "group-uuid", "type": "group"},
+  "roles": [
+    {"id": "role-uuid-1"},
+    {"id": "role-uuid-2"}
+  ],
+  "resource": {"id": "workspace-uuid"}
+}
+```
+
+## Complete Example: Grant Team Access to Workspace
+
+```bash
+# 1. Create workspace
+curl -X POST https://rbac/api/rbac/v2/workspaces/ \
+  -H "x-rh-rbac-org-id: $ORG_ID" \
+  -d '{"name": "Engineering", "description": "Engineering team"}'
+# Response: {"id": "eng-ws-uuid", ...}
+
+# 2. Create custom role (or use existing seeded role)
+curl -X POST https://rbac/api/rbac/v2/roles/ \
+  -H "x-rh-rbac-org-id: $ORG_ID" \
+  -d '{
+    "name": "Inventory Editor",
+    "permissions": [
+      {"application": "inventory", "resource_type": "hosts", "operation": "read"},
+      {"application": "inventory", "resource_type": "hosts", "operation": "write"}
+    ]
+  }'
+# Response: {"id": "role-uuid", ...}
+
+# 3. Create group
+curl -X POST https://rbac/api/rbac/v1/groups/ \
+  -H "x-rh-identity: $IDENTITY" \
+  -d '{"name": "Engineering Team"}'
+# Response: {"uuid": "group-uuid", ...}
+
+# 4. Add users to group
+curl -X POST https://rbac/api/rbac/v1/groups/group-uuid/principals/ \
+  -H "x-rh-identity: $IDENTITY" \
+  -d '{"principals": [{"username": "alice"}, {"username": "bob"}]}'
+
+# 5. Create role binding
+curl -X POST https://rbac/api/rbac/v2/role-bindings:batchCreate/ \
+  -H "x-rh-rbac-org-id: $ORG_ID" \
+  -d '{
+    "requests": [{
+      "resource": {"id": "eng-ws-uuid", "type": "workspace"},
+      "subject": {"id": "group-uuid", "type": "group"},
+      "role": {"id": "role-uuid"}
+    }]
+  }'
+```
+
+Now Alice and Bob can read and write hosts in the Engineering workspace.
+
+## Assigning Resources to Workspaces
+
+After creating a workspace, assign inventory resources to it. This happens at the inventory-api level:
+
+**When reporting a resource:**
+```json
+POST /api/kessel/v1beta2/resources
+{
+  "resource_type": "host",
+  "resource_id": "host-123",
+  "workspace_id": "eng-ws-uuid",
+  ...
+}
+```
+
+The inventory-api creates a SpiceDB relationship linking the resource to the workspace. Role bindings on the workspace then automatically grant access to resources within it.
+
+## Best Practices
+
+1. **Use the DEFAULT workspace for most resources** unless you need isolated access control
+2. **Create STANDARD workspaces for teams or projects** that need separate permissions
+3. **Bind roles to groups, not individual users** for easier management
+4. **Use the PUT /role-bindings/by-subject/ endpoint** to update access (declarative desired-state)
+5. **Fetch ROOT or DEFAULT workspace UUIDs once** and cache them
+6. **Handle 503 errors with retries** — workspace creation uses serializable isolation and may conflict under load
+
+## Error Handling
+
+**400 Bad Request:**
+- Duplicate names, constraint violations, invalid input
+
+**403 Forbidden:**
+- Caller lacks permission to perform the operation
+- V1 role-to-group operations blocked for orgs using V2 workspaces
+
+**404 Not Found:**
+- Resource, role, group, or subject doesn't exist
+
+**503 Service Unavailable:**
+- Concurrent update conflict (retry after 1 second)
+
+## Next Steps
+
+<LinkCard
+  title="Role-based access control"
+  description="Understand roles, permissions, and how authorization works."
+  href="/docs/building-with-kessel/concepts/rbac/"
+/>
+
+<LinkCard
+  title="Identity and multi-tenancy"
+  description="Learn about workspaces, hierarchy, and tenant isolation."
+  href="/docs/building-with-kessel/concepts/tenancy/"
+/>
+
+<LinkCard
+  title="Protect an endpoint"
+  description="See how to check permissions in your application code."
+  href="/docs/building-with-kessel/how-to/protect-endpoint/"
+/>

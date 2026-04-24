@@ -1,0 +1,183 @@
+---
+title: When to Use Kessel
+description: Understand when Kessel is the right solution for your platform and when to consider alternatives.
+sidebar:
+  order: 3
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+Kessel provides unified inventory management and relationship-based access control for platforms composed of multiple services. It addresses a specific class of problems that arise when multiple teams or services need to share consistent resource management, authorization, and event semantics across a platform.
+
+Before adopting Kessel, it is worth understanding what it solves, where it excels, and where simpler alternatives may serve you better. This page helps you make that decision. (This document describes Kessel v1beta2, the current API version.)
+
+## Problems Kessel Solves
+
+### Fragmented resource management across services
+
+In platforms with multiple services -- think a Google Drive-like application where documents, spreadsheets, and slides are built by different teams -- each service tends to develop its own resource management layer. Users end up with inconsistent experiences: different organization models, different sharing semantics, and different APIs for what should feel like a single platform.
+
+Kessel provides a shared inventory where every service reports its resources into a common model. Resources can be organized into workspaces and hierarchies that work consistently regardless of which service manages the underlying data.
+
+### Inconsistent access control
+
+When each service implements its own authorization, you get drift. One service may check permissions at the folder level, another at the individual resource level, and a third may not support sharing at all. Users cannot reason about who has access to what, and administrators cannot enforce consistent policies.
+
+Kessel centralizes authorization using a relationship-based model (inspired by Google Zanzibar). Permissions are derived from relationships between resources, users, and groups -- defined once in schema and enforced uniformly across all services.
+
+### The dual-write problem
+
+A common failure mode in distributed systems: a service writes a resource to its own database and then tries to update a separate authorization system. If the second write fails, the systems are out of sync. A resource exists but has no permissions, or permissions exist for a resource that was never created.
+
+Kessel solves this with the transactional outbox pattern. When a resource is reported, both the resource data and the corresponding relationship tuples are emitted as outbox events within a single database transaction. Change Data Capture (CDC) via Debezium then propagates these events through Kafka to SpiceDB, guaranteeing atomicity between inventory and authorization state.
+
+### Re-inventing authorization patterns
+
+Building relationship-based access control from scratch is complex. You need a graph database or equivalent, a schema language for permissions, consistency token management, and a query engine that can traverse permission hierarchies efficiently. Most teams should not build this themselves.
+
+Kessel provides this out of the box via SpiceDB, the Relations API, and the Kessel Schema Language (KSL). You define your permission model in KSL, and Kessel handles compilation, storage, evaluation, and consistency.
+
+### Cross-service event coordination
+
+When resources change, other services often need to react -- updating caches, triggering workflows, or syncing state. Without a shared event system, services resort to polling, webhooks, or ad-hoc integrations.
+
+Kessel emits structured CloudEvents for every resource lifecycle change and every relationship tuple change, delivered through Kafka. Services can subscribe to these events and react consistently, without building their own change notification systems.
+
+## Kessel is a Good Fit When
+
+### You are building a multi-tenant SaaS platform
+
+Kessel's RBAC model includes built-in tenancy primitives: workspaces for organizing resources, role bindings that scope permissions to specific resource hierarchies, and group-based subject management. If your platform serves multiple customers who each need isolated views of resources with fine-grained sharing controls, Kessel provides these patterns without you having to design them.
+
+### Multiple services manage overlapping resources
+
+Consider a platform where RHEL hosts are discovered by a vulnerability scanner, reported by a configuration management tool, and monitored by a performance service. Each service has its own view of the same host. Kessel's reporter model handles this natively -- multiple reporters can contribute different representations of the same resource, with a common representation that unifies shared attributes like workspace membership.
+
+### You need fine-grained, relationship-based authorization
+
+If your authorization requirements go beyond "user X has role Y," Kessel is designed for you. Examples include:
+
+- A user can view a document because they have the "viewer" role on the workspace that contains it
+- A user can edit a resource because they belong to a group that has the "editor" role bound to a parent workspace
+- A service can report resources because it has the "reporter" meta-permission
+
+These permission chains are defined declaratively in KSL schema and evaluated by SpiceDB's graph traversal engine.
+
+### You need resource organization and hierarchy
+
+Workspaces in Kessel function like folders in a file system. Resources belong to workspaces, workspaces can be nested, and permissions flow down the hierarchy. If your users need to organize resources into projects, environments, or departments -- and expect bulk operations and inherited permissions -- Kessel provides this structure.
+
+### You are building an event-driven architecture
+
+Kessel emits structured events (following CloudEvents v1.0 specification) through Kafka: resource lifecycle events (topic: `outbox.event.kessel.resources`) and relationship tuple events (topic: `outbox.event.kessel.tuples`). If your platform needs downstream services to react to resource changes -- for compliance logging, cache invalidation, workflow triggers, or cross-service synchronization -- Kessel's CDC pipeline provides a reliable event backbone.
+
+### You have audit and compliance requirements
+
+Because every resource change flows through Kafka as a structured event, you get a natural audit trail. Combined with the relationship-based permission model, you can answer questions like "who had access to this resource at this point in time" by examining the event history.
+
+### You need tunable consistency
+
+Not every permission check requires the same freshness guarantee. Kessel offers three consistency modes:
+
+| Mode | Typical latency | Use case |
+|------|----------------|----------|
+| `minimize_latency` | 10-50ms | Read-heavy dashboards, listing pages |
+| `at_least_as_fresh` | Medium | Client provides a known consistency token |
+| `at_least_as_acknowledged` | 20-80ms | Operations requiring committed state |
+
+For write-then-read scenarios (report a resource, then immediately check permissions), Kessel supports read-after-write consistency via PostgreSQL LISTEN/NOTIFY, at the cost of additional latency (100-500ms).
+
+## Kessel May Not Be Necessary When
+
+### You have a single service with a single tenant
+
+If your application is a single service serving a single organization, Kessel's distributed architecture adds complexity without proportional benefit. A simple permissions table in your application database, checked at the application layer, is likely sufficient.
+
+### You only need simple, flat RBAC
+
+If your authorization model is "user has role, role grants permissions" with no resource hierarchy, no relationship traversal, and no cross-service sharing, a lightweight RBAC library or even a database table of role assignments will serve you well. Kessel's relationship-based model is designed for cases where permissions derive from graph relationships, not simple lookups.
+
+### Your resources have no meaningful relationships
+
+If resources are independent entities with no hierarchical organization, no shared ownership, and no cross-referencing, Kessel's relationship graph adds little value. The power of relationship-based access control comes from traversing connections between resources -- if there are no connections, a simpler model is more appropriate.
+
+### You are on a latency-critical hot path
+
+Kessel's permission checks add network round-trips to SpiceDB. At 10-50ms for `minimize_latency` checks and 20-80ms for `at_least_as_acknowledged`, this is acceptable for most API endpoints. However, if you are making authorization decisions in a tight loop processing thousands of events per second with sub-millisecond latency requirements, an in-process policy engine may be more appropriate.
+
+<Aside type="tip">
+Kessel's `CheckBulk` operation can batch multiple permission checks into a single request, which helps in scenarios where you need to filter a list of resources by permissions. Evaluate whether batching meets your latency needs before ruling Kessel out.
+</Aside>
+
+### You have no Kafka infrastructure
+
+Kessel's data replication pipeline depends on Kafka (and Kafka Connect with Debezium). If your platform does not already use Kafka and you are not prepared to operate it, the operational overhead may outweigh the benefits. Kessel is not a drop-in library -- it is a distributed system with its own infrastructure requirements.
+
+### Your resources do not need access control
+
+If you simply need an inventory or registry of resources without any authorization semantics, a CMDB or asset database may be simpler. Kessel's value proposition is the tight coupling between inventory and authorization -- if you only need one half, a purpose-built tool for that half may be a better fit.
+
+## How Kessel Compares
+
+### vs. Plain database + application logic
+
+Building resource management and authorization directly in your application database gives you full control and simplicity. However, it does not scale across multiple services -- each service ends up with its own authorization implementation, its own resource model, and its own event system. Kessel provides the shared infrastructure that makes multiple services behave as a coherent platform.
+
+### vs. Simple RBAC systems
+
+Traditional RBAC systems (role tables, permission tables, user-role assignments) work well for flat permission models. Kessel goes further with relationship-based access control: permissions can be inherited through resource hierarchies, derived from group memberships, and scoped to specific resource subtrees via role bindings. If your authorization needs are growing beyond what flat RBAC can express, Kessel is a natural evolution.
+
+### vs. Authorization-only solutions (OPA, Casbin)
+
+Policy engines like OPA and Casbin evaluate authorization rules but do not manage the data those rules operate on. You still need to build and maintain the resource inventory, the relationship graph, and the event pipeline yourself. Kessel combines authorization with inventory management and event propagation -- the three concerns are integrated through the transactional outbox pattern, so they stay consistent without you managing the coordination.
+
+### vs. Inventory-only solutions (CMDBs)
+
+Configuration Management Databases track what resources exist and their attributes, but they typically do not provide authorization or event streaming. If you need a CMDB that also answers "can this user access this resource?" and "what changed since yesterday?", Kessel fills that gap. If you only need asset tracking, a CMDB may be simpler.
+
+## Decision Criteria
+
+When evaluating whether Kessel is right for your platform, consider these factors:
+
+| Factor | Kessel adds value | Simpler alternative likely sufficient |
+|--------|-------------------|--------------------------------------|
+| **Number of services** | Multiple services sharing resources | Single service |
+| **Multi-tenancy** | Multiple tenants with isolated resource views | Single tenant or simple tenant isolation |
+| **Authorization complexity** | Hierarchical, relationship-based permissions | Flat role-to-permission mapping |
+| **Resource relationships** | Resources organized in hierarchies with inherited permissions | Independent, unrelated resources |
+| **Consistency requirements** | Tunable consistency with write-then-read guarantees | Eventual consistency is always acceptable |
+| **Event integration** | Downstream services react to resource changes | No event consumers |
+| **Operational capacity** | Team can operate Kafka, PostgreSQL, SpiceDB | Minimal infrastructure tolerance |
+| **Scale** | Thousands of resources/sec throughput needed | Low volume, infrequent changes |
+
+<Aside type="note">
+Kessel is a distributed system with real operational complexity. It currently requires PostgreSQL with logical replication, Apache Kafka with Kafka Connect, Debezium, SpiceDB, and the Relations API. Make sure your team is prepared to operate these components -- or has access to managed versions -- before committing to Kessel.
+
+**Note:** The Kessel team is actively working to reduce the deployment footprint and operational complexity. Future versions may consolidate components and simplify infrastructure requirements.
+</Aside>
+
+## Next Steps
+
+If you're new to Kessel and want more conceptual background before evaluating fit, start with Understanding Kessel.
+
+<LinkCard
+  title="Understanding Kessel"
+  description="Learn about Kessel's core concepts and how they unify resource-based APIs."
+  href="/docs/start-here/understanding-kessel/"
+/>
+
+If Kessel sounds like the right fit for your platform, the getting-started tutorial walks you through setting up Kessel with a practical document management example, including resource schema definition, RBAC configuration, and your first permission checks.
+
+<LinkCard
+  title="Getting Started with RBAC"
+  description="Set up Kessel from scratch with a document management example."
+  href="/docs/start-here/getting-started/"
+/>
+
+For a deeper understanding of Kessel's architecture and how its components interact, see the architecture overview.
+
+<LinkCard
+  title="Architecture"
+  description="How Kessel's components work together to deliver inventory, authorization, and event propagation."
+  href="/docs/running-kessel/architecture/"
+/>

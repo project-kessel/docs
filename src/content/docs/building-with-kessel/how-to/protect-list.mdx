@@ -1,10 +1,302 @@
 ---
 title: Protect a list endpoint
+description: Learn strategies for filtering list endpoints by permissions using pre-filtering, post-filtering, and bulk checks.
 sidebar:
   order: 30
 ---
 
-TODO: Show how protecting a list endpoint is different, walk through different options used in practice:
+import { Aside, LinkCard, Tabs, TabItem } from '@astrojs/starlight/components';
 
-1. Pre-filtering, coarse vs fine grained
-2. Post-filtering, coarse vs fine grained
+List endpoints are different from single-resource endpoints because you need to filter potentially hundreds or thousands of items by permission. This guide covers three strategies for protecting list endpoints efficiently.
+
+## The Challenge
+
+When returning a list of resources, you must ensure the caller only sees items they have permission to access. Checking each item individually would be prohibitively expensive (N round-trips to Kessel).
+
+**Example:** A `GET /hosts` endpoint might return 1000 hosts, but the user should only see the 50 hosts in workspaces they can access.
+
+## Strategy 1: Pre-Filtering with StreamedListObjects (Recommended)
+
+**Use when:** The authorization domain is the primary filter (e.g., "show me all hosts I can view").
+
+`StreamedListObjects` asks Kessel "which resources of type X can subject Y access?" and returns a stream of authorized resource IDs. You then fetch only those resources from your database.
+
+<Tabs syncKey="lang">
+<TabItem label="Go">
+
+```go
+import (
+    v1beta2 "github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
+    v2 "github.com/project-kessel/kessel-sdk-go/kessel/rbac/v2"
+)
+
+func (s *Server) ListHosts(ctx context.Context) ([]*Host, error) {
+    // Ask Kessel which hosts the caller can view
+    stream, err := s.inventoryClient.StreamedListObjects(ctx, &v1beta2.StreamedListObjectsRequest{
+        ObjectType: &v1beta2.RepresentationType{
+            ResourceType: "host",
+            ReporterType: "HBI",
+        },
+        Relation: "view",
+        Subject: v2.PrincipalSubject(callerID, "redhat"),
+        Pagination: &v1beta2.RequestPagination{Limit: 1000},
+    })
+    if err != nil {
+        return nil, err
+    }
+
+    // Collect authorized resource IDs
+    var hostIDs []string
+    for {
+        resp, err := stream.Recv()
+        if err == io.EOF {
+            break
+        }
+        if err != nil {
+            return nil, err
+        }
+        hostIDs = append(hostIDs, resp.Resource.ResourceId)
+    }
+
+    // Fetch only authorized hosts
+    return s.db.GetHostsByIDs(hostIDs)
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python
+async def list_hosts() -> list[Host]:
+    # Ask Kessel which hosts the caller can view
+    stream = inventory_client.streamed_list_objects(
+        StreamedListObjectsRequest(
+            object_type=RepresentationType(
+                resource_type="host",
+                reporter_type="HBI",
+            ),
+            relation="view",
+            subject=PrincipalSubject(caller_id, "redhat"),
+            pagination=RequestPagination(limit=1000),
+        )
+    )
+
+    # Collect authorized IDs
+    host_ids = [resp.resource.resource_id async for resp in stream]
+
+    # Fetch only authorized hosts
+    return await db.get_hosts_by_ids(host_ids)
+```
+
+</TabItem>
+</Tabs>
+
+**Pros:**
+- Kessel does the authorization filtering
+- Efficient: single streaming call instead of N checks
+- Works well when most filtering is authorization-based
+
+**Cons:**
+- Doesn't support complex database filters (search, sorting) without a second round-trip
+- May return more IDs than needed if you have additional business logic filters
+
+<Aside type="tip">
+  Use `StreamedListObjects` when the primary question is "what can the user access?" and database filters are secondary.
+</Aside>
+
+## Strategy 2: Post-Filtering with CheckSelfBulk
+
+**Use when:** You have database-level filters (search, pagination) and need to trim results by authorization.
+
+Query your database first (with search, sort, pagination), then use `CheckSelfBulk` to filter the results by permission.
+
+<Tabs syncKey="lang">
+<TabItem label="Go">
+
+```go
+func (s *Server) SearchHosts(ctx context.Context, query string, page int) ([]*Host, error) {
+    // Query database with business filters
+    candidates, err := s.db.SearchHosts(query, page, 25)
+    if err != nil {
+        return nil, err
+    }
+
+    // Build bulk check request
+    items := make([]*v1beta2.CheckSelfBulkRequestItem, len(candidates))
+    for i, host := range candidates {
+        items[i] = &v1beta2.CheckSelfBulkRequestItem{
+            Object: &v1beta2.ResourceReference{
+                ResourceType: "host",
+                ResourceId:   host.ID,
+                Reporter:     &v1beta2.ReporterReference{Type: "HBI"},
+            },
+            Relation: "view",
+        }
+    }
+
+    // Check all items in a single call
+    resp, err := s.inventoryClient.CheckSelfBulk(ctx, &v1beta2.CheckSelfBulkRequest{
+        Items: items,
+    })
+    if err != nil {
+        return nil, err
+    }
+
+    // Filter to allowed resources
+    var allowed []*Host
+    for i, pair := range resp.Pairs {
+        if item := pair.GetItem(); item != nil && item.Allowed {
+            allowed = append(allowed, candidates[i])
+        }
+    }
+
+    return allowed, nil
+}
+```
+
+</TabItem>
+</Tabs>
+
+**Pros:**
+- Supports complex database queries (full-text search, sorting, aggregations)
+- Works well when you need pagination at the database level
+- Single authorization round-trip for the entire page
+
+**Cons:**
+- May return fewer results than expected (if many items are unauthorized)
+- Requires fetching potentially unauthorized data from the database
+
+<Aside type="caution">
+  Batch size is limited to 1000 items. For larger result sets, chunk into multiple `CheckSelfBulk` calls.
+</Aside>
+
+<Aside type="tip">
+  For a detailed comparison of bulk check operations (`CheckBulk`, `CheckSelfBulk`, `CheckForUpdateBulk`), including subject handling and consistency guarantees, see the [Bulk Check Operations table](/docs/running-kessel/architecture/#bulk-check-operations) in the Architecture guide.
+</Aside>
+
+## Strategy 3: Workspace-Level Coarse Filtering
+
+**Use when:** Resources are organized by workspace and you want to filter at the workspace level before querying.
+
+Check if the user can access a workspace, then fetch all resources in that workspace. This is a coarse-grained approach.
+
+<Tabs syncKey="lang">
+<TabItem label="Go">
+
+```go
+func (s *Server) ListHostsInWorkspace(ctx context.Context, workspaceID string) ([]*Host, error) {
+    // Check workspace-level permission
+    resp, err := s.inventoryClient.CheckSelf(ctx, &v1beta2.CheckSelfRequest{
+        Object: v2.WorkspaceResource(workspaceID),
+        Relation: "view",
+    })
+    if err != nil || !resp.Allowed {
+        return nil, ErrForbidden
+    }
+
+    // User can access workspace - fetch all hosts in it
+    return s.db.GetHostsByWorkspace(workspaceID)
+}
+```
+
+</TabItem>
+</Tabs>
+
+**Pros:**
+- Simple: one permission check covers all resources
+- Efficient for workspace-scoped queries
+
+**Cons:**
+- All-or-nothing: user either sees everything in the workspace or nothing
+- Doesn't handle resources with custom permissions within the workspace
+
+## Choosing a Strategy
+
+| Scenario | Recommended Strategy |
+|----------|---------------------|
+| "Show me all resources I can access" | StreamedListObjects (pre-filter) |
+| "Search/filter resources, show only authorized" | CheckSelfBulk (post-filter) |
+| "List resources in a workspace" | Workspace-level check + DB query |
+| "Dashboard with pagination" | CheckSelfBulk (post-filter) after DB pagination |
+| "Admin listing all resources" | Skip authorization (if caller is admin) or coarse check |
+
+## Handling Partial Results
+
+When using post-filtering (CheckSelfBulk), the returned page may have fewer items than requested if some are unauthorized.
+
+**Option 1: Accept partial pages**
+- Simpler implementation
+- UI shows "Up to 25 results per page"
+
+**Option 2: Backfill from next page**
+- Fetch additional items until you have a full page
+- More complex but consistent page sizes
+- Can require multiple round-trips
+
+```go
+func (s *Server) ListHostsFullPages(ctx context.Context, cursor string, limit int) ([]*Host, string, error) {
+    allowed := []*Host{}
+    currentCursor := cursor
+
+    for len(allowed) < limit {
+        // Fetch a batch
+        candidates, nextCursor, err := s.db.GetHosts(currentCursor, limit * 2)
+        if err != nil {
+            return nil, "", err
+        }
+        if len(candidates) == 0 {
+            break // No more data
+        }
+
+        // Filter by authorization
+        filtered, err := s.checkAndFilter(ctx, candidates)
+        if err != nil {
+            return nil, "", err
+        }
+
+        allowed = append(allowed, filtered...)
+        currentCursor = nextCursor
+
+        // Stop if we have enough or no more pages
+        if len(allowed) >= limit || nextCursor == "" {
+            break
+        }
+    }
+
+    return allowed[:min(limit, len(allowed))], currentCursor, nil
+}
+```
+
+## Performance Considerations
+
+**StreamedListObjects:**
+- Latency depends on the number of authorized resources (SpiceDB traverses the graph)
+- Typically 50-200ms for small result sets, can be higher for large workspace hierarchies
+
+**CheckSelfBulk:**
+- Latency is roughly constant per batch (single SpiceDB call for up to 1000 items)
+- Typically 20-100ms for a batch of 25-100 items
+
+**Consistency modes:**
+- Use `minimize_latency` (default) for list endpoints
+- Only use stronger consistency if you just modified data and need to see the result immediately
+
+## Next Steps
+
+<LinkCard
+  title="Protect an endpoint"
+  description="Learn how to protect single-resource endpoints."
+  href="/docs/building-with-kessel/how-to/protect-endpoint/"
+/>
+
+<LinkCard
+  title="Integration patterns"
+  description="See more examples of authorization patterns."
+  href="/docs/building-with-kessel/how-to/integration-patterns/"
+/>
+
+<LinkCard
+  title="Consistency model"
+  description="Understand eventual consistency and when to use stronger modes."
+  href="/docs/building-with-kessel/concepts/consistency/"
+/>
