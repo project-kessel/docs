@@ -21,7 +21,7 @@ The database has **6 tables**:
 - **`reporter_representations`** -- Versioned reporter-specific view of resource data (JSONB). Tracks version, generation, and tombstone state independently per reporter.
 - **`common_representations`** -- Authoritative canonical state for a resource across all reporters. Tracks which reporter most recently supplied the data.
 - **`outbox_events`** -- Event sourcing and CDC pattern for external integrations.
-- **`metrics_summary`** -- Aggregated metrics collection with JSONB payload.
+- **`metrics_summaries`** -- Aggregated metrics collection with JSONB payload.
 
 ### Table Relationships
 
@@ -112,9 +112,10 @@ resource (1) --> (n) common_representations
 | `txid` | VARCHAR(255) | Transaction ID, nullable |
 | `payload` | JSONB | JSON event payload (format varies by aggregate type) |
 
-**Dual mode support:**
-- **Table mode** (`outbox-mode=table`): Events written to and immediately deleted from the table in the same transaction.
-- **WAL mode** (`outbox-mode=wal`): Events published via PostgreSQL logical decoding with `pg_logical_emit_message()`.
+**Event publishing mode** (configured via `outbox-mode`):
+- **WAL mode** (`outbox-mode=wal`): The primary and recommended mode. Events are published directly to the PostgreSQL write-ahead log via `pg_logical_emit_message()`, bypassing the outbox table entirely. Debezium captures these messages from the WAL and publishes them to Kafka. This avoids the overhead of table writes and cleanup.
+- **Table mode** (`outbox-mode=table`): Deprecated, will be removed in a future release. Events are written to and immediately deleted from the outbox table in the same transaction. Debezium captures the row insert from the WAL before the delete takes effect.
+- These `outbox-modes` are mutually exclusive.
 
 ### Metrics Summary Table
 
@@ -129,8 +130,6 @@ resource (1) --> (n) common_representations
 
 ### Key Design Patterns
 
-- **No history tables**: The legacy `_history` tables (`resource_history`, `relationship_history`) and the `local_to_inventory_id` mapping table have been removed. History is now captured via immutable, versioned representation records (`reporter_representations` and `common_representations`) with version and generation counters.
-- **No relationships table**: Relationships between resources are no longer stored as separate database entities in the inventory schema.
 - **Tombstone soft deletes**: Rather than deleting rows, `reporter_resources` and `reporter_representations` use a `tombstone` boolean flag.
 - **Composite natural keys**: Resources are identified by the composite key `(local_resource_id, reporter_type, resource_type, reporter_instance_id)` on the `reporter_resources` table, replacing the old `local_to_inventory_id` mapping.
 - **JSONB for resource data**: Resource-specific data is stored as JSONB blobs in representation tables, not as normalized columns.
@@ -143,9 +142,7 @@ When documenting or updating the outbox pattern, follow these conventions:
 - Two event types are published per resource operation: a **resource event** (`kessel.resources`) and a **tuple event** (`kessel.tuples`).
 - `operation` refers to the event operation type: `CREATED`, `UPDATED`, or `DELETED`.
 - `payload` format varies by aggregate type: resource events use a CloudEvents v1.0 envelope, tuple events use a plain JSON structure with reporter resource key and version info.
-- Outbox writes must be in the **same transaction** as the business entity write.
-- Pruning strategy: with Debezium reading from PostgreSQL WAL, rows can be deleted in the **same transaction** that created them (table mode).
-- WAL mode bypasses the table entirely using PostgreSQL logical decoding.
+- Event publishing is configured via `outbox-mode`: **WAL mode** (primary) publishes events directly to the PostgreSQL WAL via `pg_logical_emit_message()`, bypassing the outbox table entirely. **Table mode** (deprecated) writes events to the outbox table and immediately deletes them in the same transaction. WAL mode is preferred because it avoids table write overhead and cleanup. These `outbox-modes` are mutually exclusive.
 
 ## CDC and Debezium Conventions
 
