@@ -6,43 +6,146 @@ This repository is a **documentation site** (Astro/Starlight) and contains no ap
 - Database patterns are described in Markdown/MDX files under `src/content/docs/`, not implemented in code.
 - The primary database-related documentation lives in:
   - `src/content/docs/building-with-kessel/how-to/report-resources.mdx` -- Outbox pattern, CDC, Kafka consumer strategies
-  - `src/content/docs/building-with-kessel/archive/kessel-inventory.md` -- Inventory DB schema (ER diagram in Mermaid)
-  - `src/content/docs/building-with-kessel/archive/kafka-event.md` -- CloudEvents schema for DB change events
   - `src/content/docs/running-kessel/monitoring-kessel/monitoring-data-replication-inventory-api.mdx` -- Monitoring CDC/Outbox KPIs
 
-## Inventory Database Schema Conventions
+## Inventory Database Schema
 
-- Kessel Inventory uses a **SQL database** (PostgreSQL implied by LISTEN/NOTIFY and WAL references).
-- Resource-specific data is stored as **JSON blobs** (`json` or `jsonb` columns), not normalized relational columns.
-- Primary tables: `resources`, `relationships`, `local_to_inventory_id`.
-- Every primary table has a corresponding `_history` table tracking changes with an `operation_type` field (`CREATE`, `UPDATE`, `DELETE`).
-- Resources are identified by a composite key from the reporter: `(local_resource_id, resource_type, reporter_id, reporter_type)` -- never by an internal DB ID in external APIs.
-- The `local_to_inventory_id` table maps reporter identifiers to internal DB IDs.
-- ER diagrams use **Mermaid `erDiagram`** syntax directly in Markdown files.
-- Lifecycle diagrams use **Mermaid `flowchart LR`** syntax.
+Kessel Inventory uses a **PostgreSQL** database with GORM as the ORM layer. Migrations are managed by `gormigrate` with timestamp-based IDs (format: `yyyyMMddHHmmss`). Migration source lives in `inventory-api` at `internal/data/migrations/schema/`.
+
+### Current Tables
+
+The database has **6 tables**:
+
+- **`resource`** -- Root entity containing canonical resource metadata.
+- **`reporter_resources`** -- Links resources to specific reporters via a composite natural key. Uses a tombstone flag for soft deletes.
+- **`reporter_representations`** -- Versioned reporter-specific view of resource data (JSONB). Tracks version, generation, and tombstone state independently per reporter.
+- **`common_representations`** -- Authoritative canonical state for a resource across all reporters. Tracks which reporter most recently supplied the data.
+- **`outbox_events`** -- Event sourcing and CDC pattern for external integrations.
+- **`metrics_summary`** -- Aggregated metrics collection with JSONB payload.
+
+### Table Relationships
+
+```
+resource (1) --> (n) reporter_resources --> (n) reporter_representations
+resource (1) --> (n) common_representations
+```
+
+- `reporter_resources.resource_id` is a foreign key to `resource.id`.
+- `reporter_representations.reporter_resource_id` is a foreign key to `reporter_resources.id` with CASCADE on UPDATE and DELETE.
+- `common_representations.resource_id` is a foreign key to `resource.id`.
+
+### Resource Table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID | Primary key |
+| `type` | VARCHAR(128) | Resource type, NOT NULL |
+| `common_version` | BIGINT | Version of common representation, CHECK >= 0 |
+| `ktn` | VARCHAR(1024) | Consistency token |
+| `created_at` | TIMESTAMP | |
+| `updated_at` | TIMESTAMP | |
+
+### Reporter Resources Table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID | Primary key |
+| `local_resource_id` | VARCHAR(256) | Resource ID in reporter's system, NOT NULL |
+| `reporter_type` | VARCHAR(128) | NOT NULL |
+| `resource_type` | VARCHAR(128) | NOT NULL |
+| `reporter_instance_id` | VARCHAR(256) | NOT NULL |
+| `resource_id` | UUID | Foreign key to `resource.id`, NOT NULL |
+| `api_href` | VARCHAR(512) | NOT NULL |
+| `console_href` | VARCHAR(512) | Nullable |
+| `representation_version` | BIGINT | NOT NULL |
+| `generation` | BIGINT | NOT NULL |
+| `tombstone` | BOOLEAN | Soft delete flag, NOT NULL |
+| `created_at` | TIMESTAMP | |
+| `updated_at` | TIMESTAMP | |
+
+**Indexes:**
+- `reporter_resource_key_idx` (UNIQUE): `local_resource_id, reporter_type, resource_type, reporter_instance_id, representation_version, generation`
+- `reporter_resource_search_idx`: `local_resource_id, reporter_type, resource_type, reporter_instance_id`
+- `reporter_resource_resource_id_idx`: `resource_id`
+- `idx_reporter_resources_not_tombstone` (partial, WHERE NOT tombstone): `resource_type, reporter_type, reporter_instance_id`
+
+### Reporter Representations Table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `reporter_resource_id` | UUID | Primary key, foreign key to `reporter_resources.id` (CASCADE) |
+| `version` | BIGINT | Primary key, CHECK >= 0 |
+| `generation` | BIGINT | Primary key, CHECK >= 0 |
+| `data` | JSONB | Reporter-specific structured data |
+| `reporter_version` | VARCHAR(128) | Nullable, version tag from reporter |
+| `common_version` | BIGINT | Nullable, CHECK >= 0. Must be NULL when tombstone is true |
+| `transaction_id` | VARCHAR(128) | Transaction identifier |
+| `tombstone` | BOOLEAN | NOT NULL |
+| `created_at` | TIMESTAMP | |
+
+**Indexes:**
+- `ux_reporter_reps_txid_nn` (UNIQUE, partial WHERE transaction_id IS NOT NULL AND != ''): `transaction_id`
+
+### Common Representations Table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `resource_id` | UUID | Primary key, foreign key to `resource.id` |
+| `version` | BIGINT | Primary key, CHECK >= 0 |
+| `data` | JSONB | Canonical resource data |
+| `reported_by_reporter_type` | VARCHAR(128) | Reporter type that supplied latest data |
+| `reported_by_reporter_instance` | VARCHAR(128) | Reporter instance that supplied latest data |
+| `transaction_id` | VARCHAR(128) | Transaction identifier |
+| `created_at` | TIMESTAMP | |
+
+**Indexes:**
+- `ux_common_reps_txid_nn` (UNIQUE, partial WHERE transaction_id IS NOT NULL AND != ''): `transaction_id`
+
+### Outbox Events Table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID | Primary key, auto-generated UUIDv7 |
+| `aggregatetype` | VARCHAR(255) | `kessel.resources` or `kessel.tuples`, NOT NULL |
+| `aggregateid` | VARCHAR(255) | NOT NULL |
+| `operation` | VARCHAR(255) | Event operation type (CREATED, UPDATED, DELETED), NOT NULL |
+| `txid` | VARCHAR(255) | Transaction ID, nullable |
+| `payload` | JSONB | JSON event payload (format varies by aggregate type) |
+
+**Dual mode support:**
+- **Table mode** (`outbox-mode=table`): Events written to and immediately deleted from the table in the same transaction.
+- **WAL mode** (`outbox-mode=wal`): Events published via PostgreSQL logical decoding with `pg_logical_emit_message()`.
+
+### Metrics Summary Table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID | Primary key |
+| `collected_at` | TIMESTAMP | NOT NULL |
+| `metrics` | JSONB | NOT NULL |
+
+**Indexes:**
+- `idx_metrics_summary_collected_at`: `collected_at`
+
+### Key Design Patterns
+
+- **No history tables**: The legacy `_history` tables (`resource_history`, `relationship_history`) and the `local_to_inventory_id` mapping table have been removed. History is now captured via immutable, versioned representation records (`reporter_representations` and `common_representations`) with version and generation counters.
+- **No relationships table**: Relationships between resources are no longer stored as separate database entities in the inventory schema.
+- **Tombstone soft deletes**: Rather than deleting rows, `reporter_resources` and `reporter_representations` use a `tombstone` boolean flag.
+- **Composite natural keys**: Resources are identified by the composite key `(local_resource_id, reporter_type, resource_type, reporter_instance_id)` on the `reporter_resources` table, replacing the old `local_to_inventory_id` mapping.
+- **JSONB for resource data**: Resource-specific data is stored as JSONB blobs in representation tables, not as normalized columns.
+- **Transaction IDs**: Both representation tables carry a `transaction_id` field with a unique partial index (excluding NULL/empty values) for idempotent write support.
 
 ## Outbox Pattern Documentation
 
 When documenting or updating the outbox pattern, follow these conventions:
 
-- The outbox table schema aligns with the **Debezium Outbox Event Router** structure:
-  ```sql
-  CREATE TABLE outbox (
-      id UUID NOT NULL,
-      aggregatetype VARCHAR(255) NOT NULL,
-      aggregateid VARCHAR(255) NOT NULL,
-      version VARCHAR(255) NOT NULL,
-      operation VARCHAR(255) NOT NULL,
-      payload JSONB,
-      PRIMARY KEY (id)
-  );
-  ```
-- `version` refers to the Kessel API version (e.g., `v1beta2`), not an event sequence number.
-- `operation` refers to the Kessel API method (e.g., `ReportResource`), not a CRUD verb.
-- `payload` must match the `ReportResourceRequest` API call body.
+- Two event types are published per resource operation: a **resource event** (`kessel.resources`) and a **tuple event** (`kessel.tuples`).
+- `operation` refers to the event operation type: `CREATED`, `UPDATED`, or `DELETED`.
+- `payload` format varies by aggregate type: resource events use a CloudEvents v1.0 envelope, tuple events use a plain JSON structure with reporter resource key and version info.
 - Outbox writes must be in the **same transaction** as the business entity write.
-- Pruning strategy: with Debezium reading from PostgreSQL WAL, rows can be deleted in the **same transaction** that created them.
-- If ordering must be preserved beyond WAL, use a **serial primary key** as a secondary ordering mechanism.
+- Pruning strategy: with Debezium reading from PostgreSQL WAL, rows can be deleted in the **same transaction** that created them (table mode).
+- WAL mode bypasses the table entirely using PostgreSQL logical decoding.
 
 ## CDC and Debezium Conventions
 
@@ -54,12 +157,28 @@ When documenting or updating the outbox pattern, follow these conventions:
 
 ## Kafka Event Schema Conventions
 
-- Events follow the **CloudEvents v1.0** specification.
-- Event `type` format for resources: `redhat.inventory.resources.<resource_type>.<operation>` where operation is `created`, `updated`, or `deleted`.
-- Event `type` format for relationships: `redhat.inventory.resources_relationship.<relationship_type>.<operation>`.
-- Event `subject` format: `/resources/<resource_type>/<id>` or `/resources-relationships/<relationship_type>/<id>`.
-- Event `data` contains three sub-objects: `metadata`, `reporter_data`, and either `resource_data` or `relationship_data`.
-- The canonical event schema definition lives in the `inventory-api` repo at `data/kafka-event-schema.json`, not in this docs repo.
+Kessel Inventory writes two outbox event types per resource operation. After Debezium CDC picks up these events from the PostgreSQL WAL, they are published to Kafka topics with custom headers (`operation` and `version`) added by the Debezium Outbox Event Router transform.
+
+### Resource events (`kessel.resources`)
+
+- Resource events for create and update operations use a **CloudEvents v1.0** envelope with fields: `specversion`, `type`, `source`, `id`, `subject`, `time`, `datacontenttype`, and `data`.
+- Event `type` format: `redhat.inventory.resources.<resource_type>.<operation>` where operation is `created`, `updated`, or `deleted`.
+- Event `subject` format: `/resources/<resource_type>/<id>`.
+- Event `data` contains three sub-objects: `metadata`, `reporter_data`, and `resource_data`.
+- Delete operations currently publish an empty payload for the resource event.
+
+### Tuple events (`kessel.tuples`)
+
+- Tuple events use a plain JSON structure (not CloudEvents).
+- Payload contains: `reporter_resource_key` (composite key identifying the resource-reporter binding), `common_version`, and `reporter_representation_version`.
+- Tuple events carry a `txid` (transaction ID) for idempotent processing by downstream consumers.
+
+### Downstream consumption
+
+- The **Kessel Inventory Consumer** subscribes to Kafka topics and processes Debezium-formatted messages (with `schema` and `payload` wrappers).
+- The consumer extracts `operation` and `version` from Kafka message headers to determine how to deserialize and route each message.
+- Valid operations from the consumer's perspective are `ReportResource`, `DeleteResource`, and `migration`.
+- The consumer calls the Kessel Inventory API via gRPC (`ReportResource` / `DeleteResource`) after deserializing messages into `v1beta2` SDK request types.
 
 ## Monitoring and Alerting Conventions
 
