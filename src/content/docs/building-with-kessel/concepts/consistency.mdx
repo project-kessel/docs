@@ -58,7 +58,20 @@ Each stage introduces a small amount of latency. Under normal conditions the ful
 
 ## Consistency modes
 
-When you perform a permission check (`Check`, `CheckForUpdate`, `CheckBulk`), you choose how fresh the authorization data needs to be. Kessel supports three consistency modes:
+When you perform a permission check, you choose how fresh the authorization data needs to be. Kessel provides six check methods:
+
+- **`Check`** — Basic permission check
+- **`CheckSelf`** — Permission check where the subject is the caller (determined from authentication context)
+- **`CheckForUpdate`** — Strongly consistent permission check intended for use before update/delete operations
+- **`CheckForUpdateBulk`** — Bulk strongly consistent permission checks
+- **`CheckBulk`** — Bulk permission checks for multiple resource-subject-relation combinations
+- **`CheckSelfBulk`** — Bulk permission checks where the subject is the caller for each item
+
+<Aside>
+  The "Self" variants (`CheckSelf`, `CheckSelfBulk`) automatically use the authenticated caller as the subject, so you don't need to provide a subject in the request. This is convenient for user-facing authorization decisions.
+</Aside>
+
+All check methods support three consistency modes:
 
 ### `minimize_latency`
 
@@ -159,7 +172,7 @@ If you choose not to use IMMEDIATE mode, consider these patterns:
 
 There are several constraints to be aware of when working with Kessel's consistency model:
 
-- **Bulk operations do not support `at_least_as_acknowledged`.** `CheckBulk` spans multiple resources, and looking up a consistency token per resource would be prohibitively expensive. Bulk checks use `minimize_latency` or `at_least_as_fresh`.
+- **Bulk operations do not support `at_least_as_acknowledged`.** The bulk check methods (`CheckBulk`, `CheckForUpdateBulk`, `CheckSelfBulk`) span multiple resources, and looking up a consistency token per resource would be prohibitively expensive. Bulk checks use `minimize_latency` or `at_least_as_fresh`.
 
 - **Multi-resource scenarios require care.** If your operation touches multiple resources, each resource has its own `ktn` token. There is no single token that covers all of them. For cross-resource consistency, use `at_least_as_fresh` with a token that covers the latest write across all resources involved.
 

@@ -106,7 +106,7 @@ Each organization (tenant) in Kessel is identified by an **org ID** — a unique
 All RBAC data is scoped to a specific tenant:
 - Each workspace, role, group, and principal belongs to exactly one tenant
 - Database constraints prevent cross-tenant access
-- API endpoints require the `x-rh-rbac-org-id` header to identify the tenant
+- API requests must identify the tenant
 
 **Uniqueness guarantee**: The ROOT, DEFAULT, and UNGROUPED_HOSTS workspaces are unique per tenant. This is enforced by a database constraint on `(tenant_id, type)`.
 
@@ -220,7 +220,7 @@ GET /api/rbac/v2/workspaces/?type=default
 GET /api/rbac/v2/workspaces/?parent_id={uuid}&limit=50
 ```
 
-All requests require the `x-rh-rbac-org-id` header to identify the tenant.
+All requests must identify the tenant.
 
 ### Workspace Assignment in Inventory
 

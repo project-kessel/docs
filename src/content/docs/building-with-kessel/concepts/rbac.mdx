@@ -269,7 +269,7 @@ When you create or modify a role binding via the RBAC API, the change is replica
 1. The RBAC service writes the binding to its database and publishes an outbox event
 2. The event stream captures the event and routes it to Kessel Relations
 3. Relations writes the corresponding tuples to the authorization graph
-4. Future permission checks immediately see the new binding
+4. Permission checks reflect the new binding once the CDC pipeline completes
 
 This process typically completes in 100-500ms. See the [Consistency Model](../consistency) documentation for details on consistency guarantees.
 
