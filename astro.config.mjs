@@ -2,6 +2,7 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import starlightOpenAPI, { openAPISidebarGroups } from 'starlight-openapi'
 import tailwindcss from "@tailwindcss/vite";
+import mermaid from 'astro-mermaid';
 
 export const PUBLIC_BASE_URL = 'https://github.com/project-kessel/docs/edit/main/';
 
@@ -129,6 +130,10 @@ const baseConfig = {
   base: "docs",
   integrations: [
     starlight(starlightConfig),
+    mermaid({
+      theme: 'default',
+      autoTheme: true
+    })
   ],
   vite: {
     plugins: [tailwindcss()],
