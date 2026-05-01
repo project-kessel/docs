@@ -1,10 +1,360 @@
 ---
 title: Run locally with Docker Compose
-description: How to run Kessel locally with Docker Compose for development.
+description: How to run Kessel locally using Docker Compose for development and testing.
 sidebar:
   order: 10
 ---
 
-TODO:
+import { Aside, Steps, Tabs, TabItem, LinkCard } from '@astrojs/starlight/components';
 
-- guide to running kessel locally to write tests against
+This guide walks you through running the complete Kessel stack on your local machine with a single command.
+The setup includes Kessel Inventory API, Kessel Relations API, SpiceDB, RBAC, Kafka, Kafka Connect, and Kessel Inventory Consumer — everything you need for development and integration testing.
+
+<Aside type="note" title="Relations API merge">
+Relations API is planned to merge into Inventory API. When that happens, the separate Relations API container, its compose profile, and image override will no longer be needed — `make kessel-up` will be updated accordingly.
+</Aside>
+
+<Aside type="tip" title="Looking for a tutorial?">
+If you want a guided walkthrough of building an application with Kessel (custom schema, resource reporting, permission checks),
+see the [Getting Started with RBAC](/start-here/getting-started/) tutorial. This guide focuses on running the full stack with default configuration.
+</Aside>
+
+## Prerequisites
+
+<Steps>
+1. **Docker or Podman** with the `compose` plugin.
+
+    The startup script auto-detects Docker or Podman. Ensure the `docker compose` (or `podman compose`) subcommand is available — the standalone `docker-compose` binary is not supported.
+
+2. **yq** — used by the startup script to extract RBAC role definitions from the upstream configmap.
+
+    <Tabs>
+      <TabItem label="Go">
+        ```bash
+        go install github.com/mikefarah/yq/v4@latest
+        ```
+      </TabItem>
+      <TabItem label="Homebrew">
+        ```bash
+        brew install yq
+        ```
+      </TabItem>
+      <TabItem label="dnf">
+        ```bash
+        dnf install yq
+        ```
+      </TabItem>
+    </Tabs>
+
+3. **curl** — used to download the SpiceDB schema and RBAC configuration. Usually pre-installed on Linux and macOS.
+
+4. **Git** — to clone the repository.
+</Steps>
+
+<Aside type="note">
+Go, `ksl`, `grpcurl`, `kcat`, and `jq` are **not** required to start the stack. They are only needed if you want to
+run the [integration test](#run-the-integration-test) or interact directly with gRPC endpoints.
+</Aside>
+
+## Start the stack
+
+<Steps>
+1. **Clone the Inventory API repository.**
+
+    ```bash
+    git clone https://github.com/project-kessel/inventory-api.git
+    cd inventory-api
+    ```
+
+2. **Start all services.**
+
+    ```bash
+    make kessel-up
+    ```
+
+    This command:
+    - Creates a shared `kessel` Docker network (if it doesn't already exist)
+    - Downloads the SpiceDB schema from the [stage rbac-config repo](https://github.com/RedHatInsights/rbac-config)
+    - Fetches and extracts RBAC role definitions from the same repo using `yq`
+    - Starts all services via Docker Compose with the appropriate profiles
+</Steps>
+
+<Aside type="note">
+The first run downloads several container images and may take a few minutes. Subsequent starts reuse cached images and are much faster.
+The Kafka infrastructure typically takes about 60 seconds to become fully ready.
+</Aside>
+
+To check that all containers are running and healthy:
+
+```bash
+docker compose -f development/full-kessel/docker-compose.yaml \
+  --profile relations --profile consumer --profile rbac \
+  ps --format "table {{.Name}}\t{{.Status}}"
+```
+
+## Services and ports
+
+| Port  | Service              | Protocol |
+|-------|----------------------|----------|
+| 8081  | Inventory API        | HTTP     |
+| 9081  | Inventory API        | gRPC     |
+| 8000  | Relations API*       | HTTP     |
+| 9000  | Relations API*       | gRPC     |
+| 50051 | SpiceDB              | gRPC     |
+| 9080  | RBAC Server          | HTTP     |
+| 8083  | Kafka Connect        | HTTP     |
+| 9092  | Kafka                | —        |
+| 5432  | SpiceDB Database     | Postgres |
+| 5433  | Inventory Database   | Postgres |
+| 15432 | RBAC Database        | Postgres |
+| 6379  | Redis                | —        |
+
+*Relations API will be absorbed into Inventory API in a future release. The Relations API service and its ports will be removed from the compose setup at that time. SpiceDB and its database will remain — Inventory API will use them directly.
+
+## Verify the setup
+
+Quick smoke tests to confirm the stack is working:
+
+<Steps>
+1. **Inventory API** (HTTP)
+
+    ```bash
+    curl -sf http://localhost:8081/api/kessel/v1/livez
+    ```
+
+2. **RBAC Server** (HTTP)
+
+    ```bash
+    curl -sf http://localhost:9080/metrics | head -5
+    ```
+
+3. **Kafka Connect** (HTTP)
+
+    ```bash
+    curl -sf http://localhost:8083/connectors
+    ```
+</Steps>
+
+### Run the integration test
+
+For a comprehensive end-to-end validation, run the integration test suite. This exercises
+the full service flow: tenant bootstrapping via RBAC V2, simulated host events via Kafka,
+Inventory Consumer processing, Relations API tuple verification, and resource deletion.
+
+```bash
+make kessel-compose-integration-test
+```
+
+This requires additional tools: `kcat`, `grpcurl`, `jq`, and `curl`.
+
+## Configuration
+
+### Custom SpiceDB schema
+
+To use your own SpiceDB schema instead of the default one downloaded from GitHub:
+
+```bash
+SCHEMA_ZED_FILE=/path/to/your/schema.zed make kessel-up
+```
+
+<LinkCard
+  title="Getting Started: Configure Resources"
+  description="Learn how to define resource types and compile a KSL schema into SpiceDB format."
+  href="/start-here/getting-started/#configure-resources"
+/>
+
+You can also change the download URL by editing `SCHEMA_ZED_URL` in `development/full-kessel/.env`.
+
+### Custom service images
+
+Edit `development/full-kessel/.env` to use locally built or alternative images:
+
+```env
+INVENTORY_API_IMAGE=localhost/kessel-inventory:dev
+RELATIONS_API_IMAGE=localhost/relations-api:dev
+INVENTORY_CONSUMER_IMAGE=localhost/inventory-consumer:dev
+RBAC_IMAGE=localhost/rbac:dev
+```
+
+<Aside type="note">
+`RELATIONS_API_IMAGE` will be removed once Relations API merges into Inventory API.
+</Aside>
+
+<Aside type="caution">
+The `.env` file contains default development credentials (`POSTGRES_PASSWORD`, `SPICEDB_GRPC_PRESHARED_KEY`).
+These are for local development only — never use them in production.
+</Aside>
+
+### Monitoring stack
+
+To include Prometheus, Grafana, and Alertmanager:
+
+```bash
+make kessel-up-monitoring
+```
+
+| Port | Service       |
+|------|---------------|
+| 9050 | Prometheus    |
+| 3000 | Grafana       |
+| 9093 | Alertmanager  |
+
+Grafana is available at `http://localhost:3000` with default login `admin` / `admin`.
+It is pre-loaded with a local Prometheus datasource and the current Kessel dashboards.
+
+### Register a custom Debezium connector
+
+If your service uses the [outbox pattern with Debezium CDC](/building-with-kessel/how-to/report-resources/#the-outbox-pattern) to report resources, you can register your own connector against the Kafka Connect pod that is already running in the full-kessel stack.
+
+<Steps>
+1. **Create an outbox table** in your service's database. The table schema must match the [Debezium Outbox Event Router](https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html) format:
+
+    ```sql
+    CREATE TABLE outbox (
+        id UUID NOT NULL,
+        aggregatetype VARCHAR(255) NOT NULL,
+        aggregateid VARCHAR(255) NOT NULL,
+        version VARCHAR(255) NOT NULL,
+        operation VARCHAR(255) NOT NULL,
+        payload JSONB,
+        PRIMARY KEY (id)
+    );
+    ```
+
+2. **Ensure your database has WAL-level set to `logical`**. This is required for Debezium to read from the PostgreSQL write-ahead log. If you're adding a new database to the compose file, include `-c wal_level=logical` in the Postgres command.
+
+3. **Create a connector configuration file.** This example connects to a database called `myservice-db` and captures changes from `public.outbox`:
+
+    ```json title="my-service-connector.json"
+    {
+      "name": "my-service-outbox-connector",
+      "config": {
+        "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+        "database.server.name": "my-service",
+        "database.dbname": "my_database",
+        "database.hostname": "myservice-db",
+        "database.port": "5432",
+        "database.user": "postgres",
+        "database.password": "postgres",
+        "topic.prefix": "my-service",
+        "table.include.list": "public.outbox",
+        "transforms": "outbox",
+        "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+        "transforms.outbox.table.fields.additional.placement": "operation:header,version:header",
+        "transforms.outbox.table.expand.json.payload": true,
+        "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+        "plugin.name": "pgoutput",
+        "slot.name": "my_service_debezium",
+        "snapshot.mode": "no_data",
+        "poll.interval.ms": 250
+      }
+    }
+    ```
+
+    Key fields to customize:
+    - **`name`** and **`slot.name`**: Must be unique across all connectors on the Kafka Connect pod
+    - **`database.*`**: Connection details for your service's database
+    - **`table.include.list`**: The schema-qualified outbox table name
+    - **`topic.prefix`**: Debezium uses this with `aggregatetype` to form the output topic name (`outbox.event.{aggregatetype}`)
+
+4. **Register the connector** with the Kafka Connect REST API:
+
+    ```bash
+    curl -sf -X POST http://localhost:8083/connectors \
+      -H 'Content-Type: application/json' \
+      -d @my-service-connector.json
+    ```
+
+5. **Verify the connector is running:**
+
+    ```bash
+    curl -sf http://localhost:8083/connectors/my-service-outbox-connector/status | jq .
+    ```
+
+    The output should show `"state": "RUNNING"` for both the connector and its task.
+</Steps>
+
+<Aside type="tip">
+If you restart the stack with `make kessel-down` / `make kessel-up`, manually registered connectors are lost.
+To make yours persistent across restarts, add your connector JSON to the `kafka-connect-setup` service
+in `development/full-kessel/docker-compose.yaml` — see the existing `debezium-connector` and
+`rbac-outbox-connector` registrations for the pattern.
+</Aside>
+
+<LinkCard
+  title="Report Resources: The Outbox Pattern"
+  description="Understand the outbox table schema, CDC pipeline, and consumer strategies for reliable data replication."
+  href="/building-with-kessel/how-to/report-resources/#the-outbox-pattern"
+/>
+
+## Tear down
+
+```bash
+make kessel-down
+```
+
+This stops and removes all containers but preserves Docker volumes (database data, Grafana state).
+
+## Troubleshooting
+
+### Port conflicts
+
+The compose file uses fixed host ports. If a port is already in use, `docker compose up` fails with an "address already in use" error. Find the conflicting process:
+
+```bash
+lsof -i :8081
+# or
+ss -tlnp | grep 8081
+```
+
+Stop the conflicting service before restarting.
+
+### Container keeps restarting
+
+Check the logs for the specific service:
+
+```bash
+docker compose -f development/full-kessel/docker-compose.yaml logs inventory-api --tail 50
+```
+
+Common causes:
+- **Database not ready** — usually self-resolves via healthcheck dependencies. Wait 30–60 seconds and check again.
+- **Schema download failure** — network issue reaching GitHub. See [below](#schema-download-fails).
+
+### Schema download fails
+
+The startup script downloads `schema.zed` and RBAC role definitions from GitHub. If this fails (e.g., behind a firewall or VPN), use local files:
+
+```bash
+SCHEMA_ZED_FILE=./my-schema.zed RBAC_CONFIG_FILE=./my-rbac-config.yml make kessel-up
+```
+
+### Podman-specific issues
+
+<Aside type="note">
+If using Podman, ensure the `compose` subcommand is available. Install `docker-compose-plugin` or the standalone `docker-compose` binary. Podman delegates to it automatically. `podman-compose` can struggle with `depends_on` healthcheck conditions.
+</Aside>
+
+### Services not communicating
+
+Verify all containers are on the shared network:
+
+```bash
+docker network inspect kessel --format '{{range .Containers}}{{.Name}} {{end}}'
+```
+
+If the network is missing, `make kessel-down` followed by `make kessel-up` recreates it.
+
+## Next steps
+
+<LinkCard
+  title="Getting Started with RBAC"
+  description="A guided tutorial for setting up Kessel with a custom document management schema."
+  href="/start-here/getting-started/"
+/>
+
+<LinkCard
+  title="Report Resources"
+  description="How to report resources to Kessel using the API or SDKs."
+  href="/building-with-kessel/how-to/report-resources/"
+/>
