@@ -1,0 +1,39 @@
+flowchart LR
+    SP["Service Provider"]
+    INV["Inventory API\n(incl. Relations)"]
+    DB["Inventory\nDatabase"]
+    CDC["CDC\nConnector"]
+    Consumer["Inventory Internal\nConsumer"]
+    RBAC_Consumer["RBAC\nConsumer"]
+    Stream["Message Stream\n(Kafka)"]
+    SpiceDB["Authorization\nBackend\n(SpiceDB)"]
+
+    RBAC["RBAC Service"]
+    RBAC_DB["RBAC\nDatabase"]
+    RBAC_CDC["CDC\nConnector"]
+
+    SP -->|"1. ReportResource\n(gRPC/HTTP)"| INV
+    INV -->|"2. Write resource +\noutbox event"| DB
+    DB -->|"3. Change\ncaptured"| CDC
+    CDC -->|"4. Event\npublished"| Stream
+    Consumer -->|"6. Write\ntuples"| INV
+    Stream -->|"5. Event\nconsumed"| Consumer
+    INV -->|"7. Update\nrelationships"| SpiceDB
+
+    SP -->|"Check\n(gRPC/HTTP)"| INV
+    INV -->|"Evaluate\npermissions"| SpiceDB
+
+    SP -->|"A1. Roles, workspaces,\ngroups (HTTP)"| RBAC
+    RBAC -->|"A2. Write changes +\noutbox event"| RBAC_DB
+    RBAC_DB -->|"A3. Change\ncaptured"| RBAC_CDC
+    RBAC_CDC -->|"A4. Event\npublished"| Stream
+    RBAC_Consumer -->|"A6. Write\ntuples"| INV
+    Stream -->|"A5. Tuple event\nconsumed"| RBAC_Consumer
+
+    classDef api fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef store fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef pipeline fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+
+    class INV,RBAC api
+    class DB,SpiceDB,RBAC_DB store
+    class CDC,Stream,Consumer,RBAC_CDC,RBAC_Consumer pipeline
