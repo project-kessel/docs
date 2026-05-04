@@ -22,9 +22,9 @@ see the [Getting Started with RBAC](/start-here/getting-started/) tutorial. This
 ## Prerequisites
 
 <Steps>
-1. **Docker or Podman** with the `compose` plugin.
+1. **Podman or Docker** with the `compose` plugin.
 
-    The startup script auto-detects Docker or Podman. Ensure the `docker compose` (or `podman compose`) subcommand is available — the standalone `docker-compose` binary is not supported.
+    The startup script auto-detects Podman or Docker. Ensure the `podman compose` (or `docker compose`) subcommand is available — the standalone `docker-compose` binary is not supported.
 
 2. **yq** — used by the startup script to extract RBAC role definitions from the upstream configmap.
 
@@ -73,10 +73,10 @@ run the [integration test](#run-the-integration-test) or interact directly with 
     ```
 
     This command:
-    - Creates a shared `kessel` Docker network (if it doesn't already exist)
+    - Creates a shared `kessel` network (if it doesn't already exist)
     - Downloads the SpiceDB schema from the [stage rbac-config repo](https://github.com/RedHatInsights/rbac-config)
     - Fetches and extracts RBAC role definitions from the same repo using `yq`
-    - Starts all services via Docker Compose with the appropriate profiles
+    - Starts all services via compose with the appropriate profiles
 </Steps>
 
 <Aside type="note">
@@ -84,10 +84,10 @@ The first run downloads several container images and may take a few minutes. Sub
 The Kafka infrastructure typically takes about 60 seconds to become fully ready.
 </Aside>
 
-To check that all containers are running and healthy:
+To check that all containers are running and healthy (Docker users: substitute `docker` for `podman`):
 
 ```bash
-docker compose -f development/full-kessel/docker-compose.yaml \
+podman compose -f development/full-kessel/docker-compose.yaml \
   --profile relations --profile consumer --profile rbac \
   ps --format "table {{.Name}}\t{{.Status}}"
 ```
@@ -293,13 +293,13 @@ in `development/full-kessel/docker-compose.yaml` — see the existing `debezium-
 make kessel-down
 ```
 
-This stops and removes all containers but preserves Docker volumes (database data, Grafana state).
+This stops and removes all containers but preserves volumes (database data, Grafana state).
 
 ## Troubleshooting
 
 ### Port conflicts
 
-The compose file uses fixed host ports. If a port is already in use, `docker compose up` fails with an "address already in use" error. Find the conflicting process:
+The compose file uses fixed host ports. If a port is already in use, `podman compose up` fails with an "address already in use" error. Find the conflicting process:
 
 ```bash
 lsof -i :8081
@@ -314,7 +314,7 @@ Stop the conflicting service before restarting.
 Check the logs for the specific service:
 
 ```bash
-docker compose -f development/full-kessel/docker-compose.yaml logs inventory-api --tail 50
+podman compose -f development/full-kessel/docker-compose.yaml logs inventory-api --tail 50
 ```
 
 Common causes:
@@ -340,7 +340,7 @@ If using Podman, ensure the `compose` subcommand is available. Install `docker-c
 Verify all containers are on the shared network:
 
 ```bash
-docker network inspect kessel --format '{{range .Containers}}{{.Name}} {{end}}'
+podman network inspect kessel --format '{{range .Containers}}{{.Name}} {{end}}'
 ```
 
 If the network is missing, `make kessel-down` followed by `make kessel-up` recreates it.
