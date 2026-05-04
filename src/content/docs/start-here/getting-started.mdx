@@ -186,29 +186,28 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
 <Tabs>
   <TabItem label="Docker compose">
     <Steps>
-    1. **Start Kessel Inventory**. Inventory is the service that stores the resources and their relationships.
+    1. **Clone the Inventory API repository and load your custom schema.**
 
         ```bash
         git clone git@github.com:project-kessel/inventory-api.git
         cd inventory-api
         cp -r ../document data/schema/resources/
-        # preload the schema cache with the document resource
         go run main.go preload-schema
-        make inventory-up-relations-ready
         ```
 
-    2. **Start Relations and SpiceDB**. These form the underlying relationship storage and query engine based on relationship-based access control.
+    2. **Start the full Kessel stack with your custom SpiceDB schema.**
 
         ```bash
-        git clone git@github.com:project-kessel/relations-api.git
-        cd relations-api
-        cp ../schema.zed deploy/schema.zed
-        make relations-api-up
+        SCHEMA_ZED_FILE=../schema.zed make kessel-up
         ```
 
+        This starts all services — Kessel Inventory API, Kessel Relations API, SpiceDB, RBAC, Kafka, and Kafka Connect — in a single command. The `SCHEMA_ZED_FILE` variable tells the startup script to use your compiled schema instead of downloading the default from GitHub.
+
         <Aside type="tip">
-        If you modify your schema, run `make relations-api-down`, then copy the updated `schema.zed` as above and run `make relations-api-up` again.
+        If you modify your schema, run `make kessel-down`, recompile with `ksl`, and run the `make kessel-up` command above again.
         </Aside>
+
+        For more details on the full stack, configuration options, and troubleshooting, see [Run locally with Docker Compose](/building-with-kessel/how-to/run-with-docker/).
     </Steps>
 
   </TabItem>
@@ -398,4 +397,4 @@ We're open to contributions! Check us out on GitHub at [project-kessel](https://
 | **Schema Language**          | Use multiple files and languages for schema, with overlap and duplicated information        | Unify all these into a single schema language—no duplication or repeated information               |
 | **Configuration Method**     | Edit schema and config via files                                                            | Configure everything at runtime via an API                                                         |
 | **RBAC Management**          | Use temporary scripts or the pre-Kessel RBAC v1 API                                         | Use an RBAC management API (v2) to encapsulate access grants and workspace management              |
-| **Services to Run**          | Must run the Relations API separately alongside Inventory and SpiceDB                       | Relations API will be merged with Inventory—just run Inventory and SpiceDB                         |
+| **Services to Run**          | Must run the Kessel Relations API separately alongside Kessel Inventory and SpiceDB                       | Kessel Relations API will be merged with Kessel Inventory — just run Inventory and SpiceDB                         |
