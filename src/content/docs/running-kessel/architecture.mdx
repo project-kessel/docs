@@ -1,8 +1,82 @@
 ---
 title: Architecture
-description: The architecture of Kessel components and how they interact.
+description: Understand how Kessel's components interact and how data flows from resource reporting through authorization checks.
 ---
 
-TODO:
+import { LinkCard } from '@astrojs/starlight/components';
+import ArchDiagram from 'src/assets/architecture.svg';
+import archDiagramUrl from 'src/assets/architecture.svg?url';
 
-- Port internal architecture documentation for public reading
+Kessel is a distributed system that keeps track of resources reported by services, and answers permission questions about those resources. Services talk to a single API (Kessel Inventory API) for both.
+
+When a resource is written, the corresponding permission data is replicated to the authorization backend, either asynchronously (default) or synchronously if the service requests immediate consistency. Kessel offers different consistency modes so services can choose whether to prioritize speed or freshness when checking permissions. See [Consistency model](/building-with-kessel/concepts/consistency/) for details.
+
+## Components
+
+| Component | Role |
+|-----------|------|
+| **Kessel Inventory API** | Central API for reporting resources, checking permissions, and listing accessible resources. This is the primary integration point for services. |
+| **Authorization backend (SpiceDB)** | Graph database that stores relationships between resources, users, and permissions. Evaluates permission checks by traversing the relationship graph. |
+| **Kessel Inventory database** | Stores resource data, reporter representations, and correlation state. |
+| **CDC connector** | Captures database changes via change data capture and publishes events to a message stream. |
+| **Message stream** | Durable event transport between components. Carries resource lifecycle events and relationship tuple updates. |
+| **Kessel Inventory Consumer** | Processes resource events from service provider databases and calls the Inventory API to ingest resources. Enables CDC-based integration where services replicate resources to Kessel without direct API calls. |
+| **RBAC service** | Manages roles, role bindings, workspaces, and group-to-user mappings. Writes relationship changes to the authorization graph via its own replication pipeline. |
+
+## Data flow
+
+Data moves through Kessel in three main flows: reporting resources, replicating authorization data, and checking access.
+
+<a href={archDiagramUrl} target="_blank">Open full diagram</a>
+
+<ArchDiagram/>
+
+### Reporting resources
+
+When a service calls `ReportResource`, the Inventory API writes the resource data to its database. The permission-relevant relationships implied by the resource are then replicated to SpiceDB asynchronously by default, or synchronously if the service requests immediate consistency.
+
+### Checking access
+
+When a service calls `Check`, the Inventory API queries SpiceDB relationships directly to determine whether or not the requested subject has appropriate access.
+
+## Consistency model
+
+When using the default async replication, there is a brief window between a write and that write becoming visible to permission checks. Kessel provides consistency modes that let services choose whether to prioritize speed or freshness, including an immediate mode that eliminates this window entirely.
+
+<LinkCard
+  title="Consistency model"
+  description="Deep dive into consistency modes, tokens, and strategies for choosing the right mode."
+  href="/building-with-kessel/concepts/consistency/"
+/>
+
+## Event-driven integration
+
+Kessel publishes resource lifecycle events (creates, updates, deletes) to a message stream. Downstream systems can subscribe to react to resource changes without polling the Inventory API.
+
+Services can integrate with Kessel either by calling the Inventory API directly or by using CDC-based ingestion, where a connector replicates resource data from the service's own database into the message stream.
+
+## Next steps
+
+<LinkCard
+  title="Getting started"
+  description="Set up Kessel from scratch with a basic document management example."
+  href="/start-here/getting-started/"
+/>
+
+<LinkCard
+  title="Resources and representations"
+  description="Learn how resources are modeled in Kessel and how reporters share resource data."
+  href="/building-with-kessel/concepts/resources-representations/"
+/>
+
+<LinkCard
+  title="Consistency model"
+  description="Understand consistency modes, tokens, and how to choose the right strategy."
+  href="/building-with-kessel/concepts/consistency/"
+/>
+
+<LinkCard
+  title="Monitoring data replication"
+  description="Track CDC pipeline health, consumer lag, and replication metrics."
+  href="/running-kessel/monitoring-kessel/monitoring-data-replication-inventory-api/"
+/>
