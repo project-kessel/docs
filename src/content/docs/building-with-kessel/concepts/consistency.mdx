@@ -13,48 +13,13 @@ This is not a bug or a limitation to work around. It is a deliberate architectur
 
 Understanding this consistency model is essential for building integrations that behave correctly. This document explains how data flows through the system, what consistency guarantees are available, and how to choose the right strategy for your use case.
 
-## The CDC pipeline
+## How data flows
 
-When you call `ReportResource`, the Inventory API writes your resource data and an outbox event within a single database transaction. This transactional outbox pattern guarantees that the event is published if and only if the data is committed -- there is no risk of the database and the event stream diverging.
+When you call `ReportResource`, Kessel writes to the **inventory database** first, then replicates changes asynchronously to the **authorization graph**. This decoupled design allows Kessel to accept resource reports at high throughput without blocking on the authorization backend.
 
-From there, the event flows through a multi-stage pipeline:
+The replication happens through an event-driven pipeline that ensures changes eventually reach the authorization system. Under normal conditions, replication completes in **100-500ms**, but this can vary with load, network conditions, and the number of relationships per resource.
 
-```mermaid
-flowchart TB
-    PG["📊 Inventory Database<br/><br/>Transaction Log (WAL)<br/>Outbox Table"]
-    CDC["🔄 CDC Connector<br/><br/>Captures database changes<br/>Publishes to event stream"]
-    Stream["📨 Event Stream<br/><br/>Durable event storage<br/>Topics: kessel.resources, kessel.tuples"]
-    Consumer["⚙️ Consumer Service<br/><br/>Processes tuple events<br/>Calls Relations API"]
-    AuthGraph["🔐 Authorization Graph<br/><br/>Stores relationships<br/>Returns consistency tokens"]
-    
-    PG -->|"1. Transaction commits<br/>Outbox event written"| CDC
-    CDC -->|"2. Change captured<br/>Event published"| Stream
-    Stream -->|"3. Event consumed"| Consumer
-    Consumer -->|"4. Tuples written<br/>Token returned"| AuthGraph
-    AuthGraph -->|"5. Consistency token"| Consumer
-    Consumer -->|"6. Token stored in ktn column"| PG
-    
-    classDef dbStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
-    classDef pipelineStyle fill:#fff3e0,stroke:#f57c00,stroke-width:3px
-    classDef authStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px
-    
-    class PG dbStyle
-    class CDC,Stream,Consumer pipelineStyle
-    class AuthGraph authStyle
-```
-
-1. **The inventory database** commits the transaction and writes outbox events to the transaction log.
-2. **The CDC connector** captures transaction log changes and routes them to event topics.
-3. **The event stream** durably stores the events for consumption.
-4. **The Consumer** reads tuple events, calculates the required relationship changes, and calls the Relations API to update the authorization graph.
-5. **The authorization backend** applies the relationship tuples and returns a consistency token.
-6. The Consumer writes the consistency token back to the resource's `ktn` column in the inventory database.
-
-Each stage introduces a small amount of latency. Under normal conditions the full pipeline completes in 100-500ms, but this can vary with load, network conditions, and the number of tuples per resource.
-
-<Aside>
-  The pipeline emits **two** outbox events per resource operation: one for the resource lifecycle (`kessel.resources`) and one for relationship tuples (`kessel.tuples`). Only the tuple events flow to the authorization backend. Resource events are available for downstream consumers on separate event topics.
-</Aside>
+This is why there is always a window of time between writing a resource and that write becoming visible to permission checks. Most authorization checks tolerate small amounts of staleness, and the replication window is typically measured in hundreds of milliseconds.
 
 ## Consistency modes
 
@@ -107,42 +72,27 @@ Use this for critical authorization decisions where you need confidence that the
 
 Kessel uses consistency tokens to track replication state. A consistency token is an opaque value that represents a specific point in the authorization backend's transaction log. You can think of it as a logical timestamp for the authorization graph.
 
-The token lifecycle in Kessel works as follows:
+When changes are replicated to the authorization backend, a consistency token is returned and stored with the resource in the inventory database. This token represents the last state successfully replicated.
 
-1. The Consumer writes relationship tuples to the authorization backend.
-2. The authorization backend commits the tuples and returns a consistency token.
-3. The Consumer stores this token in the `ktn` (Kessel Token Notation) column of the `resource` table in the inventory database.
-4. When a `Check` request uses `at_least_as_acknowledged`, the Inventory API reads the `ktn` value for the target resource and passes it to the authorization backend.
-5. The authorization backend ensures the check is evaluated against a state that is at least as recent as the token.
+**For `at_least_as_acknowledged`:** Kessel looks up the stored token for the target resource and ensures the check is evaluated against a state at least as recent as that token.
 
-For `at_least_as_fresh`, the token comes from the caller instead of the database. This is useful when your application holds a token from a previous write and wants to ensure subsequent reads are causally consistent with that write.
+**For `at_least_as_fresh`:** The token comes from the caller instead of the database. This is useful when your application holds a token from a previous write and wants to ensure subsequent reads are causally consistent with that write.
 
 ## Write visibility and the IMMEDIATE mode
 
-By default, `ReportResource` returns as soon as the inventory database transaction commits. The caller does not wait for the CDC pipeline to replicate data to the authorization backend. This means a permission check issued immediately after a report may not yet reflect the change.
+By default, `ReportResource` returns as soon as the inventory database transaction commits. The caller does not wait for replication to the authorization backend. This means a permission check issued immediately after a report may not yet reflect the change.
 
 For scenarios where you need the report and the authorization state to be synchronized before returning to the caller, Kessel supports a **write visibility** option called `IMMEDIATE`.
 
 ### How IMMEDIATE works
 
-1. The Inventory API subscribes to a notification channel before committing the transaction.
-2. The transaction commits and the outbox event flows through the CDC pipeline.
-3. The Consumer processes the event, updates the authorization graph, and sends a notification on the same channel.
-4. The Inventory API receives the notification and unblocks the response to the caller.
+When IMMEDIATE mode is enabled, the write operation waits for the replication pipeline to complete before returning success to the caller. This guarantees that by the time the caller receives a successful response, the authorization graph reflects the reported resource.
 
-This guarantees that by the time the caller receives a successful response, the authorization graph reflects the reported resource.
-
-### Circuit breaker protection
-
-IMMEDIATE mode depends on the Consumer being available and processing events in a timely manner. To prevent requests from hanging indefinitely if the Consumer is down or lagging, a circuit breaker protects this path:
-
-- The breaker trips after **3 consecutive failures** (timeouts or errors).
-- Once tripped, IMMEDIATE requests fail fast rather than waiting.
-- The breaker resets after **60 seconds** and allows requests through again.
+To prevent requests from hanging indefinitely if the replication pipeline is slow or unavailable, IMMEDIATE mode includes circuit breaker protection that fails fast after detecting consecutive timeouts or errors.
 
 ### Performance impact
 
-IMMEDIATE mode adds the full CDC pipeline latency to the request -- typically **100-500ms** on top of the base write latency. The LISTEN/NOTIFY mechanism has a **10-second timeout**; if the consumer doesn't process the event within that window, the circuit breaker trips and the request fails fast. Use IMMEDIATE mode only when your application flow genuinely requires the authorization state to be updated before proceeding.
+IMMEDIATE mode adds the full replication latency to the request -- typically **100-500ms** on top of the base write latency. Use IMMEDIATE mode only when your application flow genuinely requires the authorization state to be updated before proceeding.
 
 <Aside type="caution">
   Do not add artificial `sleep()` delays in your code to wait for replication. Either use IMMEDIATE mode for guaranteed write visibility, or design your UX to handle eventual consistency gracefully (e.g., show a "processing" indicator).
@@ -174,11 +124,11 @@ There are several constraints to be aware of when working with Kessel's consiste
 
 - **Bulk operations do not support `at_least_as_acknowledged`.** The bulk check methods (`CheckBulk`, `CheckForUpdateBulk`, `CheckSelfBulk`) span multiple resources, and looking up a consistency token per resource would be prohibitively expensive. Bulk checks use `minimize_latency` or `at_least_as_fresh`.
 
-- **Multi-resource scenarios require care.** If your operation touches multiple resources, each resource has its own `ktn` token. There is no single token that covers all of them. For cross-resource consistency, use `at_least_as_fresh` with a token that covers the latest write across all resources involved.
+- **Multi-resource scenarios require care.** If your operation touches multiple resources, each resource has its own consistency token. There is no single token that covers all of them. For cross-resource consistency, use `at_least_as_fresh` with a token that covers the latest write across all resources involved.
 
-- **IMMEDIATE mode requires the consumer to be enabled.** The notification mechanism depends on the embedded Consumer running and processing events. If the Consumer is disabled or unreachable, IMMEDIATE mode will trigger the circuit breaker and fail.
+- **IMMEDIATE mode requires the replication pipeline to be operational.** If the replication pipeline is unavailable or slow, IMMEDIATE mode will trigger the circuit breaker and fail fast.
 
-- **Replication lag is not bounded.** Under extreme load or component failure, the CDC pipeline can fall behind. Monitor consumer lag and CDC connector health to detect and respond to these situations. See the monitoring guide for recommended metrics.
+- **Replication lag is not bounded.** Under extreme load or component failure, the replication pipeline can fall behind. Monitor replication metrics to detect and respond to these situations. See the monitoring guide for recommended metrics.
 
 ## Next steps
 
