@@ -37,7 +37,7 @@ When a service calls `ReportResource`, the Inventory API writes the resource dat
 
 ### Checking access
 
-When a service calls `Check`, the Inventory API queries SpiceDB directly. The check is synchronous with the only latency being the graph traversal itself, not the replication pipeline. The result reflects whatever state has been replicated so far. See [Consistency model](/building-with-kessel/concepts/consistency/) for how to control freshness guarantees.
+When a service calls `Check`, the Inventory API queries SpiceDB relationships directly to determine whether or not the requested subject has appropriate access.
 
 ## Consistency model
 
