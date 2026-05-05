@@ -3,29 +3,25 @@ title: Architecture
 description: Understand how Kessel's components interact and how data flows from resource reporting through authorization checks.
 ---
 
-import { Aside, LinkCard } from '@astrojs/starlight/components';
+import { LinkCard } from '@astrojs/starlight/components';
 import ArchDiagram from 'src/assets/architecture.svg';
 import archDiagramUrl from 'src/assets/architecture.svg?url';
 
-Kessel is a distributed system with two primary responsibilities: maintaining an **inventory** of resources reported by services, and providing an **authorization graph** that answers permission questions about those resources. These responsibilities are served by distinct components connected through an event-driven pipeline.
+Kessel is a distributed system that keeps track of resources reported by services, and answers permission questions about those resources. Services talk to a single API (Kessel Inventory API) for both.
 
-The system is **eventually consistent** by design. Resource data is written to the inventory database first, then replicated asynchronously to the authorization backend. This decoupling allows Kessel to accept resource reports at high throughput without blocking on authorization. The replication window is typically measured in hundreds of milliseconds.
+When a resource is written, the corresponding permission data is replicated to the authorization backend, either asynchronously (default) or synchronously if the service requests immediate consistency. Kessel offers different consistency modes so services can choose whether to prioritize speed or freshness when checking permissions. See [Consistency model](/building-with-kessel/concepts/consistency/) for details.
 
 ## Components
 
 | Component | Role |
 |-----------|------|
-| **Kessel Inventory API** | Central API for reporting resources, checking permissions, and listing accessible resources. Embeds the Kessel Relations API for direct authorization graph access. This is the primary integration point for services. |
+| **Kessel Inventory API** | Central API for reporting resources, checking permissions, and listing accessible resources. This is the primary integration point for services. |
 | **Authorization backend (SpiceDB)** | Graph database that stores relationships between resources, users, and permissions. Evaluates permission checks by traversing the relationship graph. |
-| **Kessel Inventory database** | Stores resource data, reporter representations, and correlation state. Uses a transactional outbox pattern to guarantee event delivery. |
+| **Kessel Inventory database** | Stores resource data, reporter representations, and correlation state. |
 | **CDC connector** | Captures database changes via change data capture and publishes events to a message stream. |
 | **Message stream** | Durable event transport between components. Carries resource lifecycle events and relationship tuple updates. |
 | **Kessel Inventory Consumer** | Processes resource events from service provider databases and calls the Inventory API to ingest resources. Enables CDC-based integration where services replicate resources to Kessel without direct API calls. |
-| **RBAC service** | Manages roles, role bindings, workspaces, and group-to-user mappings. Writes relationship tuple changes to the authorization graph via its own CDC pipeline. |
-
-<Aside>
-The Relations API is merging into the Inventory API. As an integrator, you interact with a single service — the Inventory API — for both resource management and authorization.
-</Aside>
+| **RBAC service** | Manages roles, role bindings, workspaces, and group-to-user mappings. Writes relationship changes to the authorization graph via its own replication pipeline. |
 
 ## Data flow
 
@@ -37,29 +33,15 @@ Data moves through Kessel in three main flows: reporting resources, replicating 
 
 ### Reporting resources
 
-When a service calls `ReportResource`, the Inventory API writes the resource data and an outbox event within a single database transaction. This transactional outbox pattern guarantees that the event is published if and only if the resource data is committed — the database and the event stream cannot diverge.
-
-The outbox event contains the relationship tuples implied by the resource's schema (for example, a resource's workspace assignment). These tuples are what the authorization backend needs to answer permission questions.
-
-### Replicating to the authorization graph
-
-After the database transaction commits, a CDC connector captures the change and publishes it to a message stream. A consumer reads the tuple events, calls the Inventory API's Relations endpoints to update the authorization graph, and stores the resulting consistency token back in the inventory database.
-
-The RBAC service follows the same pattern for its own data. When roles, role bindings, or group memberships change, RBAC writes outbox events that flow through a separate CDC pipeline into the authorization graph.
+When a service calls `ReportResource`, the Inventory API writes the resource data to its database. The permission-relevant relationships implied by the resource are then replicated to SpiceDB asynchronously by default, or synchronously if the service requests immediate consistency.
 
 ### Checking access
 
-When a service calls `Check`, the Inventory API queries the authorization backend directly. SpiceDB traverses its relationship graph — following role bindings, group memberships, and workspace hierarchy — to determine whether the requested permission exists.
-
-The `Check` call is synchronous. The only latency involved is the graph traversal itself, not the replication pipeline. However, the result reflects whatever state has been replicated so far. Kessel provides consistency modes to control how fresh the authorization data must be for a given check.
+When a service calls `Check`, the Inventory API queries SpiceDB directly. The check is synchronous with the only latency being the graph traversal itself, not the replication pipeline. The result reflects whatever state has been replicated so far. See [Consistency model](/building-with-kessel/concepts/consistency/) for how to control freshness guarantees.
 
 ## Consistency model
 
-Because resource data and authorization state live in separate stores connected by an asynchronous pipeline, there is always a window between a write and that write becoming visible to permission checks. Kessel provides three consistency modes to let you control the trade-off between latency and freshness:
-
-- **`minimize_latency`** (default) — Serves checks from the nearest replica without waiting. Best for read-heavy paths where brief staleness is acceptable.
-- **`at_least_as_fresh`** — Guarantees the check reflects at least a specific consistency token you provide. Best for causal consistency between operations.
-- **`at_least_as_acknowledged`** — Guarantees the check reflects the last state committed to the inventory database. Best for critical authorization decisions.
+When using the default async replication, there is a brief window between a write and that write becoming visible to permission checks. Kessel provides consistency modes that let services choose whether to prioritize speed or freshness, including an immediate mode that eliminates this window entirely.
 
 <LinkCard
   title="Consistency model"
@@ -69,12 +51,9 @@ Because resource data and authorization state live in separate stores connected 
 
 ## Event-driven integration
 
-The message stream carries two categories of events:
+Kessel publishes resource lifecycle events (creates, updates, deletes) to a message stream. Downstream systems can subscribe to react to resource changes without polling the Inventory API.
 
-- **Resource lifecycle events** — Published when resources are created, updated, or deleted. These events carry the resource data and metadata. Downstream systems can subscribe to react to resource changes without polling the Inventory API.
-- **Relationship tuple events** — Published when the authorization-relevant relationships for a resource change. These are consumed internally by the pipeline that updates the authorization graph, but are also available for auditing or monitoring.
-
-Services can integrate with Kessel either by calling the Inventory API directly or by using CDC-based ingestion, where a connector replicates resource data from the service's own database into the message stream. The Inventory Consumer picks up these events and reports them to the Inventory API on behalf of the service.
+Services can integrate with Kessel either by calling the Inventory API directly or by using CDC-based ingestion, where a connector replicates resource data from the service's own database into the message stream.
 
 ## Next steps
 
