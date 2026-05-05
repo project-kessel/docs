@@ -8,6 +8,7 @@ Detailed domain-specific guidelines are maintained in the `docs/` directory. Rea
 
 | Guideline | Covers |
 |-----------|--------|
+| [docs/writing-guidelines.md](docs/writing-guidelines.md) | Abstraction levels (user vs maintainer docs), terminology mapping (logical vs implementation terms), Diataxis compliance, code example standards, hiding implementation details (SpiceDB → authorization graph) |
 | [docs/api-contracts-guidelines.md](docs/api-contracts-guidelines.md) | API versioning (v1beta2), SDK conventions, ClientBuilder, protobuf message structures, CloudEvents, KSL schema, code example patterns |
 | [docs/security-guidelines.md](docs/security-guidelines.md) | OAuth2 client credentials, TLS configuration, SpiceDB authorization model, KSL permissions, role bindings, Kafka SASL auth |
 | [docs/integration-guidelines.md](docs/integration-guidelines.md) | Kessel architecture (Inventory + Relations APIs), resource reporting patterns, outbox/CDC, Kafka consumers, SDK integration docs |
@@ -93,7 +94,7 @@ public/                   # Static assets (favicon)
 - Use `sidebar.order` in frontmatter to control navigation ordering (lower numbers first).
 
 ### Diataxis model
-This project follows the [Diataxis](https://diataxis.fr/) documentation framework. Know whether you are writing a tutorial, how-to guide, explanation, or reference, and write accordingly. See `src/content/docs/contributing/documentation.mdx` for full principles.
+This project follows the [Diataxis](https://diataxis.fr/) documentation framework. See [docs/writing-guidelines.md](docs/writing-guidelines.md#diataxis-framework-integration) for detailed rules on writing tutorials, how-to guides, explanations, and reference documentation, including appropriate abstraction levels for each type.
 
 ### Current vs. archived content
 - Current docs go under `building-with-kessel/how-to/` or `building-with-kessel/concepts/`.
