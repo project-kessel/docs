@@ -2,7 +2,7 @@
 # Create a role binding that grants a user access to a role for a specific resource
 #
 # Usage: Edit the configuration below.
-# 
+#
 # The script can be copied directly into a terminal or saved as a file.
 
 # ============ CONFIGURATION ============
@@ -25,7 +25,7 @@ echo "  Resource: ${RESOURCE_ID}"
 
 # Create all three relationships in a single call:
 # 1. role_binding -> granted -> role
-# 2. role_binding -> subject -> user  
+# 2. role_binding -> subject -> user
 # 3. workspace -> user_grant -> role_binding
 MESSAGE="{\"tuples\":[
   {\"resource\":{\"id\":\"${BINDING_ID}\",\"type\":{\"name\":\"role_binding\",\"namespace\":\"rbac\"}},\"relation\":\"granted\",\"subject\":{\"subject\":{\"id\":\"${ROLE_NAME}\",\"type\":{\"name\":\"role\",\"namespace\":\"rbac\"}}}},
@@ -35,4 +35,4 @@ MESSAGE="{\"tuples\":[
 
 grpcurl -plaintext -d "${MESSAGE}" \
     "localhost:${RELATIONS_PORT}" \
-    kessel.relations.v1beta2.KesselTupleService.CreateTuples
+    kessel.relations.v1beta1.KesselTupleService.CreateTuples

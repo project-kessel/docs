@@ -158,9 +158,8 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
 
     And finally we configure permissions. Permissions are defined in a KSL schema file.
 
-    <Aside type="caution">
-    This is a temporary solution.
-    We are working on a new schema language that will unify attributes and permissions (relationships) into a single language and fewer files.
+    <Aside type="note">
+    The schema language is actively evolving. Future versions will unify attributes and permissions into a single language with fewer files. The current approach shown here will continue to work.
     </Aside>
 
     <Code code={createFile('drive.ksl', driveSchema)} lang="bash" />
@@ -183,69 +182,30 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
 
 ### Install and run Kessel
 
-<Tabs>
-  <TabItem label="Docker compose">
-    <Steps>
-    1. **Clone the Kessel Inventory API repository and load your custom schema.**
+<Steps>
+1. **Clone the Kessel Inventory API repository and load your custom schema.**
 
-        ```bash
-        git clone git@github.com:project-kessel/inventory-api.git
-        cd inventory-api
-        cp -r ../document data/schema/resources/
-        go run main.go preload-schema
-        ```
+    ```bash
+    git clone git@github.com:project-kessel/inventory-api.git
+    cd inventory-api
+    cp -r ../document data/schema/resources/
+    go run main.go preload-schema
+    ```
 
-    2. **Start the full Kessel stack with your custom SpiceDB schema.**
+2. **Start the full Kessel stack with your custom SpiceDB schema.**
 
-        ```bash
-        SCHEMA_ZED_FILE=../schema.zed make kessel-up
-        ```
+    ```bash
+    SCHEMA_ZED_FILE=../schema.zed make kessel-up
+    ```
 
-        This starts all services in a single command. The `SCHEMA_ZED_FILE` variable tells the startup script to use your compiled schema instead of downloading the default from GitHub.
+    This starts all services in a single command. The `SCHEMA_ZED_FILE` variable tells the startup script to use your compiled schema instead of downloading the default from GitHub.
 
-        <Aside type="tip">
-        If you modify your schema, run `make kessel-down`, recompile with `ksl`, and run the `make kessel-up` command above again.
-        </Aside>
-
-        For more details on the full stack, configuration options, and troubleshooting, see [Run locally with Docker Compose](/building-with-kessel/how-to/run-with-docker/).
-    </Steps>
-
-  </TabItem>
-
-  <TabItem label="bonfire">
-    <Aside title="Red Hatter?">
-    For information on ephemeral cluster access and setup, see the [bonfire documentation](https://github.com/RedHatInsights/bonfire).
+    <Aside type="tip">
+    If you modify your schema, run `make kessel-down`, recompile with `ksl`, and run the `make kessel-up` command above again.
     </Aside>
-    <Steps>
-    1. Start Kessel Inventory
 
-        ```bash
-        bonfire deploy kessel -C kessel-inventory
-        ```
-
-    2. Load Schema
-
-        ```bash
-        # create configmap from the schema.zed file we created earlier
-        oc create configmap spicedb-schema --dry-run=client --from-file=schema.zed -o yaml > spicedb-schema-configmap.yaml
-        # apply the configmap
-        oc apply -f spicedb-schema-configmap.yaml
-        ```
-
-    3. Fetch the API URL and Credentials
-
-        ```bash
-        bonfire namespace describe
-        ```
-    4. Enable port forwarding to Kessel Inventory
-
-        ```bash
-        oc port-forward svc/kessel-inventory-api <your local port>:9000 -n <Name of current project from step 3>
-        ```
-
-    </Steps>
-  </TabItem>
-</Tabs>
+    For more details on the full stack, configuration options, and troubleshooting, see [Run locally with Docker Compose](/building-with-kessel/how-to/run-with-docker/).
+</Steps>
 
 ### Set up access with RBAC
 
@@ -291,12 +251,6 @@ We'll start by setting up a client you can use to interact with Kessel. We have 
 1. **Install dependencies.**
 
     <Tabs syncKey="language">
-      <TabItem label="curl">
-        No SDK installation required. Just ensure `curl` is available:
-        ```bash
-        curl --version
-        ```
-      </TabItem>
       <TabItem label="grpcurl">
         If you followed along with [Prerequisites](#prerequisites), you're good to go.
       </TabItem>
