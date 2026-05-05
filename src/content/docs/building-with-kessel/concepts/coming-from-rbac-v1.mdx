@@ -1,5 +1,337 @@
 ---
 title: Coming from RBAC v1
+description: Understand the conceptual differences between legacy RBAC (v1) and Kessel-based RBAC (v2), including workspace scoping, permission inheritance, and the authorization graph model.
 sidebar:
   order: 90
 ---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+If you're familiar with Red Hat Insights RBAC v1 (the legacy RBAC system), Kessel-based RBAC v2 introduces several new concepts and changes how authorization works. This document explains the key conceptual shifts to help you understand how familiar RBAC v1 patterns map to the new model.
+
+<Aside type="note">
+  This is a conceptual overview, not a migration guide. For step-by-step migration instructions, see [Migrate from RBAC v1 to RBAC v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/).
+</Aside>
+
+## Core Conceptual Shifts
+
+RBAC v2 introduces four fundamental changes to how authorization works:
+
+**1. Workspace-Based Scoping** — Permissions are no longer just organization-wide. They can be scoped to specific workspaces (organizational units), with a hierarchy that enables permission inheritance.
+
+**2. Native Wildcard Permissions** — Wildcard permissions (`config_manager:*:read`) are evaluated server-side by Kessel, not by your application code.
+
+**3. Graph-Based Authorization** — Permission checks traverse a relationship graph rather than simple permission list matching. This enables complex patterns like "users who can view a parent workspace can view child workspaces."
+
+**4. Everything is a Resource** — Users, groups, workspaces, roles, and your application's resources (hosts, policies, etc.) are all modeled uniformly as resources with relationships.
+
+The rest of this document explains each shift in detail.
+
+## Permissions: Format and Transformation
+
+### Permission Format (Transformed for Kessel)
+
+**RBAC v1 and v2 both use the three-part format:**
+
+```
+application:resource_type:operation
+```
+
+**Examples:**
+- `config_manager:profile:read`
+- `patch:system:write`
+- `advisor:recommendation_results:*`
+
+**However, in RBAC v2, these are transformed when written to Kessel:**
+
+1. **Colons become underscores**: `config_manager:profile:read` → `config_manager_profile_read`
+2. **Operation names change** to avoid v1/v2 collision:
+   - `read` → `view`
+   - `write` → `edit`
+3. **Final permission name**: `config_manager_profile_view`
+
+**What this means:**
+
+When you check permissions with Kessel, you use the transformed name (`config_manager_profile_view`), not the RBAC v1 format. The schema handles this transformation automatically using the `@rbac.add_v1_based_permission()` extension.
+
+<Aside>
+  The naming change (`read` → `view`, `write` → `edit`) distinguishes v2 permissions from legacy v1 permissions and prevents collisions in the authorization schema.
+</Aside>
+
+### Wildcard Permissions (Query for Specific Permission Only)
+
+**RBAC v1:**
+
+In the legacy system, wildcard permissions like `config_manager:*:read` were stored as strings. Your application code had to test all possible wildcard variations:
+
+```python
+# RBAC v1: Client-side wildcard logic
+def has_permission(user_permissions, required_permission):
+    # Must check exact match AND all wildcard variations
+    for perm in user_permissions:
+        if matches_wildcard(perm, required_permission):
+            return True
+    return False
+```
+
+To check if a user had `config_manager:profile:read`, you had to test all variations:
+- `config_manager:profile:read` (exact match)
+- `config_manager:profile:*` (wildcard operation)
+- `config_manager:*:read` (wildcard resource type)
+- `config_manager:*:*` (wildcard both)
+- `*:*:*` (global wildcard)
+
+Your code had to implement this matching logic.
+
+**RBAC v2:**
+
+You only query for the specific permission you need (using the transformed v2 name). Kessel handles all wildcard matching server-side.
+
+```python
+# RBAC v2: Just check the specific permission (transformed name)
+result = kessel_client.check(
+    resource=workspace,
+    permission="config_manager_profile_view",  # Transformed: read → view
+    subject=user
+)
+```
+
+Kessel automatically checks all applicable wildcard permissions (`config_manager_profile_all`, `config_manager_all_view`, etc.) and returns the result.
+
+**What this means:**
+
+- **Services query for specific permissions only** — No need to test all wildcard variations in your code
+- **Consistent behavior** — All applications get the same wildcard semantics
+- **Simpler code** — One check instead of multiple wildcard tests
+
+## Workspace Hierarchy and Scoping
+
+This is the biggest conceptual shift in RBAC v2.
+
+### RBAC v1: Organization-Wide or Inventory Groups
+
+**RBAC v1** had two scoping models:
+
+**Organization-wide permissions:**
+- Permissions applied to the entire organization
+- Example: A user with `config_manager:profile:read` could read all profiles in the org
+
+**Inventory group filtering (host-specific):**
+- Some permissions used inventory groups (RBAC v1 inventory groups, not RBAC v2 workspaces) to filter access to hosts
+- Example: `inventory:hosts:read` with group filter `["prod-servers"]`
+- Application code had to query RBAC for the user's allowed groups and filter data accordingly
+
+### RBAC v2: Workspace Hierarchy
+
+**RBAC v2** introduces **workspaces** — organizational units arranged in a tree structure:
+
+```mermaid
+graph TD
+    Root["ROOT workspace<br/>(organization)"]
+    
+    Root --> Engineering["Engineering workspace"]
+    Root --> Operations["Operations workspace"]
+    
+    Engineering --> Frontend["Frontend Team workspace"]
+    Engineering --> Backend["Backend Team workspace"]
+    
+    Operations --> Production["Production workspace"]
+    Operations --> Staging["Staging workspace"]
+```
+
+**Key concepts:**
+
+**Workspace assignment:**
+- Resources (hosts, policies, documents, etc.) are assigned to a workspace
+- This is done by setting `workspace_id` in the resource representation
+
+**Role bindings on workspaces:**
+- Instead of granting permissions organization-wide, you grant roles on specific workspaces
+- Example: Grant "Inventory Viewer" role to Alice on the "Engineering" workspace
+
+**Permission inheritance:**
+- Role bindings on parent workspaces grant access to child workspaces
+- If Alice has "Inventory Viewer" on "Engineering", she can view resources in "Frontend Team" and "Backend Team"
+- This happens automatically — no special handling needed
+
+**What this means:**
+
+- **Scoped access by default** — Most permissions are workspace-scoped
+- **Hierarchical delegation** — Admins at higher levels automatically have access to lower levels
+- **Simpler group management** — Workspaces replace complex inventory group filters
+
+<Aside>
+  In RBAC v1, you filtered hosts by inventory groups in your application code. In RBAC v2, you query Kessel for the workspaces a user can access, then filter resources by those workspace assignments.
+</Aside>
+
+<Aside type="caution" title="Explicit workspace assignment in RBAC v2">
+  **RBAC v1** had implicit inventory group membership depending on how groups were returned — you might be part of groups you didn't explicitly got on the returned response.
+  
+  **RBAC v2** returns only explicit workspaces where you have permissions. When you query Kessel for accessible workspaces, you get exactly the workspaces where you have role bindings (either directly or through group membership). There are no implicit workspace assignments.
+</Aside>
+
+## Authorization Model: Checks vs. Graph Traversal
+
+### RBAC v1: Simple Permission Matching
+
+**RBAC v1** used straightforward permission checking:
+
+1. Fetch user's permissions from RBAC service
+2. Check if the required permission is in the list (handling wildcards)
+3. For inventory groups, additionally check if the resource's group is allowed
+
+```python
+# RBAC v1 pattern
+user_permissions = rbac_client.get_user_permissions(user_id)
+if required_permission in user_permissions:
+    allow_access()
+```
+
+### RBAC v2: Relationship Graph Traversal
+
+**RBAC v2** models authorization as a graph of relationships:
+
+```mermaid
+graph LR
+    Alice[Alice] -->|member of| Group[Engineering Group]
+    Group -->|subject of| Binding[Role Binding]
+    Binding -->|grants| Role[Inventory Viewer]
+    Binding -->|on| Workspace[Engineering Workspace]
+    Resource[Host: server-123] -->|assigned to| Workspace
+    
+    style Alice fill:#e1f5ff
+    style Resource fill:#fff4e1
+```
+
+When you call `Check` to ask "Can Alice view this host?", Kessel:
+1. Finds the host's workspace assignment
+2. Walks up the workspace hierarchy
+3. Checks if Alice (or her groups) has a role binding at any level
+4. Verifies the role includes the requested permission
+5. Returns allowed/denied
+
+**What this means:**
+
+- **No permission lists in responses** — You don't fetch a user's permissions; you ask "can they do this specific thing?"
+- **Context-aware** — The same user might have different permissions on different workspaces
+- **Complex patterns supported** — Inheritance, group membership, and role composition happen automatically
+
+## Role Bindings: Where Permissions Are Granted
+
+### RBAC v1: Roles Assigned to Users/Groups
+
+**RBAC v1:**
+
+Roles were assigned directly to users or groups at the organization level:
+- Create a role with permissions
+- Assign the role to a user or group
+- The user gets those permissions organization-wide (unless filtered by inventory groups)
+
+### RBAC v2: Role Bindings on Resources
+
+**RBAC v2:**
+
+Roles are bound to subjects (users/groups) **on specific resources** (workspaces or tenants):
+
+**Role binding structure:**
+- **Role** — The role being granted (e.g., "Inventory Viewer")
+- **Subject** — Who gets the role (a group or user)
+- **Resource** — Where the role applies (a workspace or tenant)
+
+**Example:**
+
+"Grant the Inventory Viewer role to the Engineering Group on the Engineering workspace"
+
+```json
+{
+  "role": "inventory-viewer-role-uuid",
+  "subject": {
+    "type": "group",
+    "id": "engineering-group-uuid"
+  },
+  "resource": {
+    "type": "workspace",
+    "id": "engineering-workspace-uuid"
+  }
+}
+```
+
+**What this means:**
+
+- **Scoped grants** — Roles apply to specific workspaces, not the entire organization
+- **Multiple bindings** — The same role can be granted to different groups on different workspaces
+- **Workspace inheritance** — A binding on a parent workspace grants access to child workspaces
+
+## What Stays the Same
+
+Not everything changed. These concepts are familiar from RBAC v1:
+
+**Groups:**
+- Groups are still collections of users
+- Users can belong to multiple groups
+- Role bindings target groups (recommended) or individual users
+
+**Roles:**
+- Roles are still named collections of permissions
+- Custom roles can be created by organization admins
+- Seeded roles are provided by the system
+
+**Permissions:**
+- Still use the `application:resource_type:operation` format
+- Wildcards are supported (but evaluated differently)
+
+**Permission checks:**
+- You still check "does this user have this permission?" before allowing an action
+- The mechanics changed (graph traversal vs. list matching) but the concept is the same
+
+## Common Migration Patterns
+
+When migrating from RBAC v1 to v2, most use cases fall into these patterns:
+
+**Default workspace pattern:**
+- Resources that aren't explicitly workspace-aware yet
+- Assign all resources to the organization's default workspace
+- Role bindings on default workspace grant access organization-wide (like RBAC v1 behavior)
+
+**Root workspace pattern:**
+- Organization-wide settings or permissions
+- Check permissions on the ROOT workspace
+- Maintains organization-level access control
+
+**Workspace-level list pattern:**
+- Resources that are workspace-aware (especially host-centric assets)
+- Query Kessel for workspaces the user can access
+- Filter application data by those workspace IDs
+- Replaces inventory group filtering
+
+**Organization-level pattern:**
+- Permissions that truly apply organization-wide and should never be workspace-scoped
+- Bound to the tenant resource, not workspaces
+
+See the [migration guide](/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) for detailed implementation examples.
+
+## Next Steps
+
+<LinkCard
+  title="Migrate from RBAC v1 to RBAC v2"
+  description="Step-by-step guide for migrating from legacy RBAC to Kessel-based RBAC."
+  href="/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/"
+/>
+
+<LinkCard
+  title="Role-based access control"
+  description="Understand the RBAC v2 model in depth: roles, permissions, role bindings, and groups."
+  href="/docs/building-with-kessel/concepts/rbac/"
+/>
+
+<LinkCard
+  title="Identity and multi-tenancy"
+  description="Learn about workspaces, workspace hierarchy, and tenant isolation."
+  href="/docs/building-with-kessel/concepts/tenancy/"
+/>
+
+<LinkCard
+  title="Relationships and permissions"
+  description="Understand the authorization graph and how permission checks work."
+  href="/docs/building-with-kessel/concepts/relationships-permissions/"
+/>
