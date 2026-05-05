@@ -1,5 +1,216 @@
 ---
 title: Schema and extensibility
+description: Understand how Kessel uses JSON Schema to define resource types, representations, and relationships without hard-coding resource models.
 sidebar:
   order: 50
 ---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+<Aside type="caution">
+  **Schema implementation is evolving.** Kessel is moving toward a unified schema model that will cover relations, inventory data, and RBAC permissions. This document describes current concepts; specific file structures, configuration details, and the extent of schema-driven behavior may change.
+</Aside>
+
+Kessel is designed to be **extensible**. The system does not hard-code specific resource types like "host" or "cluster" into its implementation. Instead, resource types are defined declaratively using [JSON Schema](https://json-schema.org/), and Kessel's APIs operate generically over any configured resource type. This schema-driven approach enables services to define new resource types, customize representations, and evolve their data models without modifying Kessel's core code.
+
+This document explains the meta-model, how schemas define resource types, and how schema drives validation and relationships.
+
+## The Meta-Model
+
+Kessel's architecture is built on a **meta-model** — a model of models. Instead of knowing about specific resource types (hosts, clusters, users), Kessel knows about the structure that all resource types share:
+
+- **Type name** — A string identifying the resource category
+- **Representations** — Different services' perspectives on the resource
+- **Reporters** — Which services can report this resource type
+- **Correlation keys** — Attributes used to link representations
+- **Relationships** — Connections to other resource types
+
+When you report a resource, Kessel does not have built-in logic for "this is a host, so validate these specific fields." Instead, Kessel looks up the resource type's schema and validates the data against the schema's rules. This generic approach means **adding a new resource type is a configuration change, not a code change**.
+
+**Example:**
+
+To add a new resource type called `database_instance`:
+1. Write a JSON Schema defining the resource structure
+2. Register the schema with Kessel
+3. Start reporting resources of type `database_instance`
+
+No changes to Kessel's code or deployment are required.
+
+## JSON Schema Basics
+
+Kessel uses [JSON Schema (Draft 07)](http://json-schema.org/draft-07/schema) to define resource types and representations. JSON Schema is a standard vocabulary for describing JSON data structures, including:
+
+- **Types** — String, number, boolean, object, array
+- **Validation rules** — Required fields, formats, ranges, patterns
+- **Nested structures** — Objects within objects, arrays of objects
+- **Metadata** — Descriptions, titles, examples
+
+**Simple JSON Schema example:**
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "hostname": {
+      "type": "string",
+      "description": "Fully qualified domain name",
+      "pattern": "^[a-z0-9.-]+$"
+    },
+    "cpu_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of CPU cores"
+    },
+    "memory_gb": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total system memory in gigabytes"
+    }
+  },
+  "required": ["hostname"]
+}
+```
+
+This schema defines an object with three properties: `hostname` (required string), `cpu_count` (optional integer ≥1), and `memory_gb` (optional number ≥0).
+
+When a service calls `ReportResource` with a representation, Kessel validates the provided JSON against the appropriate schema. If the data does not match the schema (missing required field, wrong type, invalid format), the request is rejected with a validation error.
+
+## Resource Type Configuration
+
+A resource type configuration in Kessel specifies:
+
+### Type Name
+
+The unique identifier for the resource type. Convention is lowercase with underscores:
+- `host`
+- `k8s_cluster`
+- `k8s_policy`
+- `workspace`
+- `user`
+
+Type names must be unique within Kessel and are used in `ResourceReference` messages throughout the API.
+
+### Valid Reporters
+
+Each resource type can specify which reporters (services) are authorized to report that resource type. This ensures that only trusted services can create or update specific resource types.
+
+### Representation Schemas
+
+Resource types define schemas for:
+- **Common representation** — Shared attributes across all reporters
+- **Reporter-specific representations** — Each reporter's unique perspective on the resource
+
+These schemas are stored as JSON Schema files and loaded by Kessel at startup.
+
+## How Schema Drives Behavior
+
+### Validation
+
+When a service calls `ReportResource`, Kessel:
+1. Identifies the resource type from the request
+2. Looks up the schema for the specified representation type and reporter
+3. Validates the provided JSON data against the schema
+4. Rejects the request if validation fails
+
+**Example validation error:**
+```json
+{
+  "error": "Validation failed",
+  "details": [
+    {
+      "field": "cpu_count",
+      "message": "must be an integer, got string"
+    },
+    {
+      "field": "hostname",
+      "message": "required field missing"
+    }
+  ]
+}
+```
+
+This **fail-fast** approach prevents malformed data from entering the system and ensures data quality.
+
+### Automatic Workspace Relationship Creation
+
+<Aside type="note">
+  **Current implementation:** The `workspace_id` field is currently **hardcoded** in Kessel's logic. The future intention is to make relationship creation fully **schema-driven**, where the schema itself defines which fields trigger relationship creation and what type of relationships they create.
+</Aside>
+
+When a resource is reported with a `workspace_id` field in its common representation, Kessel automatically creates a workspace relationship tuple in the authorization graph.
+
+**Example workspace field in common representation schema:**
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string"
+    }
+  },
+  "required": ["workspace_id"]
+}
+```
+
+When Kessel processes a resource report with `workspace_id: "abc-123"`:
+1. It validates the field against the JSON Schema
+2. It extracts the `workspace_id` value from the common representation
+3. It automatically creates a workspace relationship in the authorization graph:
+   ```
+   host:server-456#workspace@workspace:abc-123
+   ```
+
+Currently, the field is identified by **hardcoded naming convention** (`workspace_id`). The workspace relationship is created automatically as part of the resource report. In the future, the mechanism will become more flexible and schema-driven.
+
+## Extensibility in Practice
+
+### Adding a New Resource Type
+
+To define a new resource type, you provide:
+
+1. **Resource type definition** — Type name and authorized reporters
+2. **JSON Schemas** — Validation rules for common and reporter-specific representations
+3. **Register with Kessel** — Configuration is loaded at startup
+
+Once configured, you can immediately start reporting resources of that type using `ReportResource`. No changes to Kessel's source code are required — the system operates generically over any configured resource type.
+
+### Multi-Reporter Resources
+
+The schema-driven model is designed to support multiple reporters for the same resource type. Each reporter:
+- Provides its own representation schema
+- Reports independently without coordinating with other reporters
+
+<Aside type="note">
+  **Correlation is not yet implemented.** Currently, each reporter's representation creates a separate resource in Kessel. The future intention is to link multiple representations into a single resource identity through correlation keys.
+</Aside>
+
+**Example: `k8s_cluster` resource type**
+
+Different services can define schemas for the same resource type:
+- **Common representation**: Cluster name, cloud provider, region
+- **OpenShift Console reporter**: Console URL, installed operators
+- **Cost Management reporter**: Monthly cost, resource quotas
+- **Security reporter**: Compliance status, vulnerabilities
+
+When correlation is implemented, these representations will be linked and appear as a single `k8s_cluster` resource in queries.
+
+## Next Steps
+
+<LinkCard
+  title="Resources and representations"
+  description="Understand how resources, representations, and correlation work in Kessel."
+  href="/docs/building-with-kessel/concepts/resources-representations/"
+/>
+
+<LinkCard
+  title="Relationships and permissions"
+  description="Learn how schemas interact with the authorization graph and relationship rules."
+  href="/docs/building-with-kessel/concepts/relationships-permissions/"
+/>
+
+<LinkCard
+  title="Report resources to inventory"
+  description="Step-by-step guide to reporting resources with schema validation."
+  href="/docs/building-with-kessel/how-to/report-resources/"
+/>
