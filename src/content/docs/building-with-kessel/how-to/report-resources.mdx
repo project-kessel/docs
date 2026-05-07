@@ -59,12 +59,15 @@ flowchart TD
 | **Write visibility** | Eventual (default) | Immediate | Eventual | Eventual |
 | **Atomicity guarantee** | Caller's responsibility | Caller's responsibility | Caller's responsibility | Built-in (single DB transaction) |
 | **Dual-write risk** | Yes, if not handled | Yes, if not handled | Yes, if not handled | None |
+| **Ordering and delivery** | Your app must handle both | Your app must handle both | Handled by Kafka | Handled by Kafka |
+| **Idempotency** | Your app must handle | Your app must handle | `transaction_id` covers Kessel API calls; additional consumer logic is your responsibility | `transaction_id` covers Kessel API calls; additional consumer logic is your responsibility |
+| **Retry handling** | Your app must implement retries and persist failed requests | Your app must implement retries and persist failed requests | Consumer loop handles retries; Kafka retains uncommitted messages | Consumer loop handles retries; Kafka retains uncommitted messages |
 | **Infrastructure** | None beyond Kessel | None beyond Kessel | Kafka | Kafka + Debezium |
-| **Consistency modes** | All modes supported | All modes, plus guaranteed write visibility | `minimize_latency`, `at_least_as_fresh` | `minimize_latency`, `at_least_as_fresh` |
+| **Consistency modes** | All modes supported | All modes, plus guaranteed write visibility | All modes supported | All modes supported |
 | **Best for** | Simple, low-volume integrations | Flows requiring read-after-write | Apps with existing Kafka infrastructure | High-volume or failure-sensitive apps |
 
 <Aside type="tip">
-  If you are unsure, start with the **API/SDK**. It is the simplest path, supports all [consistency modes](/building-with-kessel/concepts/consistency/#consistency-modes), and can use IMMEDIATE mode if you later need stronger write visibility. Move to async messaging only when your application has specific requirements around decoupling, fault tolerance, or throughput that direct API calls cannot meet.
+  If you are unsure, start with the **API/SDK**. It is the simplest path, supports all [consistency modes](/building-with-kessel/concepts/consistency/#consistency-modes), and can use IMMEDIATE mode if you later need stronger write visibility. Move to async messaging only when your application has specific requirements around decoupling, fault tolerance, or throughput that direct API calls cannot meet. If you choose an async approach, see [Kafka Consumer Strategies](#kafka-consumer-strategies) for implementation guidance on ordering, delivery, retries, and rebalance handling.
 </Aside>
 
 ## Reporting via API/SDK
