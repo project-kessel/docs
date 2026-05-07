@@ -19,11 +19,9 @@ In Kessel, a **resource** is any addressable entity that can be modeled, queried
 
 **Examples:**
 - `user:alice@redhat.com` — A user identity
-- `group:engineering` — A group of users
 - `workspace:prod-eng` — A workspace for organizing resources
 - `doc:project-proposal` — A document
 - `k8s_cluster:openshift-prod` — A Kubernetes cluster
-- `role:inventory-viewer` — A role granting permissions
 
 The key insight is that Kessel does not distinguish between "data resources" (like documents) and "identity resources" (like users) at the model level. They are all resources with types, identifiers, attributes, and relationships to other resources.
 
@@ -34,16 +32,13 @@ A **resource type** defines the category of a resource. Resource types are confi
 - Valid **representations** (different services' perspectives on the resource)
 - Valid **reporters** (which services can report this resource type)
 - **Correlation keys** (attributes used to link representations) — *future capability*
-- **Relationships** (connections to other resource types)
+- **Relationships** (connections to other resource types) — *future capability*
 
 **Example resource types:**
 - `doc` — Document
 - `k8s_cluster` — Kubernetes cluster
-- `k8s_policy` — Kubernetes policy
 - `user` — User identity
 - `group` — Group of principals
-- `workspace` — Workspace for multi-tenancy
-- `role` — Role with permissions
 
 Resource types are part of Kessel's **meta-model** approach — the system does not hard-code specific resource types in its implementation. Instead, types are defined declaratively via schema, and Kessel's APIs operate generically over any configured resource type.
 
