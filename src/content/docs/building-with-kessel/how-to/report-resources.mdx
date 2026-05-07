@@ -28,6 +28,45 @@ There are two main approaches, each with different trade-offs:
 - Only provides eventual consistency
 - May require additional infrastructure
 
+### Choosing an approach
+
+Your reporting strategy determines what [consistency guarantees](/building-with-kessel/concepts/consistency/) are available to your application. Direct API calls support all consistency modes, including read-after-write visibility. Async approaches provide eventual consistency, meaning there is no guaranteed upper bound on how long replication to the authorization backend takes, but generally its fractions of a second. Use this flowchart to determine which strategy fits your application.
+
+```mermaid
+flowchart TD
+    START(["How should I report<br/>resources to Kessel?"])
+    Q1{"Do you need permission checks<br/>to reflect writes immediately?"}
+    Q2{"Can your app guarantee<br/>atomicity, delivery, and ordering<br/>between DB writes and API calls?"}
+    Q3{"Can your app atomically<br/>publish events and write<br/>to its database?"}
+
+    API_IMM["✅ <strong>API/SDK + IMMEDIATE mode</strong><br/>Write visibility before response"]
+    API["✅ <strong>API/SDK</strong><br/>Simplest integration path"]
+    DIRECT["✅ <strong>Direct Publishing</strong><br/>Publish to Kessel-owned Kafka topic"]
+    OUTBOX["✅ <strong>Outbox Pattern + CDC</strong><br/>Transactional outbox with Debezium"]
+
+    START --> Q1
+    Q1 -- "Yes" --> API_IMM
+    Q1 -- "No, eventual consistency is fine" --> Q2
+    Q2 -- "Yes" --> API
+    Q2 -- "No" --> Q3
+    Q3 -- "Yes" --> DIRECT
+    Q3 -- "No" --> OUTBOX
+```
+
+| | API/SDK | API/SDK + IMMEDIATE | Direct Publishing | Outbox + CDC |
+|---|---|---|---|---|
+| **Complexity** | Low | Low | Medium | Higher |
+| **Write visibility** | Eventual (default) | Immediate | Eventual | Eventual |
+| **Atomicity guarantee** | Caller's responsibility | Caller's responsibility | Caller's responsibility | Built-in (single DB transaction) |
+| **Dual-write risk** | Yes, if not handled | Yes, if not handled | Yes, if not handled | None |
+| **Infrastructure** | None beyond Kessel | None beyond Kessel | Kafka | Kafka + Debezium |
+| **Consistency modes** | All modes supported | All modes, plus guaranteed write visibility | `minimize_latency`, `at_least_as_fresh` | `minimize_latency`, `at_least_as_fresh` |
+| **Best for** | Simple, low-volume integrations | Flows requiring read-after-write | Apps with existing Kafka infrastructure | High-volume or failure-sensitive apps |
+
+<Aside type="tip">
+  If you are unsure, start with the **API/SDK**. It is the simplest path, supports all [consistency modes](/building-with-kessel/concepts/consistency/#consistency-modes), and can use IMMEDIATE mode if you later need stronger write visibility. Move to async messaging only when your application has specific requirements around decoupling, fault tolerance, or throughput that direct API calls cannot meet.
+</Aside>
+
 ## Reporting via API/SDK
 
 Service providers can report resources directly to Kessel using gRPC API calls or one of the available SDKs for [Go](https://github.com/project-kessel/kessel-sdk-go), [Python](https://github.com/project-kessel/kessel-sdk-py), [Node.js](https://github.com/project-kessel/kessel-sdk-node), [Ruby](https://github.com/project-kessel/kessel-sdk-ruby), or [Java](https://github.com/project-kessel/kessel-sdk-java). The API schema is available in the [Buf Schema Registry](https://buf.build/project-kessel), with the primary endpoint being [`ReportResourceRequest`](https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.ReportResourceRequest).
