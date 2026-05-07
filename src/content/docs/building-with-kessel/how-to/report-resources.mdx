@@ -99,9 +99,9 @@ This ensures both the customer record and the outbox event are created atomicall
 
 ### Transaction IDs and Idempotency
 
-The Inventory API supports a `transaction_id` field on `ReportResourceRequest` (via `RepresentationMetadata.transaction_id`) that enables idempotent processing. If a request arrives with a `transaction_id` that has already been processed, the API skips it silently.
+The Inventory API supports a `transaction_id` field on `ReportResourceRequest` (via `ResourceRepresentations, under RepresentationMetadata.transaction_id`) that enables idempotent processing. If a request arrives with a `transaction_id` that has already been processed, the API skips it silently.
 
-For outbox-based integrations, include the `transaction_id` in your outbox event's `payload` field, since the payload mirrors the API request body.
+For outbox-based integrations, include the `transaction_id` in your outbox event's `payload` field under RepresentationMetadata, since the payload mirrors the API request body. Review the [protobuf](https://buf.build/project-kessel/inventory-api/docs/main%3Akessel.inventory.v1beta2#kessel.inventory.v1beta2.RepresentationMetadata) for more details.
 
 ### Pruning the Outbox
 
@@ -141,7 +141,7 @@ Interleaved database writes can lead to [write skew issues](https://www.cockroac
 
 ## Immediate Write Visibility with Asynchronous Messaging
 
-If you need immediate visibility of data changes but are using asynchronous event processing, consider using Postgres [LISTEN](https://www.postgresql.org/docs/current/sql-listen.html) and [NOTIFY](https://www.postgresql.org/docs/current/sql-notify.html). This lets your request handler wait for a notification about the outcome of event consumption (e.g. replication to Kessel) before returning to the client.
+If you need immediate visibility of data changes but are using asynchronous event processing, consider using Postgres [LISTEN](https://www.postgresql.org/docs/current/sql-listen.html) and [NOTIFY](https://www.postgresql.org/docs/current/sql-notify.html) in your application's database. This lets your request handler wait for a notification about the outcome of event consumption (e.g. replication to Kessel) before returning to the client. Note, this is not a Kessel feature, but a pattern you can implement in your own service.
 
 ### How it works
 
