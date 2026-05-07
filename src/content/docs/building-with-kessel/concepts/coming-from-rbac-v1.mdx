@@ -19,7 +19,7 @@ RBAC v2 introduces four fundamental changes to how authorization works:
 
 **1. Workspace-Based Scoping** — Permissions are no longer just organization-wide. They can be scoped to specific workspaces (organizational units), with a hierarchy that enables permission inheritance.
 
-**2. Native Wildcard Permissions** — Wildcard permissions (`config_manager:*:read`) are evaluated server-side by Kessel, not by your application code.
+**2. Wildcard Permissions** — Wildcard permissions (`config_manager:*:read`) are evaluated server-side by Kessel, not by your application code.
 
 **3. Graph-Based Authorization** — Permission checks traverse a relationship graph rather than simple permission list matching. This enables complex patterns like "users who can view a parent workspace can view child workspaces."
 
