@@ -9,7 +9,7 @@ import { Aside, LinkCard } from '@astrojs/starlight/components';
 
 Kessel is a platform for building integrated, multi-tenant services that share consistent resource organization and access semantics. At its core, Kessel treats **everything as a resource** — users, groups, workspaces, hosts, clusters, applications, and even roles are all modeled uniformly as resources with types, identifiers, and relationships.
 
-This unified resource model enables services to share state about the same real-world entities without tight coupling. Multiple services can report their own perspective on a resource, and Kessel correlates these perspectives into a coherent view. This document explains the core concepts: resources, representations, resource types, correlation, and why you would share resource data with Kessel.
+This unified resource model enables services to share state about the same real-world entities without tight coupling. Multiple services can report their own representation on a resource, and Kessel correlates these representations into a coherent view. This document explains the core concepts: resources, representations, resource types, correlation, and why you would share resource data with Kessel.
 
 ## Core Concepts
 
@@ -23,16 +23,11 @@ In Kessel, a **resource** is any addressable entity that can be modeled, queried
 - `doc:project-proposal` — A document
 - `k8s_cluster:openshift-prod` — A Kubernetes cluster
 
-The key insight is that Kessel does not distinguish between "data resources" (like documents) and "identity resources" (like users) at the model level. They are all resources with types, identifiers, attributes, and relationships to other resources.
+Kessel does not distinguish between "data resources" (like documents) and "identity resources" (like users). They are all resources with types, identifiers, attributes, and relationships to other resources.
 
 ### Resource Types
 
-A **resource type** defines the category of a resource. Resource types are configured via schema and specify:
-
-- Valid **representations** (different services' perspectives on the resource)
-- Valid **reporters** (which services can report this resource type)
-- **Correlation keys** (attributes used to link representations) — *future capability*
-- **Relationships** (connections to other resource types) — *future capability*
+A **resource type** defines the canonical type of a resource.
 
 **Example resource types:**
 - `doc` — Document
@@ -45,27 +40,6 @@ Resource types are part of Kessel's **meta-model** approach — the system does 
 <Aside>
   This schema-driven approach means new resource types can be added without changing Kessel's core code. See the [Schema](../schema) documentation for how resource types are defined.
 </Aside>
-
-### Resource References
-
-Resources are identified using a **resource reference** structure that specifies:
-
-- `type` — The resource type (e.g., `"doc"`, `"k8s_cluster"`, `"user"`)
-- `id` — The unique identifier within that type (e.g., `"project-proposal"`, `"alice@redhat.com"`)
-
-**Example resource reference:**
-```json
-{
-  "type": "doc",
-  "id": "a4e3bc87-3ae1-470b-a881-0cde23338662"
-}
-```
-
-The combination of type and ID uniquely identifies a resource within Kessel. This structure is used throughout the APIs:
-- When reporting resources to the inventory (`ReportResource`)
-- When creating relationships in the authorization graph (`CreateRelationship`)
-- When checking permissions (`Check`)
-- When querying resources (`ListResources`, `StreamedListObjects`)
 
 **Format conventions:**
 - UUIDs are preferred for service-generated IDs
