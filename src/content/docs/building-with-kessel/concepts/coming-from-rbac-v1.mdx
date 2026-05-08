@@ -27,6 +27,126 @@ RBAC v2 introduces four fundamental changes to how authorization works:
 
 The rest of this document explains each shift in detail.
 
+## Visual Comparison: v1 vs v2
+
+To understand these shifts, let's look at how authorization works for the same scenario in both models: granting the "Research Admins" group access to research hosts.
+
+```mermaid
+flowchart TB
+    Org["🏢 Organization\nAcme Co"]
+    Group["👥 Group\nResearch Admins"]
+    Role["📋 Role\nInventory Admin"]
+    Permission["🔑 Permission\ninventory:groups:*"]
+    
+    Org --> Group
+    Group -->|assigned| Role
+    
+    ResDef["🎯 Resource Definition<br/>{key: id, operation: equal, value: research-host-1}"]
+    InvGroup["📦 Inventory Group\nResearch"]
+    
+    ResDef --> InvGroup
+    
+    RoleBinding["🔗 Role Binding"]
+    RootWS["📁 ROOT Workspace"]
+    ResearchWS["📁 Workspace: Research"]
+    
+    RootWS --> ResearchWS
+    RoleBinding -->|resource| ResearchWS
+    
+    Role --> Permission
+    Role --> ResDef
+    Org --> RootWS
+    RoleBinding -->|subject| Group
+    RoleBinding -->|role| Role
+    
+    Host["💻 Host: research-host-1"]
+    
+    InvGroup -.->|client evaluates<br/>group membership| Host
+    ResearchWS -->|workspace_id| Host
+    InvGroup <-.->|conceptual equivalent| ResearchWS
+    
+    Legend["⚫ Shared\n🔴 v1 only\n🔵 v2 only"]
+    
+    classDef v1only fill:#ffe6e6,stroke:#cc0000,stroke-width:2px
+    classDef v2only fill:#e6f3ff,stroke:#0066cc,stroke-width:2px
+    classDef shared fill:#f0f0f0,stroke:#666
+    classDef legendStyle fill:#fff,stroke:#ddd,stroke-width:1px
+    
+    class ResDef,InvGroup v1only
+    class RootWS,ResearchWS,RoleBinding v2only
+    class Org,Group,Role,Permission,Host shared
+    class Legend legendStyle
+    
+    linkStyle 1,2,6,10 stroke:#cc0000,stroke-width:2px
+    linkStyle 3,4,7,8,9,11 stroke:#0066cc,stroke-width:2px
+```
+
+**Key differences:**
+
+- **v1 scoping**: Resource definitions filter permissions to specific inventory groups. Each role-permission pair can have a resource definition that limits which inventory groups it applies to.
+- **v2 scoping**: Role bindings grant a role to a group on a specific workspace. Resources are assigned to workspaces via `workspace_id`.
+- **Shared concepts**: Organizations, groups, roles, permissions, and hosts exist in both models but are connected differently.
+
+### Resource Definitions (v1 Only)
+
+In RBAC v1, **resource definitions** were access control list (ACL) filters attached to permissions within a role. They allowed restricting a permission to specific resources based on attribute matching.
+
+**Structure:**
+
+A resource definition contained an `attributeFilter` with three fields:
+
+```json
+{
+  "key": "uuid",
+  "operation": "equal",
+  "value": "39c8cecd-e595-46fb-8908-13365d59d5e8"
+}
+```
+
+**Operations:**
+- `equal` — Match a single value
+- `in` — Match any value in an array
+
+**Example with multiple resources:**
+```json
+{
+  "key": "group.id",
+  "operation": "in",
+  "value": ["uuid-1", "uuid-2", "uuid-3"]
+}
+```
+
+**How they worked:**
+
+When a role included a permission, attaching a resource definition restricted that permission to only resources matching the filter.
+
+- An empty resource definitions array `[]` meant "no additional filtering" — permission applied to all resources
+- Application code had to query RBAC for both permissions and resource definitions
+- Each service interpreted and applied these filters when making authorization decisions
+
+**Inventory groups as resource definitions:**
+
+For inventory permissions, `group.id` was used to filter access to specific inventory groups. This is how RBAC v1 implemented workspace-like scoping for host-centric resources:
+- Key: `group.id`
+- Operation: `in` (for multiple groups) or `equal` (for a single group)
+- Value: Array of inventory group UUIDs or a single UUID
+
+**Example:**
+
+A role "Inventory Admin" might include:
+- Permission: `inventory:groups:*`
+- Resource definition: `{key: "group.id", operation: "equal", value: "research-group-uuid"}`
+- Result: Admin can manage only the Research inventory group, not other groups
+
+**In RBAC v2:**
+
+Resource definitions don't exist. Instead, scoping is achieved through:
+- **Workspace assignment** — Resources belong to a workspace via `workspace_id`
+- **Role bindings** — Roles are granted to groups on specific workspaces
+- **Kessel's authorization graph** — Permission checks automatically respect workspace boundaries
+
+This eliminates the need for application code to interpret filters. Kessel handles all scoping server-side through the relationship graph.
+
 ## Permissions: Format and Transformation
 
 ### Permission Format (Transformed for Kessel)
