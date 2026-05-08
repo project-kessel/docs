@@ -23,7 +23,7 @@ RBAC v2 introduces four fundamental changes to how authorization works:
 
 **3. Graph-Based Authorization** — Permission checks traverse a relationship graph rather than simple permission list matching. This enables complex patterns like "users who can view a parent workspace can view child workspaces."
 
-**4. Everything is a Resource** — Users, groups, workspaces, roles, and your application's resources (hosts, policies, etc.) are all modeled uniformly as resources with relationships.
+**4. Everything is a Resource** — Users, groups, workspaces, roles, and your application's resources (hosts, policies, etc.) are all modeled uniformly as resources with relationships. This removes the implicit dependency from Inventory to RBAC, preventing circular dependencies and enabling a consistent API across all resource types. RBAC depends on Inventory, but Inventory does not depend on RBAC.
 
 The rest of this document explains each shift in detail.
 
@@ -45,7 +45,7 @@ application:resource_type:operation
 **However, in RBAC v2, these are transformed when written to Kessel:**
 
 1. **Colons become underscores**: `config_manager:profile:read` → `config_manager_profile_read`
-2. **Operation names change** to avoid v1/v2 collision:
+2. **Operation names change** — different verbs are used to prevent collisions with v1 permissions:
    - `read` → `view`
    - `write` → `edit`
 3. **Final permission name**: `config_manager_profile_view`
@@ -81,14 +81,15 @@ To check if a user had `config_manager:profile:read`, you had to test all variat
 - `config_manager:*:*` (wildcard both)
 - `*:*:*` (global wildcard)
 
-Your code had to implement this matching logic.
+Your code had to implement this matching logic. This led to wildcard handling being duplicated across all applications, each acting as its own Policy Decision Point (PDP). If wildcard semantics needed to change, every application required updates, and there was no guarantee of consistent behavior across the platform.
 
 **RBAC v2:**
 
 You only query for the specific permission you need (using the transformed v2 name). Kessel handles all wildcard matching server-side.
 
 ```python
-# RBAC v2: Just check the specific permission (transformed name)
+# RBAC v2: Use Kessel client to check specific permission
+# Server handles wildcard matching automatically
 result = kessel_client.check(
     resource=workspace,
     permission="config_manager_profile_view",  # Transformed: read → view
@@ -165,9 +166,19 @@ graph TD
 </Aside>
 
 <Aside type="caution" title="Explicit workspace assignment in RBAC v2">
-  **RBAC v1** had implicit inventory group membership depending on how groups were returned — you might be part of groups you didn't explicitly got on the returned response.
+  **RBAC v1** required complex interpretation of the returned groups list. Services had to handle special cases like global access (`"*"`), ungrouped resources (`[[]]`), and group ID matching:
   
-  **RBAC v2** returns only explicit workspaces where you have permissions. When you query Kessel for accessible workspaces, you get exactly the workspaces where you have role bindings (either directly or through group membership). There are no implicit workspace assignments.
+  ```ruby
+  # RBAC v1: Each service implemented this logic
+  # RBAC::ANY = "*"
+  (groups == Rbac::ANY) || 
+  (system.groups.blank? && groups&.include?([])) || 
+  system.group_ids.intersect?(groups)
+  ```
+  
+  This interpretation logic was duplicated across services, leading to potential inconsistencies.
+  
+  **RBAC v2** returns only explicit workspaces where you have permissions. When you query Kessel for accessible workspaces, you get exactly the workspace IDs you can access - no special cases, no wildcards, no interpretation required.
 </Aside>
 
 ## Authorization Model: Checks vs. Graph Traversal
@@ -218,24 +229,24 @@ When you call `Check` to ask "Can Alice view this host?", Kessel:
 
 ## Role Bindings: Where Permissions Are Granted
 
-### RBAC v1: Roles Assigned to Users/Groups
+### RBAC v1: Roles Assigned to Groups
 
 **RBAC v1:**
 
-Roles were assigned directly to users or groups at the organization level:
+Roles were assigned to groups at the organization level:
 - Create a role with permissions
-- Assign the role to a user or group
+- Assign the role to a group
 - The user gets those permissions organization-wide (unless filtered by inventory groups)
 
 ### RBAC v2: Role Bindings on Resources
 
 **RBAC v2:**
 
-Roles are bound to subjects (users/groups) **on specific resources** (workspaces or tenants):
+Roles are bound to subjects (principals/groups) **on specific resources** (workspaces or tenants):
 
 **Role binding structure:**
 - **Role** — The role being granted (e.g., "Inventory Viewer")
-- **Subject** — Who gets the role (a group or user)
+- **Subject** — Who gets the role (a group; binding to individual principals is a future capability)
 - **Resource** — Where the role applies (a workspace or tenant)
 
 **Example:**
@@ -267,9 +278,9 @@ Roles are bound to subjects (users/groups) **on specific resources** (workspaces
 Not everything changed. These concepts are familiar from RBAC v1:
 
 **Groups:**
-- Groups are still collections of users
-- Users can belong to multiple groups
-- Role bindings target groups (recommended) or individual users
+- Groups are collections of principals (users or service accounts)
+- Principals can belong to multiple groups
+- In v1, roles were assigned to groups only; in v2, role bindings target groups (binding to individual principals is a future capability)
 
 **Roles:**
 - Roles are still named collections of permissions
@@ -308,7 +319,7 @@ When migrating from RBAC v1 to v2, most use cases fall into these patterns:
 - Permissions that truly apply organization-wide and should never be workspace-scoped
 - Bound to the tenant resource, not workspaces
 
-See the [migration guide](/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) for detailed implementation examples.
+See the [migration guide](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) for detailed implementation examples.
 
 ## Next Steps
 
