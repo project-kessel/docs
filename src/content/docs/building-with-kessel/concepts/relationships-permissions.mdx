@@ -23,6 +23,10 @@ All entities in Kessel—users, groups, workspaces, hosts, roles—are modeled a
 - `workspace:eng-prod` — A workspace resource
 - `doc:readme` — A document resource
 
+<Aside type="note">
+  These examples use meaningful IDs like `alice` and `eng-prod` for readability. In practice, Kessel uses UUIDs for resource IDs (e.g., `rbac/user:550e8400-e29b-41d4-a716-446655440000`), and all types are namespaced (e.g., `rbac/user`, `rbac/workspace`).
+</Aside>
+
 When describing a relationship, we use two relative terms:
 
 - **Object** — The resource being accessed, or the container (e.g., the group, the document, the workspace)
@@ -47,6 +51,10 @@ A **relation** is a named string that defines the *type* of connection between a
 - `parent` — Hierarchical parent-child relationship
 - `workspace` — Resource assignment to a workspace
 
+<Aside type="note">
+  The `viewer` and `owner` relations shown here are simplified examples for illustration. In real RBAC implementations, permissions are typically granted through role bindings rather than direct `viewer` or `owner` relations. See the [RBAC documentation](../rbac) for how permissions work in practice.
+</Aside>
+
 Relations are **directional**. Reversing the object and subject produces a different relation. Convention is to state the object first, then the subject: "group:engineering has member user:alice."
 
 ### Relationships
@@ -70,10 +78,6 @@ Instead of connecting to a specific subject, a relationship can point to a **sub
 This is how group-based permissions work: instead of creating individual relationships for each user, you create one relationship to a subject set (all members of the Engineering group). As group membership changes, the effective relationships update automatically.
 
 A single relationship to a subject set can represent **zero-to-many** actual relationships depending on how many subjects are in the set.
-
-<Aside>
-  Subject sets are the mechanism behind workspace hierarchy permission inheritance. When you grant permissions on a parent workspace, you're granting them to the subject set "all users with access to any child workspace."
-</Aside>
 
 ## How Relationships Are Defined
 
