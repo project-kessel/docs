@@ -165,17 +165,17 @@ application:resource_type:operation
 **However, in RBAC v2, these are transformed when written to Kessel:**
 
 1. **Colons become underscores**: `config_manager:profile:read` → `config_manager_profile_read`
-2. **Operation names change** — different verbs are used to prevent collisions with v1 permissions:
-   - `read` → `view`
-   - `write` → `edit`
+2. **Operation names** — it's recommended to use different verbs to prevent collisions with v1 permissions:
+   - `read` → `view` (recommended)
+   - `write` → `edit` (recommended)
 3. **Final permission name**: `config_manager_profile_view`
 
 **What this means:**
 
 When you check permissions with Kessel, you use the transformed name (`config_manager_profile_view`), not the RBAC v1 format. The schema handles this transformation automatically using the `@rbac.add_v1_based_permission()` extension.
 
-<Aside>
-  The naming change (`read` → `view`, `write` → `edit`) distinguishes v2 permissions from legacy v1 permissions and prevents collisions in the authorization schema.
+<Aside type="note">
+  The operation name changes (`read` → `view`, `write` → `edit`) are guidelines to help avoid collisions with v1 permissions in the authorization schema, not strict requirements. You can choose different operation names if they better fit your use case.
 </Aside>
 
 ### Wildcard Permissions (Query for Specific Permission Only)
