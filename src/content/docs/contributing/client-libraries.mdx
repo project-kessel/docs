@@ -94,7 +94,7 @@ Most languages have some concept of a module or package hierarchy for imports, u
 
 The `prefix` of these imports may be language specific but MUST at least include "kessel" somewhere. It can simply be "kessel" unless that would violate language convention (e.g. Java or Go). Prefix SHOULD NOT include a specific service given the [scope](#scope) of libraries is not service specific. The prefix MUST be the same for all imports.
 
-The _suffixes_ of these imports SHOULD be consistent from language to language (aside from language-specific delimiters). These packages are documented in detail following the links to [API reference](../client-api/guide):
+The _suffixes_ of these imports SHOULD be consistent from language to language (aside from language-specific delimiters). These packages are documented in detail following the links to the [per-package Client SDK specification](../client-api/guide):
 
 - [`{prefix}.{service}.{major_version}`](../client-api/service-version): Package for code specific to service and API version, where `{service}` is the separately versioned service (e.g. "inventory" or "rbac") and `{major_version}` is the major revision of the API (e.g. v1beta2, v1, v2), such as generated client code.
 - [`{prefix}.grpc`](../client-api/grpc): Package for utility methods or middleware specific to gRPC and are therefore only coupled to gRPC versions, not to a service API version (e.g. generic gRPC authentication middleware code goes here).

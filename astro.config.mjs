@@ -65,6 +65,7 @@ const baseStarlightConfig = {
           collapsed: true,
           items: [
             'building-with-kessel/reference/schema',
+            'building-with-kessel/reference/sdk-reference',
             'building-with-kessel/reference/glossary',
             {
               label: "gRPC API",
@@ -108,7 +109,7 @@ const baseStarlightConfig = {
         'contributing/documentation',
         'contributing/client-libraries',
         {
-          label: "Client API Reference",
+          label: "Client SDK Specification",
           collapsed: true,
           autogenerate: { directory: 'contributing/client-api' }
         }

@@ -1,0 +1,39 @@
+---
+title: SDK reference
+description: Pointers to official Kessel client SDKs and where to read detailed client library contracts when you need them.
+---
+
+If you integrate with Kessel using a supported language SDK, you mostly follow [how-to guides](/building-with-kessel/how-to/) and [Getting started](/start-here/getting-started/). When you need lower-level detail (package layout, auth helpers, gRPC utilities, RBAC helpers, and similar), that material is maintained for **SDK authors and contributors** under [Contributing](/contributing/documentation/).
+
+## Official SDKs
+
+| Language | Repository |
+|----------|--------------|
+| Python | [kessel-sdk-py](https://github.com/project-kessel/kessel-sdk-py) |
+| Ruby | [kessel-sdk-ruby](https://github.com/project-kessel/kessel-sdk-ruby) |
+| Node.js | [kessel-sdk-node](https://github.com/project-kessel/kessel-sdk-node) |
+| Go | [kessel-sdk-go](https://github.com/project-kessel/kessel-sdk-go) |
+| Java | [kessel-sdk-java](https://github.com/project-kessel/kessel-sdk-java) |
+
+Version and install notes also appear in the [Client SDK specification](/contributing/client-libraries/).
+
+## Client SDK specification
+
+The [Client SDK specification](/contributing/client-libraries/) describes scope, protocols, dependencies, and releases for Kessel client libraries. It lives under Contributing with the per-package pages below.
+
+## `contributing/client-api/` (eight pages)
+
+These eight docs define the per-package **contract** so SDKs stay consistent across languages. They are written for people building or extending SDKs; application developers may still use them as a precise reference for types and module boundaries.
+
+| Doc | Page |
+|-----|------|
+| **guide** | [How to use this reference](/contributing/client-api/guide/) |
+| **auth** | [Package: auth](/contributing/client-api/auth/) |
+| **gRPC** | [Package: grpc](/contributing/client-api/grpc/) |
+| **HTTP** | [Package: http](/contributing/client-api/http/) |
+| **middleware** | [Package: middleware](/contributing/client-api/middleware/) |
+| **service-version** | [Package: service and API version](/contributing/client-api/service-version/) — generated clients and `ClientBuilder` |
+| **rbac.v2** | [Package: rbac.v2](/contributing/client-api/rbac.v2/) |
+| **console** | [Package: console](/contributing/client-api/console/) |
+
+For CI, Docker, and native dependency considerations when installing SDKs, see [Setting up SDKs for CI](/building-with-kessel/how-to/setup-sdk-for-ci/).
