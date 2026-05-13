@@ -6,11 +6,29 @@ description: How to contribute documentation to the Kessel project.
 ## Principles
 
 * **Contributing to docs should be easy.** We value our teammates' ability to contribute great documentation. Keep this "meta-documentation" up to date.
-* **Focus on user needs.** We value empathy for our teammates and users. Put yourself in the user's shoes when planning and writing. Write from the perspective of what the *user needs to do*, rather than what the *technology can do*.  
-* **Documentation is part of the work.** We value our users' experience with an evolving system. Every code or system change must be accompanied by timely additions, changes, or removals to the relevant documentation.  
-* **Default to open.** We value open source and on premise customers. Document in public unless there's a clear reason not to (e.g., internal environment details).  
+* **Focus on user needs.** We value empathy for our teammates and users. Put yourself in the user's shoes when planning and writing. Write from the perspective of what the *user needs to do*, rather than what the *technology can do*.
+* **Documentation is part of the work.** We value our users' experience with an evolving system. Every code or system change must be accompanied by timely additions, changes, or removals to the relevant documentation.
+* **Default to open.** We value open source and on premise customers. Document in public unless there's a clear reason not to (e.g., internal environment details).
 * **Kessel operations are first-class.** We value operable systems that both us and our users can feel comfortable running. Keep internal docs for internal details only.
-* **Use proven models.** We stand on the shoulders of giants. Follow [Diátaxis](https://diataxis.fr/) (used by Django, Cloudflare, etc). Know whether you're writing a tutorial, how-to, explanation, or reference, and write with that user need in mind.  
-* **Aim for minimal, coherent, and up to date.** We value pragmatism and maintainability. Placeholder content is okay. Prioritize clarity over completeness. Every sentence is another to maintain. Better to ship something small and usable than bloated, unmaintainable, or out of date.  
-* **Comment the API spec.** We value usable interfaces. If your change affects API behavior, schema, or operations, ensure the proto is commented.  
+* **Use proven models.** We stand on the shoulders of giants. Follow [Diátaxis](https://diataxis.fr/) (used by Django, Cloudflare, etc). Know whether you're writing a tutorial, how-to, explanation, or reference, and write with that user need in mind.
+* **Aim for minimal, coherent, and up to date.** We value pragmatism and maintainability. Placeholder content is okay. Prioritize clarity over completeness. Every sentence is another to maintain. Better to ship something small and usable than bloated, unmaintainable, or out of date.
+* **Comment the API spec.** We value usable interfaces. If your change affects API behavior, schema, or operations, ensure the proto is commented.
 * **Think like a product owner.** We value quality. When adding docs, place them intentionally. Consider where they belong and how they relate to what's already written. Title them consistently. Use correct grammar.
+
+## Where to put new content
+
+The documentation is organized into four top-level sections. Each section serves a different audience and purpose. When adding a new page, pick the section that matches who will read it and why.
+
+| Section | Audience | Purpose | Examples |
+|---------|----------|---------|----------|
+| **Start Here** | New users learning about Kessel | Tutorials and introductions that walk someone through Kessel for the first time | Getting started guide, Understanding Kessel |
+| **Building with Kessel** | Developers integrating with Kessel | Guides, concepts, and reference for teams building on top of Kessel | How to report resources, consistency model, gRPC API reference |
+| **Running Kessel** | Operators running Kessel as a service | Architecture, installation, and monitoring documentation | Docker Compose setup, monitoring data replication |
+| **Contributing** | Developers working on Kessel itself | Internal development guides, API design, and this documentation guide | Client library conventions, writing documentation |
+
+Every page should be written with its [Diataxis](https://diataxis.fr/) purpose in mind (see the **Use proven models** principle above). **Building with Kessel** is the largest section, so it uses explicit subdirectories for each category:
+
+- **How To**: Step-by-step guides for solving a specific problem. Written for someone at work who needs to get something done.
+- **Concepts**: Explanations of how things work and why. Written for someone studying the system to build a deeper understanding.
+- **Reference**: Precise, complete technical details. Written for someone who knows what they're looking for and needs the specifics.
+- **Archive**: Outdated content that hasn't been removed yet. Move pages here when they are replaced by newer documentation.
