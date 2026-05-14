@@ -112,20 +112,19 @@ When a service calls `ReportResource`, Kessel:
 3. Validates the provided JSON data against the schema
 4. Rejects the request if validation fails
 
-**Example validation error:**
+**Example validation error (gRPC):**
+```
+Code: INVALID_ARGUMENT
+Message: failed validation for report resource: validation failed:
+         cpu_count: Invalid type. Expected: integer, given: string;
+         hostname is required
+```
+
+**Example validation error (HTTP/JSON):**
 ```json
 {
-  "error": "Validation failed",
-  "details": [
-    {
-      "field": "cpu_count",
-      "message": "must be an integer, got string"
-    },
-    {
-      "field": "hostname",
-      "message": "required field missing"
-    }
-  ]
+  "code": "invalid_argument",
+  "message": "failed validation for report resource: validation failed: cpu_count: Invalid type. Expected: integer, given: string; hostname is required"
 }
 ```
 
