@@ -9,7 +9,7 @@ import { Aside, LinkCard } from '@astrojs/starlight/components';
 
 Kessel is a platform for building integrated, multi-tenant services that share consistent resource organization and access semantics. At its core, Kessel treats **everything as a resource** — users, groups, workspaces, hosts, clusters, applications, and even roles are all modeled uniformly as resources with types, identifiers, and relationships.
 
-This unified resource model enables services to share state about the same real-world entities without tight coupling. Multiple services can report their own representation on a resource, and Kessel correlates these representations into a coherent view. This document explains the core concepts: resources, representations, resource types, correlation, and why you would share resource data with Kessel.
+This unified resource model enables services to share state about the same real-world entities without tight coupling. Multiple services can report their own representation on a resource, and Kessel will correlate these representations into a coherent view (not yet implemented). This document explains the core concepts: resources, representations, resource types, correlation, and why you would share resource data with Kessel.
 
 ## Core Concepts
 
@@ -44,7 +44,7 @@ Resource types are part of Kessel's **meta-model** approach — the system does 
 **Format conventions:**
 - UUIDs are preferred for service-generated IDs
 - Human-readable strings are acceptable for user-facing resources (e.g., usernames, group names)
-- IDs must be unique within a resource type but can be reused across different types
+- Each reporter's representation is uniquely identified by the combination of `local_resource_id`, `resource_type`, `reporter_type`, and `reporter_instance_id` — individual IDs can be reused (e.g., multiple reporters can use the same `local_resource_id` for their different representations)
 
 ## Representations
 
@@ -134,12 +134,12 @@ See the [Schema](../schema) documentation for details on how resource types are 
 
 ## Future Capabilities
 
-The following features are planned for future releases but not yet implemented in v1beta2.
+The following features are planned for future releases.
 
 ### Correlation (Planned)
 
 <Aside type="note">
-  **This feature is not yet implemented.** The correlation mechanism described below is planned but not available in the current v1beta2 release. Currently, each reporter's representation creates a separate resource in Kessel.
+  The correlation mechanism described below is not yet implemented. Currently, each reporter's representation creates a separate resource in Kessel.
 </Aside>
 
 When multiple services report representations of the same resource, Kessel will need a way to determine that two representations refer to the **same logical resource**. This process is called **correlation**.
