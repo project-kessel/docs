@@ -1,5 +1,157 @@
 ---
-title: Events
+title: Events and change notifications
+description: Understand how Kessel publishes resource and relationship changes as CloudEvents to event topics for downstream integration and automation.
 sidebar:
   order: 40
 ---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+Kessel publishes **change events** whenever resources or relationships are created, updated, or deleted. These events enable downstream services to react to changes in real-time, build materialized views, trigger workflows, or maintain synchronized state across distributed systems.
+
+Events are published as [CloudEvents 1.0](https://cloudevents.io/) to event topics with guaranteed delivery. Each resource write produces events atomically, even in the face of failures or restarts.
+
+This document explains how Kessel's eventing system works, what events are published, and how to consume them effectively.
+
+## Event Format: CloudEvents 1.0
+
+All Kessel events conform to the [CloudEvents 1.0 specification](https://github.com/cloudevents/spec/blob/v1.0/spec.md) using JSON serialization.
+
+**Standard CloudEvents fields:**
+- `specversion`: Always `"1.0"`
+- `type`: Event type in the format `redhat.inventory.{category}.{resource_type}.{operation}`
+- `source`: Event source identifier (currently empty string)
+- `id`: Unique event identifier (UUID)
+- `time`: Event timestamp in ISO 8601 format
+- `datacontenttype`: Always `"application/json"`
+- `subject`: Resource path (e.g., `/resources/k8s_cluster/{resource_id}`)
+- `data`: Event payload (nested object with resource/relationship data)
+
+**Example CloudEvents envelope:**
+```json
+{
+  "specversion": "1.0",
+  "type": "redhat.inventory.resources.k8s_cluster.created",
+  "source": "",
+  "id": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
+  "time": "2026-05-14T15:30:00Z",
+  "datacontenttype": "application/json",
+  "subject": "/resources/k8s_cluster/abc-123",
+  "data": {
+    "metadata": { ... },
+    "reporterData": { ... },
+    "resourceData": { ... }
+  }
+}
+```
+
+This standard format ensures Kessel events are compatible with CloudEvents tooling, gateways, and consumers across different platforms.
+
+## Event Types
+
+Kessel emits two categories of events:
+
+### Resource Events
+
+Published when resources are created, updated, or deleted via `ReportResource` or `DeleteResource`.
+
+**Event type pattern:** `redhat.inventory.resources.{resource_type}.{operation}`
+
+**Operations:**
+- `created` — Resource reported for the first time
+- `updated` — Existing resource representation changed
+- `deleted` — Resource marked as deleted (tombstone)
+
+**Subject format:** `/resources/{resource_type}/{resource_id}`
+
+**Payload structure (data field):**
+```json
+{
+  "metadata": {
+    "id": "resource-uuid",
+    "resource_type": "k8s_cluster",
+    "org_id": "org-123",
+    "workspace_id": "workspace-456",
+    "created_at": "2026-05-14T10:00:00Z",
+    "updated_at": "2026-05-14T15:30:00Z",
+    "deleted_at": null,
+    "labels": []
+  },
+  "reporter_data": {
+    "reporter_type": "acs",
+    "reporter_instance_id": "acs-central-prod",
+    "local_resource_id": "cluster-789",
+    "api_href": "https://acs.example.com/v1/clusters/cluster-789",
+    "console_href": "https://console.redhat.com/openshift/details/cluster-789",
+    "reporter_version": "4.2.1"
+  },
+  "resource_data": {
+    "name": "production-us-east",
+    "provider": "aws",
+    "region": "us-east-1",
+    "version": "4.15.0"
+  }
+}
+```
+
+### Relationship Events
+
+Published when authorization relationships (tuples) are created or deleted as part of resource reports. These events are published to the `outbox.event.kessel.tuples` topic and contain version information used for tracking relationship changes.
+
+## Event Topics
+
+Events are published to two event topics:
+
+| Topic | Events | Partitioning |
+|-------|--------|--------------|
+| `outbox.event.kessel.resources` | Resource created/updated/deleted | By resource ID |
+| `outbox.event.kessel.tuples` | Relationship created/deleted | By resource ID |
+
+<Aside type="note">
+  Resource **deleted** events are published to the resources topic with an empty payload (`{}`), while created and updated events include full resource data. Deletions also trigger relationship removal events on the tuples topic.
+</Aside>
+
+**Topic naming:** Topics use the prefix `outbox.event.kessel.`
+
+**Partitioning:** Events for the same resource ID are routed to the same partition, ensuring ordered processing per resource.
+
+## Event Delivery Guarantees
+
+Kessel guarantees reliable event delivery with the following semantics:
+
+**Exactly-once per write operation** — Each `ReportResource` or `DeleteResource` operation produces events atomically (one resource event and one relationship event). If the write succeeds, both events are guaranteed to be published. If the write fails, no events are published.
+
+**Durability** — Once an event is published, it is durably stored and can be consumed by multiple subscribers independently.
+
+**Ordering per resource** — Events for the same resource are published in the order they were written, preserving causality.
+
+These guarantees mean you can rely on the event stream as an authoritative record of all changes without needing to poll the API or implement your own change tracking.
+
+## Connection to Consistency Model
+
+Events and consistency are tightly coupled in Kessel's architecture. The same event stream that external consumers subscribe to also drives updates to the authorization graph.
+
+**How it works:**
+1. `ReportResource` writes the resource data
+2. An event is published to the event stream
+3. Kessel processes the event and updates the authorization graph
+4. The consistency token is updated upon successful processing
+
+This means the consistency token visible in `IMMEDIATE` mode checks reflects how far Kessel has progressed through the event stream.
+
+See [Consistency model](../consistency) for details on how consistency modes interact with event processing.
+
+## Next Steps
+
+<LinkCard
+  title="Consistency model"
+  description="Understand how event processing relates to consistency guarantees and authorization visibility."
+  href="/docs/building-with-kessel/concepts/consistency/"
+/>
+
+<LinkCard
+  title="History and versioning"
+  description="Learn how Kessel tracks resource changes over time with immutable version history."
+  href="/docs/building-with-kessel/concepts/history/"
+/>
+
