@@ -1,5 +1,5 @@
 version 0.1
-namespace drive
+namespace drive //Define a namespace named 'drive' which is 1:1 with a Kessel reporter type
 
 import rbac
 
@@ -8,11 +8,12 @@ import rbac
 @rbac.add_permission(name:'edit_document')
 @rbac.add_permission(name:'delete_document')
 
+// Defines a resource type called 'document' which is 1:1 with the 'document' resource type associated with the 'drive' reporter type
 public type document {
     relation workspace: [ExactlyOne rbac.workspace]
 
-    // Define document permissions, 
-    // which are inherited from the workspace-level permissions
+    // Define document permissions, which are also relations.
+    // These reference the workspace-level permissions
     // that we defined above.
     relation view: workspace.view_document
     relation edit: workspace.edit_document
