@@ -297,6 +297,8 @@ This stops and removes all containers but preserves volumes (database data, Graf
 
 ## Troubleshooting
 
+For API and gRPC errors (status codes, messages, and fixes), see the [Error codes](/building-with-kessel/reference/error-codes/) reference.
+
 ### Port conflicts
 
 The compose file uses fixed host ports. If a port is already in use, `podman compose up` fails with an "address already in use" error. Find the conflicting process:
