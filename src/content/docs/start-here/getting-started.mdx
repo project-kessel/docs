@@ -36,7 +36,7 @@ If you are migrating an existing Red Hat Insights application to Kessel, follow 
 </Aside>
 
 <Aside type="note" title="Some assembly required">Parts of this workflow are evolving. Schema configuration, RBAC management, and the local development setup are all being simplified.
-See the [roadmap](#where-are-we-going) for details on what's changing.</Aside>
+See the [roadmap](/docs/start-here/roadmap/) for details on what's changing.</Aside>
 
 ## Quick start
 
@@ -348,7 +348,7 @@ Kessel provides several ways to handle this, including fully consistent checks (
 
 <CodeExamples files={gettingStartedExamples} />
 
-## Next steps and roadmap
+## Next steps
 
 ### Exercises
 
@@ -364,8 +364,18 @@ We're open to contributions! Check us out on GitHub at [project-kessel](https://
 
 ### Where are we going?
 
-| Feature                      | Today                                                                                       | What's Next                                                                                        |
-|------------------------------|---------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
-| **Schema Language**          | Resource attributes (JSON config) and permissions (KSL) use separate files                  | Unified schema language that combines attributes and permissions                                   |
-| **Configuration Method**     | Edit schema and config via files                                                            | Configure everything at runtime via an API                                                         |
-| **RBAC Management**          | Use temporary scripts or the pre-Kessel RBAC v1 API                                         | Use an RBAC management API (v2) to encapsulate access grants and workspace management              |
+Several parts of this workflow — schema configuration, RBAC management, and local development setup — are actively being simplified. See the full roadmap for details.
+
+<LinkButton href="/docs/start-here/roadmap/" icon="right-arrow" variant="secondary">View the Kessel roadmap</LinkButton>
+
+### Feedback
+
+Have a use case or gap you'd like to see addressed? Open an RFE. Found a bug? Report it to the team.
+
+<LinkButton href="https://redhat.atlassian.net/jira/software/c/projects/RHCLOUD/form/465" icon="external" variant="secondary">
+  Request a feature (RFE)
+</LinkButton>
+
+<LinkButton href="https://redhat.atlassian.net/jira/software/c/projects/RHCLOUD/form/501" icon="external" variant="secondary">
+  Report a bug
+</LinkButton>

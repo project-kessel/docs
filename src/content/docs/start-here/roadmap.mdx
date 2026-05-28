@@ -1,0 +1,80 @@
+---
+title: Roadmap
+description: Where Kessel is today, what's actively in development, and what's on the longer horizon.
+---
+
+import { Aside, Badge, Card, CardGrid, LinkButton, LinkCard } from '@astrojs/starlight/components';
+
+This page describes Kessel's **Now / Next / Later** roadmap — the current state of the platform,
+what's actively in development, and what we're working toward.
+
+<Aside type="tip" title="Links">
+- **Internal Red Hat view** — [Jira roadmap plan](https://redhat.atlassian.net/jira/plans/3370/scenarios/3372/timeline?vid=3981) (Red Hat SSO required)
+- **Contribute or track issues** — [project-kessel on GitHub](https://github.com/project-kessel)
+</Aside>
+
+---
+
+## <Badge text="Now" variant="success" /> What's available today
+
+Features that are stable and available in the current release.
+
+<CardGrid>
+  <LinkCard title="Inventory API" href="/docs/building-with-kessel/how-to/report-resources/" description="Report, query, and track resources and their relationships via gRPC and HTTP APIs." />
+  <LinkCard title="RBAC v2" href="/docs/building-with-kessel/concepts/rbac/" description="Workspace-based tenancy with role bindings — map users or groups to roles scoped to a workspace or resource." />
+  <LinkCard title="KSL Schema Language" href="/docs/building-with-kessel/reference/schema/" description="Define resource types and permissions in KSL. Compile to SpiceDB schema with the ksl compiler." />
+  <LinkCard title="Multi-reporter resources" href="/docs/building-with-kessel/concepts/resources-representations/" description="Multiple services (reporters) can share ownership of a resource, each contributing their own representation." />
+  <LinkCard title="SDKs" href="/docs/building-with-kessel/reference/sdks/" description="Client libraries for Python, Go, TypeScript, Ruby, and Java." />
+  <LinkCard title="CloudEvents via Kafka" href="/docs/building-with-kessel/concepts/events/" description="Resource changes are published as CloudEvents to Kafka, enabling event-driven integrations." />
+</CardGrid>
+
+---
+
+## <Badge text="Next" variant="caution" /> Actively in development
+
+These are in progress and targeted for upcoming releases. Some may be available in preview.
+
+<CardGrid>
+  <Card title="Unified schema language">
+    Today, resource attributes (JSON config) and permissions (KSL) use separate files.
+    A single, unified schema language will combine both into one file with a single workflow.
+  </Card>
+  <Card title="RBAC Management API v2">
+    Roles and workspaces are currently managed with temporary gRPCurl scripts.
+    An RBAC management API (v2) will provide a proper interface for access grants and workspace management.
+  </Card>
+  <Card title="Runtime schema configuration">
+    Schema is currently configured by editing files and restarting services.
+    A configuration API will allow updating schema at runtime without downtime.
+  </Card>
+</CardGrid>
+
+---
+
+## <Badge text="Later" variant="note" /> On the horizon
+
+Longer-term investments. Scope and timing are subject to change.
+
+<Aside type="note">
+This section is updated periodically. For the most current view of planned work, see the
+[Jira roadmap](https://redhat.atlassian.net/jira/plans/3370/scenarios/3372/timeline?vid=3981)
+(Red Hat internal) or watch the [project-kessel](https://github.com/project-kessel) GitHub organization for new issues and milestones.
+</Aside>
+
+- [History API](/docs/building-with-kessel/concepts/history/) — query the full change history of any resource over time
+- Enhanced multi-tenancy primitives for complex B2B and sub-tenant hierarchies
+- Additional SDK languages and improved SDK ergonomics
+
+---
+
+## Suggest something
+
+Have a use case or gap you'd like to see addressed? Open an RFE. Found a bug? Report it to the team.
+
+<LinkButton href="https://redhat.atlassian.net/jira/software/c/projects/RHCLOUD/form/465" icon="external" variant="secondary">
+  Request a feature (RFE)
+</LinkButton>
+
+<LinkButton href="https://redhat.atlassian.net/jira/software/c/projects/RHCLOUD/form/501" icon="external" variant="secondary">
+  Report a bug
+</LinkButton>

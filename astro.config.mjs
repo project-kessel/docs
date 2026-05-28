@@ -45,6 +45,7 @@ const baseStarlightConfig = {
       items: [
         "start-here/getting-started",
         "start-here/understanding-kessel",
+        "start-here/roadmap",
       ],
     },
     {
