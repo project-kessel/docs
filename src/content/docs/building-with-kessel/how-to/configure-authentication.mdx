@@ -18,7 +18,7 @@ The Inventory API uses a configurable authenticator chain. Each authenticator in
 | `oidc` | Validates JWT bearer tokens from an OIDC provider | API access with a service account |
 | `allow-unauthenticated` | Allows all requests without credentials | Local development and testing |
 
-Each authenticator can be enabled or disabled per transport (`http` and `grpc` independently). Platform-specific authenticators (such as gateway identity headers) can also be added to the chain for hosted deployments.
+Each authenticator can be enabled or disabled per transport (`http` and `grpc` independently).
 
 ## Prerequisites
 
