@@ -1,0 +1,212 @@
+---
+title: "Add a new resource type"
+description: "How to define and register a new resource type with the Kessel Inventory API using JSON Schema and configuration files."
+sidebar:
+  order: 15
+---
+
+import { Aside, Steps, LinkCard } from '@astrojs/starlight/components';
+
+This guide walks through adding a new resource type to a running Kessel instance. By the end, you will have a working resource type that you can report and delete through the API.
+
+If you are new to Kessel, start with the [Getting started tutorial](/docs/start-here/getting-started/) which covers the full setup including schema compilation and local installation. This guide assumes you already have a Kessel instance running.
+
+## Prerequisites
+
+- A running Kessel Inventory API instance (see [Run locally with Docker Compose](/docs/building-with-kessel/how-to/run-with-docker/))
+- Familiarity with [resources and representations](/docs/building-with-kessel/concepts/resources-representations/) and how [schema](/docs/building-with-kessel/concepts/schema/) drives validation in Kessel
+
+## Plan your resource type
+
+Before creating files, decide on:
+
+- **Type name**: A lowercase, underscore-separated identifier (e.g., `host`, `k8s_cluster`, `database_instance`). This must be unique within your Kessel instance.
+- **Reporters**: Which services will report this resource type. Each reporter gets its own representation schema.
+- **Common attributes**: Properties shared across all reporters (e.g., `workspace_id`).
+- **Reporter-specific attributes**: Properties unique to each reporter's view of the resource.
+
+This guide uses a `host` resource type reported by a `discovery` reporter as an example. Replace these with your own names and attributes.
+
+## Create the configuration files
+
+Resource types are defined by a set of JSON Schema and YAML files in a specific directory structure under `data/schema/resources/` in the Inventory API.
+
+<Steps>
+
+1. **Create the directory structure**
+
+    ```
+    data/schema/resources/
+    └── host/
+        ├── common_representation.json
+        ├── config.yaml
+        └── reporters/
+            └── discovery/
+                ├── config.yaml
+                └── host.json
+    ```
+
+    ```bash
+    mkdir -p data/schema/resources/host/reporters/discovery
+    ```
+
+2. **Define the resource type configuration**
+
+    Create `host/config.yaml`. This tells Kessel which reporters are allowed to report this resource type.
+
+    ```yaml
+    resource_type: host
+    resource_reporters:
+      - DISCOVERY
+    ```
+
+    If multiple services will report the same resource type, list them all here (e.g., `DISCOVERY`, `MONITORING`, `CMDB`).
+
+3. **Define the common representation schema**
+
+    Create `host/common_representation.json`. Common attributes are shared across all reporters. The `workspace_id` field is required to place the resource in a workspace for access control.
+
+    ```json
+    {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "workspace_id": { "type": "string" }
+      },
+      "required": [
+        "workspace_id"
+      ]
+    }
+    ```
+
+4. **Define the reporter configuration**
+
+    Create `reporters/discovery/config.yaml`. This registers the reporter and links it to the resource type.
+
+    ```yaml
+    resource_type: host
+    reporter_name: discovery
+    namespace: discovery
+    ```
+
+5. **Define the reporter-specific representation schema**
+
+    Create `reporters/discovery/host.json`. This schema validates the attributes that only this reporter provides.
+
+    ```json
+    {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "hostname": { "type": "string" },
+        "cpu_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "os": { "type": "string" },
+        "ip_address": { "type": "string" }
+      },
+      "required": [
+        "hostname",
+        "os"
+      ]
+    }
+    ```
+
+</Steps>
+
+## Load the schema
+
+Kessel loads resource type schemas at startup. There are two loading methods:
+
+**Filesystem loading** (default): Point the Inventory API at the schema directory. No extra steps needed if your files are under `data/schema/resources/`.
+
+```yaml
+resources:
+  schemaPath: "data/schema/resources"
+```
+
+**Schema caching**: For production deployments, you can precompile schemas into a cache file for faster startup. Regenerate the cache after any schema change:
+
+```bash
+go build -o inventory-api main.go
+./inventory-api preload-schema
+```
+
+Then configure the Inventory API to use the cache:
+
+```yaml
+resources:
+  use_cache: true
+```
+
+After loading, restart the Inventory API to pick up the new resource type.
+
+## Test the new resource type
+
+Once the Inventory API has restarted with your schema loaded, test it using gRPC.
+
+### Report a resource
+
+```bash
+grpcurl -plaintext -d '{
+  "resource": {
+    "type": "host",
+    "reporter_type": "DISCOVERY",
+    "reporter_instance_id": "discovery-instance-001",
+    "representations": {
+      "metadata": {
+        "local_resource_id": "host-001",
+        "api_href": "http://localhost:8000/api/hosts/host-001",
+        "console_href": "http://localhost:3000/hosts/host-001",
+        "reporter_version": "1.0.0"
+      },
+      "common": {
+        "workspace_id": "d3bd1a4d-d792-48b2-8e9a-17cab4798df8"
+      },
+      "reporter": {
+        "hostname": "web-server-01.example.com",
+        "cpu_count": 4,
+        "os": "RHEL 9.4",
+        "ip_address": "192.168.1.100"
+      }
+    }
+  }
+}' localhost:9000 kessel.inventory.v1beta2.KesselInventoryService.ReportResource
+```
+
+### Delete a resource
+
+```bash
+grpcurl -plaintext -d '{
+  "reference": {
+    "resource_type": "host",
+    "resource_id": "host-001",
+    "reporter": {
+      "type": "DISCOVERY"
+    }
+  }
+}' localhost:9000 kessel.inventory.v1beta2.KesselInventoryService.DeleteResource
+```
+
+If the report succeeds, your resource type is correctly configured. If you get a validation error, check that your JSON data matches the schema you defined.
+
+## Next steps
+
+<LinkCard
+  title="Report resources to inventory"
+  description="Learn about different strategies for reporting resources, including CDC and the outbox pattern."
+  href="/docs/building-with-kessel/how-to/report-resources/"
+/>
+
+<LinkCard
+  title="Schema and extensibility"
+  description="Understand how Kessel's meta-model and JSON Schema drive resource validation."
+  href="/docs/building-with-kessel/concepts/schema/"
+/>
+
+<LinkCard
+  title="Design permissions for your resource type"
+  description="Define KSL schema for relationships and permissions on your new resource type."
+  href="/docs/building-with-kessel/how-to/design-permissions/"
+/>
