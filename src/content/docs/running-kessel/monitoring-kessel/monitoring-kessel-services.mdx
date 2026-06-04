@@ -1,0 +1,243 @@
+---
+title: "Monitoring Kessel Services"
+description: "Key performance indicators, metrics, and example alerting queries for monitoring the Kessel Inventory API."
+sidebar:
+  order: 10
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+This guide covers the key metrics and alerting strategies for monitoring the Kessel Inventory API. It is intended for operators running Kessel and focuses on API health, latency, and streaming performance; typical of standard SLI/SLO monitoring by SRE teams. For monitoring the CDC/outbox data replication pipeline specifically, see the dedicated guide:
+
+<LinkCard title="Monitoring Data Replication" href="/docs/running-kessel/monitoring-kessel/monitoring-data-replication-inventory-api/" />
+
+## Key Performance Indicators
+
+### API Availability
+
+Availability is measured as the ratio of successful responses to total requests. Monitoring availability over both long windows (days/weeks for SLO tracking) and short windows (minutes for spike detection) gives you a complete picture.
+
+Track availability at two levels:
+- **Service-wide**: The overall error rate across all operations. A sustained increase here means the service is broadly unhealthy.
+- **Per-operation**: Error rates broken down by gRPC method. This helps identify whether a single endpoint is failing while the rest of the service is healthy.
+
+Client errors (4xx/gRPC codes like `NotFound`, `PermissionDenied`, `Unauthenticated`) are worth monitoring separately. A sudden increase in 4xx errors can indicate auth misconfigurations, permission changes, or clients sending malformed requests.
+
+### API Latency
+
+Latency is tracked using request duration histograms. The most useful views are:
+
+- **Percentiles (p95, p99)**: How long the slowest requests take. A p99 spike may not affect most users but can indicate resource contention or slow queries.
+- **Percentage below a target**: What fraction of requests complete within an acceptable time (e.g., 250ms). This is useful for SLO tracking.
+- **Per-operation latency**: Some operations (like `Check`) should be fast, while others (like `StreamedListObjects`) may naturally take longer. Track them separately to set appropriate thresholds.
+
+### Streaming Performance
+
+Kessel supports gRPC streaming for operations like `StreamedListObjects` and `StreamedListSubjects`. Streaming has different performance characteristics than unary calls:
+
+- **Stream error rate**: The ratio of failed streams to total streams. A failed stream means the client received an error before or during data delivery.
+- **First-response latency**: The time between when a client opens a stream and when the first result arrives. This is the most important latency metric for streaming, since it determines how quickly a user sees initial results.
+- **Message throughput**: The rate of individual messages sent within streams. A drop in throughput may indicate backend slowdowns.
+
+### Service Health
+
+Beyond API-level metrics, monitor the underlying service health:
+
+- **Pod availability**: Whether service pods are up and responding to health checks.
+- **Resource usage**: CPU and memory consumption. Rising resource usage can predict performance degradation before it affects users.
+- **Go runtime**: Goroutine count and garbage collection pause times. A growing goroutine count may indicate leaked connections or stuck requests. Long GC pauses can cause latency spikes.
+
+## Metrics Reference
+
+The Inventory API exposes metrics through Prometheus. The tables below list the key metrics available.
+
+### Request metrics
+
+These are exposed through the [Go Kratos](https://go-kratos.dev/) middleware.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `server_requests_code_total` | Counter | `operation`, `code`, `kind` | Total requests by gRPC method, response code, and transport type |
+| `server_requests_seconds_bucket` | Histogram | `operation`, `le` | Request duration distribution with configurable bucket boundaries |
+
+### Streaming metrics
+
+These track gRPC streaming endpoint performance.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `grpc_server_streams_total` | Counter | `operation`, `code` | Total stream connections by method and response code |
+| `grpc_server_stream_first_response_duration_seconds` | Histogram | `operation`, `le` | Time from stream open to first message sent |
+| `grpc_server_stream_messages_total` | Counter | `operation` | Total individual messages sent within streams |
+| `grpc_server_stream_message_duration_seconds` | Histogram | `operation`, `le` | Duration of individual message send/receive within a stream |
+
+### Business metrics
+
+These track resource inventory state.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `kessel_inventory_resource_count` | Gauge | `resource_type`, `reporter_name`, `reporter_id` | Number of resources by type and reporter |
+| `kessel_inventory_resources_per_workspace` | Histogram | `resource_type` | Distribution of resource counts per workspace |
+
+### Operational metrics
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `kessel_inventory_serialization_failures` | Counter | Database serialization conflicts (retried automatically) |
+| `kessel_inventory_serialization_exhaustions` | Counter | Serialization conflicts that exceeded the retry limit |
+
+## Recording Rules
+
+Health check endpoints (`GetLivez`, `GetReadyz`) and reflection services (`ServerReflectionInfo`) generate constant traffic that skews availability and latency calculations. Create recording rules to filter them out before computing SLOs.
+
+**Example recording rule for request metrics:**
+
+```yaml
+groups:
+  - name: kessel-inventory-api-recording-rules
+    rules:
+      - record: kessel_inventory_api:server_requests_code_total:filtered
+        expr: >
+          server_requests_code_total{
+            job="kessel-inventory-api",
+            operation!~".*(GetLivez|GetReadyz|ServerReflectionInfo).*"
+          }
+```
+
+**Example recording rule for streaming metrics:**
+
+```yaml
+      - record: kessel_inventory_api:grpc_server_streams_total:filtered
+        expr: >
+          grpc_server_streams_total{
+            job="kessel-inventory-api",
+            operation!~".*(GetLivez|GetReadyz|ServerReflectionInfo).*"
+          }
+```
+
+Use these filtered metrics in your alerting queries instead of the raw metrics.
+
+## Example Alerting Queries
+
+The following queries correspond to the KPIs above. Adjust thresholds and time windows to match your deployment. Replace `my-service` with your service's job label.
+
+### Service availability (long window)
+
+Track the error rate over a rolling window for SLO compliance. This example alerts if more than 1% of requests are errors over 28 days:
+
+```promql
+(
+  sum(increase(kessel_inventory_api:server_requests_code_total:filtered{code=~"5..|14"}[28d]))
+  /
+  sum(increase(kessel_inventory_api:server_requests_code_total:filtered[28d]))
+) > 0.01
+```
+
+### Per-operation availability
+
+Identify specific endpoints that are failing:
+
+```promql
+(
+  sum by (operation) (increase(kessel_inventory_api:server_requests_code_total:filtered{code=~"5..|14"}[28d]))
+  /
+  sum by (operation) (increase(kessel_inventory_api:server_requests_code_total:filtered[28d]))
+) > 0.01
+```
+
+### 5xx error rate spike
+
+Catch short-term error spikes before they affect the long-window SLO:
+
+```promql
+(
+  sum(rate(kessel_inventory_api:server_requests_code_total:filtered{code=~"5..|14"}[5m]))
+  /
+  sum(rate(kessel_inventory_api:server_requests_code_total:filtered[5m]))
+) > 0.05
+```
+
+### 4xx error rate increase
+
+Detect a sudden increase in client errors:
+
+```promql
+(
+  rate(server_requests_code_total{job="my-service", code=~"401|403|404|408|409|429"}[5m])
+  /
+  rate(server_requests_code_total{job="my-service"}[5m])
+) > 0.10
+```
+
+### Latency SLO
+
+Alert when fewer than 95% of requests complete within a target latency (e.g., 250ms):
+
+```promql
+(
+  sum(rate(server_requests_seconds_bucket{job="my-service", le="0.25"}[5m]))
+  /
+  sum(rate(server_requests_seconds_bucket{job="my-service", le="+Inf"}[5m]))
+) < 0.95
+```
+
+### Stream availability
+
+Track error rates for streaming operations:
+
+```promql
+(
+  sum(increase(kessel_inventory_api:grpc_server_streams_total:filtered{code=~"5..|14"}[28d]))
+  /
+  sum(increase(kessel_inventory_api:grpc_server_streams_total:filtered[28d]))
+) > 0.01
+```
+
+### Stream first-response latency
+
+Alert when the 95th percentile of time-to-first-response exceeds a threshold:
+
+```promql
+histogram_quantile(0.95,
+  sum(rate(grpc_server_stream_first_response_duration_seconds_bucket{job="my-service"}[5m])) by (le)
+) > 1.0
+```
+
+<Aside type="note">
+  These queries are starting points. In practice, you may want to add `for` durations to avoid alerting on brief spikes, use multi-window burn rates for SLO alerting, or combine multiple conditions. See the [Google SRE workbook on alerting](https://sre.google/workbook/alerting-on-slos/) for more on SLO-based alerting strategies.
+</Aside>
+
+## Troubleshooting
+
+### High error rate across all operations
+
+The service is returning errors broadly. Check:
+- Database connectivity (PostgreSQL for inventory data, SpiceDB for authorization)
+- Resource pressure (CPU/memory limits causing OOM kills or throttling)
+- Upstream dependency failures (SpiceDB, Kafka)
+- Recent deployments or configuration changes
+
+### High error rate on a single operation
+
+One endpoint is failing while others work. Check:
+- Whether the operation depends on a specific backend that may be down
+- Whether request payloads for that operation have changed (schema validation failures)
+- Whether the operation is a streaming endpoint hitting timeout limits
+
+### Latency spikes
+
+Requests are succeeding but taking longer than expected. Check:
+- Database query performance (slow queries, lock contention)
+- SpiceDB response times for permission checks
+- Garbage collection pause times (Go runtime)
+- Pod resource limits (CPU throttling)
+- Network latency between services
+
+### Serialization exhaustions
+
+The `kessel_inventory_serialization_exhaustions` counter is increasing. This means concurrent requests are conflicting on the same database rows and exceeding the retry limit.
+
+Check:
+- Whether a specific resource is receiving a high volume of concurrent updates
+- Whether the serialization retry count is configured appropriately for your workload
