@@ -5,13 +5,18 @@ sidebar:
   order: 20
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, LinkCard } from '@astrojs/starlight/components';
 
 ## How Inventory API Ensures Data Consistency
 
-Inventory API uses [Change Data Capture](https://www.geeksforgeeks.org/change-data-capture-cdc/) (CDC) and the [Outbox Pattern](https://www.geeksforgeeks.org/outbox-pattern-for-reliable-messaging-system-design/) to ensure internal data consistency and reliable replication of relationship changes to SpiceDB. [Debezium](https://debezium.io/) monitors an outbox table in the Inventory API database and publishes change events to a Kafka topic. A Kafka consumer embedded in the Inventory API service processes those events and replicates the corresponding relationships to SpiceDB. Because events are ordered, they are processed sequentially, preventing inconsistencies from concurrent updates or failures.
+Inventory API uses [Change Data Capture](https://www.geeksforgeeks.org/change-data-capture-cdc/) (CDC) to ensure internal data consistency and reliable replication of relationship changes to SpiceDB. Within each database transaction, the service writes an event using PostgreSQL [logical decoding messages](https://www.postgresql.org/docs/current/functions-admin.html#id-1.5.8.32.8.3.2.2.12.1.1.1) (`pg_logical_emit_message`). [Debezium](https://debezium.io/) captures these messages from the write-ahead log (WAL) and publishes them to a Kafka topic. A Kafka consumer embedded in the Inventory API service processes those events and replicates the corresponding relationships to SpiceDB. Because events are ordered, they are processed sequentially, preventing inconsistencies from concurrent updates or failures.
 
-If your service is planning to integrate with Kessel Inventory, CDC with the outbox pattern is an effective way to ensure reliable replication. This guide covers the key metrics to monitor and example queries for alerting, which apply to any service using a similar Kafka and Debezium-based replication flow.
+This guide covers the key metrics and example alerting queries for monitoring this CDC pipeline. The same patterns apply to any service using a similar Kafka and Debezium-based replication flow.
+
+<Aside type="tip">
+  If you are looking to report resources to Kessel using your own CDC or async messaging pipeline, see the reporting guide for implementation strategies.
+  <LinkCard title="Report resources" href="/docs/building-with-kessel/how-to/report-resources/" />
+</Aside>
 
 ## Key Performance Indicators (KPIs)
 
@@ -33,7 +38,7 @@ Consumer lag is the difference between the latest offset stored by the broker an
 
 ### End-to-End Lag
 
-End-to-end lag captures the time between when an event is written to the outbox table and when the consumer processes and commits it. This measures the full CDC/outbox pipeline latency, including Debezium capture time, Kafka delivery, and consumer processing.
+End-to-end lag captures the time between when an event is emitted as a logical decoding message and when the consumer processes and commits it. This measures the full CDC pipeline latency, including Debezium capture time, Kafka delivery, and consumer processing.
 
 ## Metrics Sources
 
@@ -49,17 +54,19 @@ Kafka Connect clusters (where the Debezium connector runs) can expose metrics vi
 
 ### Custom Application Metrics
 
-Kafka infrastructure metrics alone do not indicate how well your application is processing events. The following custom metrics fill that gap. We recommend these names as a convention so that teams using similar CDC/outbox setups can share alerting configurations.
+Kafka infrastructure metrics alone do not indicate how well your application is processing events. The following custom metrics fill that gap.
+
+Inventory API uses two metric prefixes: `consumer_` for consumer-related metrics and `kessel_inventory_` for general application metrics. Counter metrics include the `_total` suffix added by the metrics framework.
 
 **Custom metrics:**
 
-| Metric name | Type | Description |
-|-------------|------|-------------|
-| `consumer_msgs_processed_total` | Counter | Events consumed, processed by the application, and committed as complete |
-| `consumer_msg_process_failures_total` | Counter | Events that failed during application processing |
-| `consumer_errors_total` | Counter | Consumer client errors (connection failures, broker issues) |
-| `consumer_kafka_error_events_total` | Counter | Kafka error events consumed from the broker |
-| `outbox_event_writes_total` | Counter | Events written to the outbox table (used for end-to-end lag calculation) |
+| Metric name | Scope/Prefix | Type | Description |
+|-------------|--------------|------|-------------|
+| `consumer_msgs_processed_total` | `consumer_` | Counter | Events consumed, processed by the application, and committed as complete |
+| `consumer_msg_process_failures_total` | `consumer_` | Counter | Events that failed during application processing |
+| `consumer_consumer_errors_total` | `consumer_` | Counter | Consumer client errors (connection failures, broker issues) |
+| `consumer_kafka_error_events_total` | `consumer_` | Counter | Kafka error events consumed from the broker |
+| `kessel_inventory_outbox_event_writes_total` | `kessel_inventory_` | Counter | Outbox events emitted as logical decoding messages (used for end-to-end lag calculation) |
 
 **Kafka infrastructure metrics:**
 
@@ -69,7 +76,7 @@ Kafka infrastructure metrics alone do not indicate how well your application is 
 
 **librdkafka statistics metrics:**
 
-librdkafka statistics metrics are predefined by Kafka but have generic names. We recommend using a `consumer_stats_` prefix to distinguish them from other metrics in your service.
+librdkafka statistics metrics are predefined by Kafka but have generic names. Inventory API uses the `consumer_stats_` prefix to distinguish them from other metrics.
 
 For example, the `replyq` statistic becomes `consumer_stats_replyq`. The `consumer_lag` statistic (available per topic-partition) becomes `consumer_stats_consumer_lag` and is the recommended source for consumer lag alerting.
 
@@ -96,7 +103,7 @@ Alert when the failure rate exceeds a threshold over a given window:
 Alert on a sustained increase in consumer client errors:
 
 ```promql
-rate(consumer_errors_total{job="my-service"}[5m]) > 0
+rate(consumer_consumer_errors_total{job="my-service"}[5m]) > 0
 ```
 
 ### Kafka error rate
@@ -137,6 +144,6 @@ The consumer is falling behind event production. Check consumer error rates and 
 
 The Debezium connector has failed or paused. Check connector task status and logs for errors. Common causes include database connectivity issues, replication slot problems, or schema changes that the connector cannot handle. See [Database changes with a Debezium source connector](/docs/running-kessel/monitoring-kessel/monitoring-data-replication-inventory-api/) for connector recovery guidance.
 
-### Outbox writes with no consumer processing
+### Outbox events emitted with no consumer processing
 
-Events are being written to the outbox table but are not being consumed. This usually means either the connector is not capturing changes (check connector health first) or the consumer is not running. Verify that the connector is active and that the consumer pods are healthy.
+Events are being written to the WAL but are not being consumed. This usually means either the Debezium connector is not capturing logical decoding messages (check connector health first) or the consumer is not running. Verify that the connector is active and that the consumer pods are healthy.
