@@ -1,33 +1,33 @@
 ---
 title: Events and change notifications
-description: Understand how Kessel publishes resource and relationship changes as CloudEvents to event topics for downstream integration and automation.
+description: Understand how Kessel publishes resource changes as events to Kafka topics for downstream integration and automation.
 sidebar:
   order: 40
 ---
 
 import { Aside, LinkCard } from '@astrojs/starlight/components';
 
-Kessel publishes **change events** whenever resources or relationships are created, updated, or deleted. These events enable downstream services to react to changes in real-time, build materialized views, trigger workflows, or maintain synchronized state across distributed systems.
+Kessel publishes **change events** whenever resources are created, updated, or deleted. These events enable downstream services to react to changes in real-time, build materialized views, trigger workflows, or maintain synchronized state across distributed systems.
 
-Events are published as [CloudEvents 1.0](https://cloudevents.io/) to event topics with guaranteed delivery. Each resource write produces events atomically, even in the face of failures or restarts.
+Events are published to Kafka topics with at-least-once delivery guarantees. Each resource write produces events atomically using the transactional outbox pattern, ensuring consistency between database state and published events even in the face of failures or restarts.
 
-This document explains how Kessel's eventing system works, what events are published, and how to consume them effectively.
+This document explains how Kessel's eventing system works, what events are published, and the delivery guarantees you can rely on.
 
-## Event Format: CloudEvents 1.0
+## Event Format
 
-All Kessel events conform to the [CloudEvents 1.0 specification](https://github.com/cloudevents/spec/blob/v1.0/spec.md) using JSON serialization.
+Kessel events use a JSON structure with fields inspired by CloudEvents attributes, but are **not** CloudEvents 1.0 compliant. The event structure provides event metadata (type, id, time, subject) and a `data` field containing the resource payload.
 
-**Standard CloudEvents fields:**
-- `specversion`: Always `"1.0"`
-- `type`: Event type in the format `redhat.inventory.{category}.{resource_type}.{operation}`
-- `source`: Event source identifier (currently empty string)
+**Event envelope fields:**
+- `specversion`: Always `"1.0"` (indicates format version)
+- `type`: Event type in the format `redhat.inventory.resources.{resource_type}.{operation}`
+- `source`: Reserved for future use (currently empty string)
 - `id`: Unique event identifier (UUID)
 - `time`: Event timestamp in ISO 8601 format
 - `datacontenttype`: Always `"application/json"`
 - `subject`: Resource path (e.g., `/resources/k8s_cluster/{resource_id}`)
 - `data`: Event payload (nested object with resource/relationship data)
 
-**Example CloudEvents envelope:**
+**Example event structure:**
 ```json
 {
   "specversion": "1.0",
@@ -39,21 +39,17 @@ All Kessel events conform to the [CloudEvents 1.0 specification](https://github.
   "subject": "/resources/k8s_cluster/abc-123",
   "data": {
     "metadata": { ... },
-    "reporterData": { ... },
-    "resourceData": { ... }
+    "reporter_data": { ... },
+    "resource_data": { ... }
   }
 }
 ```
 
-This standard format ensures Kessel events are compatible with CloudEvents tooling, gateways, and consumers across different platforms.
+This format provides structured event metadata and payload, making it straightforward to route, filter, and process events in downstream consumers.
 
 ## Event Types
 
-Kessel emits two categories of events:
-
-### Resource Events
-
-Published when resources are created, updated, or deleted via `ReportResource` or `DeleteResource`.
+Kessel publishes resource events when resources are created, updated, or deleted via `ReportResource` or `DeleteResource`.
 
 **Event type pattern:** `redhat.inventory.resources.{resource_type}.{operation}`
 
@@ -94,38 +90,29 @@ Published when resources are created, updated, or deleted via `ReportResource` o
 }
 ```
 
-### Relationship Events
+## Event Topic
 
-Published when authorization relationships (tuples) are created or deleted as part of resource reports. These events are published to the `outbox.event.kessel.tuples` topic and contain version information used for tracking relationship changes.
+Resource events are published to the Kafka topic **`outbox.event.kessel.resources`**.
 
-## Event Topics
-
-Events are published to two event topics:
-
-| Topic | Events | Partitioning |
-|-------|--------|--------------|
-| `outbox.event.kessel.resources` | Resource created/updated/deleted | By resource ID |
-| `outbox.event.kessel.tuples` | Relationship created/deleted | By resource ID |
+**Partitioning:** Events for the same resource ID are routed to the same Kafka partition (using resource ID as the message key), ensuring ordered processing per resource within a single consumer.
 
 <Aside type="note">
-  Resource **deleted** events are published to the resources topic with an empty payload (`{}`), while created and updated events include full resource data. Deletions also trigger relationship removal events on the tuples topic.
+  Resource **deleted** events are published with an empty payload (`{}`), while created and updated events include full resource data. The event envelope (type, id, time, subject) still contains all metadata needed to identify what was deleted.
 </Aside>
-
-**Topic naming:** Topics use the prefix `outbox.event.kessel.`
-
-**Partitioning:** Events for the same resource ID are routed to the same partition, ensuring ordered processing per resource.
 
 ## Event Delivery Guarantees
 
-Kessel guarantees reliable event delivery with the following semantics:
+Kessel provides reliable event delivery with the following semantics:
 
-**Exactly-once per write operation** — Each `ReportResource` or `DeleteResource` operation produces events atomically (one resource event and one relationship event). If the write succeeds, both events are guaranteed to be published. If the write fails, no events are published.
+**At-least-once delivery** — Events may be delivered more than once in certain failure scenarios. Consumers should implement idempotent processing to handle duplicate events safely. Kessel's internal consumer uses `OPERATION_TOUCH` (upsert) semantics when writing to SpiceDB, ensuring duplicate events do not cause errors.
 
-**Durability** — Once an event is published, it is durably stored and can be consumed by multiple subscribers independently.
+**Atomic publication** — Each `ReportResource` or `DeleteResource` operation produces events atomically using the transactional outbox pattern. If the write succeeds, the event is guaranteed to be published. If the write fails, no event is published.
 
-**Ordering per resource** — Events for the same resource are published in the order they were written, preserving causality.
+**Durability** — Once an event is published to Kafka, it is durably stored and can be consumed by multiple subscribers independently.
 
-These guarantees mean you can rely on the event stream as an authoritative record of all changes without needing to poll the API or implement your own change tracking.
+**Ordering per resource** — Events for the same resource ID are routed to the same Kafka partition, ensuring ordered processing per resource within a single consumer.
+
+These guarantees mean you can rely on the event stream as an authoritative record of all changes without needing to poll the API or implement your own change tracking, as long as your consumer handles duplicate events correctly.
 
 ## Connection to Consistency Model
 
