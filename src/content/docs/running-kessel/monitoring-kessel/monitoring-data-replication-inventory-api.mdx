@@ -84,6 +84,10 @@ See the [librdkafka statistics documentation](https://github.com/confluentinc/li
 
 ## Example Alerting Queries
 
+<Aside type="tip">
+    For Red Hatters: Red Hat-specific Monitoring and Alerting information can be found in the supplementary "Monitoring Data Replication" guide in our inScope documentation pages.
+</Aside>
+
 The following PromQL queries correspond to the KPIs above. Adjust thresholds and time windows to match your service's expected traffic patterns. The `job` label filters to your service's specific metrics (set by your Prometheus scrape configuration or ServiceMonitor).
 
 ### Message processing failure rate
