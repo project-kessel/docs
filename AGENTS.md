@@ -141,13 +141,15 @@ This system has three cooperating parts:
 
 When editing client-package pages, the API surface is defined entirely in YAML frontmatter, not in the Markdown body. The specification uses JavaScript conventions (`camelCase`) as canonical; implementations transform to language-specific conventions.
 
-## Fork and Overlay Architecture
+## Internal Documentation
 
-This repository is designed to be forked for internal documentation. The `config-overlay.mjs` file provides two hook functions:
-- `applyTopLevelOverlay(config)` -- modifies top-level Astro config (site URL, base path, integrations)
-- `applyStarlightOverlay(starlightConfig)` -- modifies Starlight config (sidebar entries, plugins)
+This repository contains the public Kessel documentation. Supplemental internal documentation -- covering Red Hat-specific onboarding, hosted environment configuration, operational runbooks, and monitoring -- is maintained in a separate repository and published to InScope (Red Hat's internal developer portal, accessible via VPN).
 
-**Critical rule**: In the public repository, changes to `config-overlay.mjs` and `astro.config.mjs` must be made carefully as they affect internal forks. The warning in `config-overlay.mjs` is explicit: modifications may break internal mirroring. In a fork, you MUST NOT modify files that originate from the public repository.
+Content belongs in the right place:
+- **Public docs (this repo)**: Integration guides, SDK docs, API reference, concepts, and anything relevant to all Kessel users.
+- **Internal docs (InScope)**: Red Hat-specific configuration, credentials setup, ephemeral testing, hosted architecture, runbooks, and monitoring procedures.
+
+Do not add Red Hat-specific operational content to this repository.
 
 ## Cross-Cutting Conventions
 
