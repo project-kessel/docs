@@ -7,13 +7,13 @@ sidebar:
 
 import { Aside, LinkCard } from '@astrojs/starlight/components';
 
-Kessel maintains a complete **version history** of every resource representation. Each time a service reports a resource, Kessel creates a new immutable version rather than overwriting the previous state. This append-only design provides a full audit trail of how resources evolve and enables change detection for event publishing.
+Kessel maintains a complete **version history** of every resource representation. Each time a service reports a resource, Kessel creates a new immutable version rather than overwriting the previous state. Because Kessel never overwrites data, you get a full audit trail of how resources evolve and reliable change detection for event publishing.
 
 Understanding the versioning system is essential for interpreting resource state, debugging integration issues, and understanding how Kessel detects changes.
 
-## Why Versioning Matters
+## Why Version History?
 
-Versioning serves several purposes in Kessel's architecture:
+Kessel's version tracking helps with:
 
 **Audit Trail** — Every change to a resource is preserved as an immutable snapshot, providing a complete history for compliance, debugging, or forensic analysis.
 
@@ -23,61 +23,77 @@ Versioning serves several purposes in Kessel's architecture:
 
 **No Overwrites** — Representations are never modified in place. Each `ReportResource` call creates a new version, ensuring past states remain queryable.
 
-## The Four-Level Versioning Hierarchy
+## Four Types of Version Numbers
 
-Kessel uses **four distinct version fields** to track different aspects of resource evolution:
+Kessel tracks resource evolution using **four distinct version fields**:
 
-### 1. Version (Reporter Representation)
+### 1. CommonVersion
 
-**Scope:** Reporter-specific representation  
+**Scope:** Shared across all reporters  
+**Increments:** When common representation data is provided  
+**Purpose:** Tracks versions of shared resource attributes
+
+The `CommonVersion` increments by 1 each time a reporter includes **common representation** data in a report (starting from 0). When no common data is provided, `CommonVersion` remains unchanged.
+
+**CommonVersion progression:**
+
+```mermaid
+stateDiagram-v2
+    [*] --> 0: Report with common data
+    0 --> 0: Report without common data
+    0 --> 1: Report with common data
+    1 --> 2: Report with common data
+```
+
+This ensures `CommonVersion` always increments monotonically across the resource's lifetime, regardless of which reporter provides the common data or whether some reports omit it.
+
+### 2. RepresentationVersion
+
+**Scope:** Per-reporter representation  
 **Increments:** Every `ReportResource` call  
 **Purpose:** Tracks individual data snapshots for a specific reporter's view of the resource
 
-Each time a reporter calls `ReportResource`, Kessel increments the reporter representation `Version` by 1, even if the payload data is identical. This monotonically increasing counter provides a total ordering of all reports from that reporter.
+Each time a reporter calls `ReportResource`, Kessel increments the `RepresentationVersion` by 1, even if the payload data is identical. This monotonically increasing counter provides a total ordering of all reports from that reporter.
 
-**Example:**
-- Reporter "acs" reports cluster-789: `Version = 0`
-- Reporter "acs" reports cluster-789 again: `Version = 1`
-- Reporter "acs" reports cluster-789 again: `Version = 2`
+**RepresentationVersion progression:**
 
-### 2. Generation
+```mermaid
+stateDiagram-v2
+    [*] --> 0: Report
+    0 --> 1: Report
+    1 --> 2: Report
+```
 
-**Scope:** Reporter-specific resource lifecycle  
+### 3. Generation
+
+**Scope:** Per-reporter lifecycle  
 **Increments:** When a tombstoned resource is resurrected  
 **Purpose:** Distinguishes delete/recreate cycles from continuous updates
 
-When a resource is deleted (tombstoned) and then re-reported, the `Generation` number increments and the representation `Version` resets to 0. This allows Kessel to track how many times a resource has been deleted and recreated.
+When a resource is deleted (tombstoned) and then re-reported, the `Generation` number increments and the `RepresentationVersion` resets to 0. This allows Kessel to track how many times a resource has been deleted and recreated.
 
-**Example lifecycle:**
-- Create: `Generation = 0, Version = 0`
-- Update: `Generation = 0, Version = 1`
-- Delete: `Generation = 0, Version = 2` (tombstone, version increments)
-- Recreate: `Generation = 1, Version = 0` (new lifecycle, version resets)
+**Generation progression:**
+
+```mermaid
+stateDiagram-v2
+    [*] --> 0: Create
+    0 --> 0: Update
+    0 --> 0: Delete (tombstone)
+    0 --> 1: Report after delete
+    1 --> 1: Update
+    1 --> 1: Delete (tombstone)
+    1 --> 2: Report after delete
+```
 
 **Use case:** Detect when a cluster was deleted and a new cluster with the same name was created later, preventing misattribution of historical data.
 
-### 3. CommonVersion
-
-**Scope:** Common representation (shared across all reporters)  
-**Increments:** When common representation data changes  
-**Purpose:** Tracks versions of shared resource attributes
-
-The `CommonVersion` increments only when the **common representation** payload changes. If multiple reporters report the same resource type and only reporter-specific data changes, `CommonVersion` remains stable.
-
-**Example:**
-- Reporter "acs" sets workspace_id="ws-1": `CommonVersion = 1`
-- Reporter "acs" updates reporter data (workspace unchanged): `CommonVersion = 1` (no change)
-- Reporter "cost-mgmt" updates workspace_id="ws-2": `CommonVersion = 2`
-
-This allows consumers to detect when **shared metadata** changes vs when only reporter-specific details change.
-
 ### 4. ReporterVersion
 
-**Scope:** Reporter-supplied semantic version  
+**Scope:** Reporter-supplied metadata  
 **Increments:** Manually set by the reporter (optional)  
 **Purpose:** Opaque metadata for reporter's own versioning scheme
 
-The `ReporterVersion` is a **string field** supplied by the reporter in `RepresentationMetadata.reporter_version`. Kessel treats it as opaque metadata and does not interpret or validate it.
+The `ReporterVersion` is a **string field** supplied by the reporter in `RepresentationMetadata.reporter_version`. Kessel stores this field as-is without interpreting or validating it.
 
 **Use case:** A reporter tracks its own data schema evolution (e.g., `"v2.1.0"`) and includes it in the payload for downstream consumers to detect schema changes.
 
@@ -90,17 +106,15 @@ flowchart TD
     Start([ReportResource called]) --> Load[Load current version]
     Load --> CheckTombstone{Was resource<br/>tombstoned?}
     
-    CheckTombstone -->|Yes| IncrGen[Increment Generation<br/>Reset Version to 0]
-    CheckTombstone -->|No| IncrVer[Increment Version by 1]
+    CheckTombstone -->|Yes| IncrGen[Increment Generation<br/>Reset RepresentationVersion to 0]
+    CheckTombstone -->|No| IncrVer[Increment RepresentationVersion by 1]
     
-    IncrGen --> CheckCommon{Common data<br/>changed?}
+    IncrGen --> CheckCommon{Common data<br/>provided?}
     IncrVer --> CheckCommon
     
     CheckCommon -->|Yes| IncrCommon[Increment CommonVersion]
-    CheckCommon -->|No| Insert
-    IncrCommon --> Insert[Insert new row with<br/>updated version numbers]
-    
-    Insert --> End([Done])
+    CheckCommon -->|No| Done
+    IncrCommon --> Done([Done])
 ```
 
 ### DeleteResource Flow
@@ -108,39 +122,32 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start([DeleteResource called]) --> Tombstone[Mark resource as tombstoned]
-    Tombstone --> IncrVer[Increment Version by 1]
-    IncrVer --> Insert[Insert tombstone row]
-    Insert --> End([Done])
+    Tombstone --> IncrVer[Increment RepresentationVersion by 1]
+    IncrVer --> End([Done])
 ```
 
 <Aside type="note">
-  After a resource is deleted, the next `ReportResource` call will increment the Generation and reset Version to 0, starting a new lifecycle.
+  After a resource is deleted, the next `ReportResource` call will increment the Generation and reset RepresentationVersion to 0, starting a new lifecycle.
 </Aside>
 
-## Change Detection for Events
+## Event Type Determination
 
-Kessel compares the current version with the previous version to determine what changed and emit appropriate events.
+Kessel determines which event type to emit based on the API called and whether the resource already exists in the database.
 
 ```mermaid
 flowchart TD
-    Start([New version created]) --> CheckPrevious{Previous version<br/>exists?}
+    Start([API called]) --> CheckAPI{Which API?}
     
-    CheckPrevious -->|No| Created[Emit 'created' event]
-    CheckPrevious -->|Yes| CheckTombstone{Resource<br/>tombstoned?}
+    CheckAPI -->|ReportResource| CheckExists{Resource exists<br/>in DB?}
+    CheckAPI -->|DeleteResource| Deleted[Emit 'deleted' event]
     
-    CheckTombstone -->|Yes| Deleted[Emit 'deleted' event]
-    CheckTombstone -->|No| Updated[Emit 'updated' event]
+    CheckExists -->|No| Created[Emit 'created' event]
+    CheckExists -->|Yes| Updated[Emit 'updated' event]
     
     Created --> End([Done])
-    Deleted --> End
     Updated --> End
+    Deleted --> End
 ```
-
-<Aside type="note">
-  Change detection compares **common representation** versions to detect changes in shared resource metadata. Reporter-specific representation changes are tracked separately for each reporter.
-</Aside>
-
-Without immutable version history, Kessel could not reliably distinguish between actual data changes and redundant reports of the same state.
 
 ## Next Steps
 
