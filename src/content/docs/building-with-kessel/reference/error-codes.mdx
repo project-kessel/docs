@@ -25,7 +25,7 @@ Automate retries and alerting on the **gRPC code**. Messages marked `stable` are
 | `INVALID_ARGUMENT` | Validation failed | Missing fields, protovalidate, bad UUID/URL, empty bulk `items`, duplicate `transaction_id` | Fix request; read `message` for hints |
 | `DEADLINE_EXCEEDED` | Deadline exceeded | Slow DB, large bulk, network latency | Increase deadline; reduce batch |
 | `NOT_FOUND` | Resource absent | Wrong `resource_id`, type, or reporter | Verify identifiers; confirm resource was [reported](/building-with-kessel/how-to/report-resources/) |
-| `ALREADY_EXISTS` | Duplicate resource | Duplicate reporter key (same `resource_type` + `resource_id` + `reporter.type`) | Use update/report semantics or treat as success |
+| `ALREADY_EXISTS` | Duplicate resource | Duplicate reporter resource key (same `resource_type` + `resource_id` + `reporter.type` + `reporter_instance_id`) | Use update/report semantics or treat as success |
 | `PERMISSION_DENIED` | Meta-authz rejected | Missing role binding, wrong principal | Review [RBAC](/building-with-kessel/concepts/rbac/) |
 | `FAILED_PRECONDITION` | State rejected | Inventory ID mismatch on update | Align IDs on update paths |
 | `UNIMPLEMENTED` | RPC not available | Wrong API version or disabled feature | Confirm service version |
@@ -122,11 +122,11 @@ Content depends on the specific request or backend state. Use for human debuggin
 | `failed to create reporter resource key: …` | `INVALID_ARGUMENT` | Verify reporter fields |
 | `failed validation for report resource: …` | `INVALID_ARGUMENT` | Align payload with schema |
 | `representation data cannot be empty` | `INVALID_ARGUMENT` | Supply non-empty data |
-| `invalid reporter representation: …` | `INVALID_ARGUMENT` | Fix reporter struct in request |
-| `invalid common representation: …` | `INVALID_ARGUMENT` | Fix common struct in request |
-| `invalid resource at index …` / `invalid subject at index …` / `invalid relation at index …` | `INVALID_ARGUMENT` | Fix indexed item |
-| `LookupObjects requires reporter type: …` | `INVALID_ARGUMENT` | Include reporter type in lookup request |
-| `LookupSubjects requires subject reporter type: …` | `INVALID_ARGUMENT` | Include subject reporter type in lookup request |
+| `invalid <field>: …` (e.g. `invalid resource type`, `invalid local resource ID`, `invalid reporter type`, `invalid relation`, `invalid subject`, `invalid API href`, `invalid reporter version`) | `INVALID_ARGUMENT` | Fix the named field in your request |
+| `invalid reporter representation: …` / `invalid common representation: …` | `INVALID_ARGUMENT` | Fix representation struct in request |
+| `invalid <field> at index …` (e.g. `invalid resource at index 0`, `invalid subject at index 1`, `invalid relation at index 2`) | `INVALID_ARGUMENT` | Fix the indexed item in the bulk request |
+| `invalid inventory ID: …` | `INVALID_ARGUMENT` | Supply a valid UUID for the inventory ID |
+| `LookupObjects requires reporter type: …` / `LookupSubjects requires subject reporter type: …` | `INVALID_ARGUMENT` | Include required reporter type in lookup request |
 
 ### Middleware and auth
 
