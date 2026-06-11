@@ -1,0 +1,74 @@
+---
+title: Understanding Kessel
+description: Learn what Kessel is, the problems it solves, and how Kessel Inventory and Kessel RBAC work together.
+---
+
+import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Kessel is a platform for managing resources, controlling access to them, and tracking how they change over time.
+
+A **resource** can be anything your application manages: a file, a virtual whiteboard, a Linux host, a Kubernetes cluster, or any other entity. If you are building an API, the things it manages are resources to Kessel.
+
+## The problem Kessel solves
+
+When you build resource-based APIs, you often need to handle several cross-cutting concerns:
+
+- **Organization**: grouping resources by customer, team, project, or environment
+- **Sharing**: letting users share resources with others
+- **Access control**: deciding who can do what with each resource
+- **History**: tracking changes to resources over time
+- **Events**: notifying other systems when resources change
+
+These problems get harder when multiple services need to work together. Consider a platform like Google Drive that supports documents, spreadsheets, and slides. If those are built by different teams or services, it's difficult to make them all behave consistently. Users expect to organize all of them into the same folders, share them the same way, and manage permissions in one place.
+
+Kessel provides the primitives to deliver these capabilities, at scale, without reinventing them. It has two main components: **Kessel Inventory** for tracking resources and their relationships, and **Kessel RBAC**, an opinionated but highly reusable access control and tenancy model so you can get right to work on what's valuable.
+
+## Kessel Inventory
+
+Kessel Inventory is the central record of what resources exist and how they relate to each other.
+
+Services **report** their resources to the inventory. Kessel then tracks each resource's data, its relationships to other resources (like which workspace it belongs to), and its change history. When a resource changes, Kessel publishes events so other systems can react.
+
+A key feature is that the same resource can have multiple **representations** from different **reporters**. For example, a host might be reported by both a monitoring service and a configuration management tool. Each contributes its own view of the host, while Kessel maintains a single, unified resource identity.
+
+To learn more, see [Resources and representations](/docs/building-with-kessel/concepts/resources-representations/).
+
+## Kessel RBAC
+
+Kessel RBAC controls who can do what. It provides an access control system built on a relationship graph, powered by [SpiceDB](https://authzed.com/spicedb).
+
+Instead of storing flat permission lists, Kessel models access as a graph of relationships. For example: "Alice has the editor role on Workspace A" and "Document X belongs to Workspace A." From those two facts, Kessel can determine that Alice has editor permissions on Document X.
+
+The core concepts are:
+
+- **Permissions**: specific actions like `view`, `edit`, or `delete`
+- **Roles**: named collections of permissions (for example, "viewer" or "editor")
+- **Workspaces**: containers that group resources together
+- **Role bindings**: the link between a subject (user or group), a role, and a resource or workspace
+
+Kessel evaluates access by traversing these relationships, so permissions automatically follow your resource hierarchy.
+
+To learn more, see [Role-based access control](/docs/building-with-kessel/concepts/rbac/).
+
+## How they work together
+
+Inventory and RBAC are separate systems with a clear division of responsibilities:
+
+1. **Your service reports a resource** to Kessel Inventory, including its relationships (for example, "this document belongs to Workspace A").
+2. **Inventory stores the resource** and replicates permission-relevant relationships to the RBAC authorization graph.
+3. **When your service needs to check access**, it asks Kessel: "Does this user have the `view` permission on this document?" Kessel traverses the relationship graph and returns the answer.
+
+This separation means you can use Inventory on its own for resource tracking and events, or combine it with RBAC for full access control. Services don't need to implement their own permission logic; they just ask Kessel.
+
+## What's next
+
+If you haven't tried it yet, the [Quick Start](../getting-started/) walks you through setting up Kessel, defining a resource type, reporting resources, and checking permissions.
+
+When you're ready to go deeper, explore the concept and how-to guides:
+
+<CardGrid>
+  <LinkCard title="Resources and representations" href="/docs/building-with-kessel/concepts/resources-representations/" description="How Kessel models resources, reporters, and representations." />
+  <LinkCard title="Schema and extensibility" href="/docs/building-with-kessel/concepts/schema/" description="How to define resource types and their relationships." />
+  <LinkCard title="Role-based access control" href="/docs/building-with-kessel/concepts/rbac/" description="Permissions, roles, role bindings, and workspaces." />
+  <LinkCard title="Report resources" href="/docs/building-with-kessel/how-to/report-resources/" description="Tell Kessel about your resources and their relationships." />
+</CardGrid>
