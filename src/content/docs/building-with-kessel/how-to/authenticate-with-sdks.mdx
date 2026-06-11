@@ -1,0 +1,78 @@
+---
+title: Authenticate with Kessel SDKs
+description: How to configure OAuth 2.0 client credentials authentication with Kessel SDKs.
+sidebar:
+  order: 75
+---
+
+import CodeExamples from 'src/components/CodeExamples.astro';
+
+export const authExamples = import.meta.glob('/src/examples/auth/example.*', { query: '?raw', eager: true, import: 'default' });
+
+All Kessel SDKs support the [OAuth 2.0 Client Credentials](https://www.rfc-editor.org/rfc/rfc6749#section-4.4) grant for service-to-service authentication. The SDK handles token caching and automatic refresh transparently.
+
+:::note[OAuth 2.0 requires TLS]
+You cannot use OAuth authentication over an insecure channel. The `ClientBuilder` automatically uses TLS when credentials are provided — do not call `.insecure()` alongside authentication methods.
+:::
+
+## Install Authentication Dependencies
+
+Some SDKs require an optional dependency to use authentication features:
+
+| SDK | Installation |
+|-----|-------------|
+| Python | `pip install "kessel-sdk[auth]"` |
+| Ruby | Add `gem 'openid_connect'` to your Gemfile |
+| Java | Include the Nimbus OAuth SDK (`com.nimbusds:oauth2-oidc-sdk`) |
+| Go, TypeScript | Included in the core package |
+
+## Configure Credentials
+
+### Option 1: OIDC Discovery (Recommended)
+
+Use OIDC Discovery when your OAuth provider publishes a `.well-known/openid-configuration` endpoint. The SDK fetches the token endpoint URL for you.
+
+<CodeExamples files={authExamples} regions="discover" />
+
+### Option 2: Direct Token URL
+
+Use a direct token URL when your OAuth provider does not support OIDC Discovery, or when you want explicit control over the token endpoint.
+
+<CodeExamples files={authExamples} regions="direct-token" />
+
+## Using Credentials
+
+The same `OAuth2ClientCredentials` object works with both services, but is wrapped differently depending on the protocol.
+
+### With Inventory API (gRPC)
+
+Pass credentials to the `ClientBuilder` to build an authenticated gRPC client.
+
+:::note
+The Inventory API must have authentication enabled server-side before this takes effect. See [Configure authentication](/building-with-kessel/how-to/configure-authentication/) to enable OIDC on your instance. By default Inventory API only allows unauthenticated requests.
+:::
+
+<CodeExamples files={authExamples} regions="build-client" />
+
+### With RBAC Helpers (HTTP)
+
+RBAC REST helpers like `fetchRootWorkspace` accept an `AuthRequest` object that injects the Bearer token into each HTTP request. Use `oauth2AuthRequest` to create one from your credentials.
+
+<CodeExamples files={authExamples} regions="rbac-auth" />
+
+## Token Management
+
+The SDK handles token lifecycle automatically:
+
+- **Token caching**: tokens are reused until they approach expiration (within 5 minutes of expiry)
+- **Automatic refresh**: a new token is fetched before the cached one expires
+- **Concurrency safe**: concurrent requests share a single in-flight token fetch rather than each triggering a refresh
+
+## Complete Example
+
+<CodeExamples files={authExamples} />
+
+## Related Documentation
+
+- [Client SDK Specification](/contributing/client-libraries/) — for SDK developers
+- [API Reference: auth package](/contributing/client-api/auth/) — detailed API documentation
