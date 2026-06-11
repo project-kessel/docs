@@ -21,6 +21,8 @@ import createRoleBindingScript from 'src/examples/scripts/create-role-binding.sh
 
 export const createFile = (path, content) => `cat > ${path} << 'EOF'\n${content.trim()}\nEOF`;
 
+**Time: ~30 minutes**
+
 This tutorial walks you through setting up Kessel from scratch. By the end, you will have:
 
 1. **Run Kessel** locally with Docker Compose
@@ -343,6 +345,19 @@ Kessel provides several ways to handle this, including fully consistent checks (
 ## Complete example
 
 <CodeExamples files={gettingStartedExamples} />
+
+## What you learned
+
+In this tutorial, you:
+
+- **Defined a resource type** using KSL schema files and JSON Schema for resource attributes
+- **Compiled the schema** to SpiceDB format using the `ksl` compiler
+- **Ran the full Kessel stack** locally with Docker Compose
+- **Set up RBAC** by creating a role with permissions and binding it to a user on a workspace
+- **Reported a resource** to Kessel's inventory, including its relationship to a workspace
+- **Checked permissions** to verify that access control works through the relationship graph
+
+These are the same building blocks you'll use when integrating Kessel into a real application. The [how-to guides](/docs/building-with-kessel/how-to/report-resources/) go deeper into each step.
 
 ## Try it yourself
 
