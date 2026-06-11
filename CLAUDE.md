@@ -21,11 +21,10 @@ This repository uses `rh-multi-pre-commit` for Red Hat security scanning. The ho
 
 ## Claude Code Behavioral Preferences
 
-### File modification priority
-- **CRITICAL**: This repository has a fork/overlay architecture for internal documentation
-- Modifications to `config-overlay.mjs` and `astro.config.mjs` affect internal forks - exercise extreme caution
-- The warning in `config-overlay.mjs` is explicit: modifications may break internal mirroring
-- When making changes to these files, follow up immediately to resolve conflicts in forks
+### Content placement
+- This repository is for **public** Kessel documentation only
+- Internal Red Hat-specific content (onboarding, hosted config, runbooks, monitoring) belongs in the separate internal docs repo published to InScope
+- Do not add Red Hat-specific operational content to this repository
 
 ### Content creation
 - Use `.mdx` for pages needing Astro components (`Aside`, `Tabs`, `CodeExamples`, etc.)
