@@ -1,0 +1,387 @@
+---
+title: "Tutorial: Add Kessel to an existing application"
+description: Walk through the process of integrating Kessel into an existing service, from designing a permission schema to checking permissions.
+---
+
+import { Aside, CardGrid, LinkCard, Steps } from '@astrojs/starlight/components';
+
+**Time: ~45 minutes**
+
+This tutorial walks you through integrating Kessel into an application you already have. By the end, you will have:
+
+1. **Designed a permission schema** for a custom resource type
+2. **Compiled and loaded the schema** into a running Kessel instance
+3. **Reported a resource** to Kessel with a workspace relationship
+4. **Checked permissions** to verify access control works
+
+The tutorial uses a task management service as an example: users create tasks, organize them into workspaces (projects), and control who can view or edit them. The same process applies to any application.
+
+<Aside type="tip" title="New to Kessel?">
+If you haven't used Kessel before, start with the [Quick Start](../getting-started/) to get familiar with the basics. This tutorial assumes you have completed the Quick Start and understand resources, schema, roles, and permission checks.
+</Aside>
+
+## Prerequisites
+
+You need the following tools installed (all covered in the [Quick Start prerequisites](../getting-started/#prerequisites)):
+
+- **`ksl`** schema compiler ([install instructions](../getting-started/#prerequisites))
+- **`grpcurl`** for gRPC API calls ([install instructions](../getting-started/#prerequisites))
+- A **running Kessel instance** (see [Run locally with Docker Compose](/docs/building-with-kessel/how-to/run-with-docker/#start-the-stack))
+
+Create a working directory for this tutorial:
+
+```bash
+mkdir -p kessel-task-tutorial
+cd kessel-task-tutorial
+```
+
+## Step 1: Map your resources
+
+Before writing any code, identify what your application manages and how it maps to Kessel's model.
+
+Ask yourself:
+
+- **What are the "things" my application manages?** These are your resource types.
+- **How are they organized?** Do resources belong to a parent container? In Kessel, the built-in **workspace** resource handles this grouping.
+- **Who needs access, and what kind?** What permissions does each resource type need?
+
+For the task manager example, the mapping looks like this:
+
+| Your application | Kessel concept |
+|---|---|
+| Project | Workspace (built-in) |
+| Task | Custom resource type `task` |
+| "Can view tasks" | Permission `task_view` on workspace |
+| "Can edit tasks" | Permission `task_edit` on workspace |
+| Team member | Principal with a role binding |
+
+<Aside type="note">
+Not every application concept maps directly to a Kessel concept. The goal is to identify the resources that need access control and find the right level of granularity. See [Design permissions](/docs/building-with-kessel/how-to/design-permissions/) for guidance on common patterns.
+</Aside>
+
+## Step 2: Design and compile your permission schema
+
+With your resources mapped, write a KSL schema that describes them.
+
+<Steps>
+1. **Create the base schema files.**
+
+    Kessel requires two built-in schema files. These are the same ones used in the Quick Start.
+
+    ```bash
+    cat > kessel.ksl << 'EOF'
+    version 0.1
+    namespace kessel
+
+    internal type lock {
+        relation #version: [ExactlyOne lockversion]
+    }
+
+    internal type lockversion {}
+    EOF
+    ```
+
+    ```bash
+    cat > rbac.ksl << 'EOF'
+    version 0.1
+    namespace rbac
+
+    public type principal {}
+
+    public type group {
+        relation member: [Any principal or group.member]
+    }
+
+    public type role {
+    }
+
+    public type role_binding {
+        relation subject: [Any principal or group.member]
+        relation granted: [AtLeastOne role]
+    }
+
+    public type workspace {
+        relation parent: [AtMostOne workspace]
+        relation user_grant: [Any role_binding]
+    }
+
+    public extension add_permission(name) {
+        type role {
+            private relation `${name}`: [bool]
+        }
+
+        type role_binding {
+            internal relation `${name}`: subject and granted.`${name}`
+        }
+
+        type workspace {
+            internal relation `${name}`: user_grant.`${name}` or parent.`${name}`
+        }
+    }
+    EOF
+    ```
+
+2. **Write your resource type schema.**
+
+    Create `taskmanager.ksl` with permissions for viewing and editing tasks:
+
+    ```bash
+    cat > taskmanager.ksl << 'EOF'
+    version 0.1
+    namespace taskmanager
+
+    import rbac
+
+    @rbac.add_permission(name:'task_view')
+    @rbac.add_permission(name:'task_edit')
+
+    public type task {
+        relation workspace: [ExactlyOne rbac.workspace]
+
+        relation view: workspace.task_view
+        relation edit: workspace.task_edit
+    }
+    EOF
+    ```
+
+    This tells Kessel:
+
+    - There are two permissions (`task_view` and `task_edit`) that can be granted through roles
+    - There is a resource type called `task` that belongs to exactly one workspace
+    - The `view` and `edit` permissions on a task are inherited from its workspace
+
+3. **Compile the schema.**
+
+    ```bash
+    ksl kessel.ksl rbac.ksl taskmanager.ksl
+    ```
+
+    This produces a `schema.zed` file. If you see errors, check that all three `.ksl` files are in the current directory.
+</Steps>
+
+## Step 3: Create resource type configuration
+
+Kessel also needs configuration files that describe your resource type's attributes.
+
+<Steps>
+1. **Create the directory structure.**
+
+    ```bash
+    mkdir -p task/reporters/taskmanager
+    ```
+
+2. **Define the resource type.**
+
+    ```bash
+    cat > task/config.yaml << 'EOF'
+    resource_type: task
+    resource_reporters:
+      - TASKMANAGER
+    EOF
+    ```
+
+3. **Define the common representation schema.**
+
+    This describes the attributes shared across all reporters. The `workspace_id` field is required to place the task in a workspace for access control.
+
+    ```bash
+    cat > task/common_representation.json << 'EOF'
+    {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "workspace_id": { "type": "string" }
+      },
+      "required": [
+        "workspace_id"
+      ]
+    }
+    EOF
+    ```
+
+4. **Define the reporter configuration and schema.**
+
+    ```bash
+    cat > task/reporters/taskmanager/config.yaml << 'EOF'
+    resource_type: task
+    reporter_name: taskmanager
+    namespace: taskmanager
+    EOF
+    ```
+
+    ```bash
+    cat > task/reporters/taskmanager/task.json << 'EOF'
+    {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "status": { "type": "string", "enum": ["todo", "in_progress", "done"] },
+        "assignee": { "type": "string" }
+      },
+      "required": [
+        "title"
+      ]
+    }
+    EOF
+    ```
+</Steps>
+
+## Step 4: Load the schema into Kessel
+
+Load your resource type and compiled schema into a running Kessel instance.
+
+<Steps>
+1. **Copy your resource type into the Inventory API schema directory.**
+
+    Replace `/path/to/inventory-api` with the path to your local `inventory-api` clone.
+
+    ```bash
+    cp -r task/ /path/to/inventory-api/data/schema/resources/
+    ```
+
+2. **Preload the schema and restart Kessel.**
+
+    ```bash
+    cd /path/to/inventory-api
+    go run main.go preload-schema
+    SCHEMA_ZED_FILE=/path/to/kessel-task-tutorial/schema.zed make kessel-down kessel-up
+    ```
+</Steps>
+
+## Step 5: Set up roles and access
+
+Before you can check permissions, a user needs access. In Kessel, roles and role bindings are created by writing tuples to the Relations API.
+
+<Steps>
+1. **Create a role.**
+
+    A role is a set of permission tuples. This creates a "task-viewer" role with the `task_view` permission.
+
+    ```bash
+    ROLE_NAME="task-viewer"
+    PERMISSIONS=("task_view")
+    RELATIONS_PORT=9000
+
+    TUPLES=""
+    for i in "${!PERMISSIONS[@]}"; do
+        PERM="${PERMISSIONS[$i]}"
+        TUPLE="{\"resource\":{\"id\":\"${ROLE_NAME}\",\"type\":{\"name\":\"role\",\"namespace\":\"rbac\"}},\"relation\":\"${PERM}\",\"subject\":{\"subject\":{\"id\":\"*\",\"type\":{\"name\":\"principal\",\"namespace\":\"rbac\"}}}}"
+        if [ $i -gt 0 ]; then
+            TUPLES="${TUPLES},"
+        fi
+        TUPLES="${TUPLES}${TUPLE}"
+    done
+
+    grpcurl -plaintext -d "{\"tuples\":[${TUPLES}]}" \
+        "localhost:${RELATIONS_PORT}" \
+        kessel.relations.v1beta1.KesselTupleService.CreateTuples
+    ```
+
+2. **Create a role binding.**
+
+    A role binding grants a role to a subject on a specific workspace. This creates three tuples that tie together the role, the user, and the workspace.
+
+    ```bash
+    ROLE_NAME="task-viewer"
+    USER_ID="user-123"
+    RESOURCE_ID="project-alpha"
+    RELATIONS_PORT=9000
+    BINDING_ID="${ROLE_NAME}--${USER_ID}--${RESOURCE_ID}"
+
+    grpcurl -plaintext -d "{\"tuples\":[
+      {\"resource\":{\"id\":\"${BINDING_ID}\",\"type\":{\"name\":\"role_binding\",\"namespace\":\"rbac\"}},\"relation\":\"granted\",\"subject\":{\"subject\":{\"id\":\"${ROLE_NAME}\",\"type\":{\"name\":\"role\",\"namespace\":\"rbac\"}}}},
+      {\"resource\":{\"id\":\"${BINDING_ID}\",\"type\":{\"name\":\"role_binding\",\"namespace\":\"rbac\"}},\"relation\":\"subject\",\"subject\":{\"subject\":{\"id\":\"${USER_ID}\",\"type\":{\"name\":\"principal\",\"namespace\":\"rbac\"}}}},
+      {\"resource\":{\"id\":\"${RESOURCE_ID}\",\"type\":{\"name\":\"workspace\",\"namespace\":\"rbac\"}},\"relation\":\"user_grant\",\"subject\":{\"subject\":{\"id\":\"${BINDING_ID}\",\"type\":{\"name\":\"role_binding\",\"namespace\":\"rbac\"}}}}
+    ]}" \
+        "localhost:${RELATIONS_PORT}" \
+        kessel.relations.v1beta1.KesselTupleService.CreateTuples
+    ```
+</Steps>
+
+## Step 6: Report a resource
+
+Tell Kessel about a task, including its relationship to a workspace.
+
+```bash
+grpcurl -plaintext -d '{
+  "type": "task",
+  "reporterType": "TASKMANAGER",
+  "reporterInstanceId": "taskmanager-001",
+  "representations": {
+    "metadata": {
+      "localResourceId": "task-001",
+      "apiHref": "https://taskmanager.example.com/api/tasks/task-001",
+      "consoleHref": "https://taskmanager.example.com/tasks/task-001",
+      "reporterVersion": "1.0.0"
+    },
+    "common": {
+      "workspace_id": "project-alpha"
+    },
+    "reporter": {
+      "title": "Fix login bug",
+      "status": "in_progress",
+      "assignee": "user-123"
+    }
+  }
+}' localhost:9081 kessel.inventory.v1beta2.KesselInventoryService.ReportResource
+```
+
+## Step 7: Check permissions
+
+Verify that the user has access to the task through their role binding on the workspace.
+
+```bash
+grpcurl -plaintext -d '{
+  "object": {
+    "resource_type": "task",
+    "resource_id": "task-001",
+    "reporter": {
+      "type": "TASKMANAGER"
+    }
+  },
+  "relation": "view",
+  "subject": {
+    "resource": {
+      "resource_type": "principal",
+      "resource_id": "user-123",
+      "reporter": {
+        "type": "rbac"
+      }
+    }
+  }
+}' localhost:9081 kessel.inventory.v1beta2.KesselInventoryService.Check
+```
+
+If the role binding and workspace relationship are set up correctly, this should return `ALLOWED_TRUE`.
+
+<Aside type="caution" title="Eventual consistency">
+Kessel is eventually consistent. If your check returns `ALLOWED_FALSE` right after reporting the resource, wait a moment and try again. See the [Consistency model](/docs/building-with-kessel/concepts/consistency/) for details on consistency guarantees.
+</Aside>
+
+## What you learned
+
+In this tutorial, you:
+
+- **Mapped your resources** to Kessel's model by identifying resource types, relationships, and permissions
+- **Designed a permission schema** using KSL with `@rbac.add_permission` and a custom resource type
+- **Created resource type configuration** including JSON Schema for validation
+- **Loaded the schema** into a running Kessel instance
+- **Set up roles and access** by writing tuples to the Relations API
+- **Reported a resource** to Kessel's inventory with a workspace relationship
+- **Checked permissions** to verify access flows from workspace to resource
+
+The process for any application follows this same pattern: map your resources, write a schema, configure the resource type, and add reporting and permission checks.
+
+## Next steps
+
+<CardGrid>
+  <LinkCard title="Design permissions" href="/docs/building-with-kessel/how-to/design-permissions/" description="Patterns for common authorization scenarios." />
+  <LinkCard title="Add a resource type" href="/docs/building-with-kessel/how-to/add-resource-type/" description="Full reference for resource type configuration files." />
+  <LinkCard title="Report resources" href="/docs/building-with-kessel/how-to/report-resources/" description="Handle multiple reporters, representations, and deletions." />
+  <LinkCard title="Protect an endpoint" href="/docs/building-with-kessel/how-to/protect-endpoint/" description="Add permission checks with SDK code examples." />
+</CardGrid>
+
+<Aside type="tip" title="Migrating from RBAC v1?">
+If your application currently uses the legacy Insights RBAC system, see [Migrate from RBAC v1 to RBAC v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) for specific guidance on converting permission definitions and adapting authorization checks.
+</Aside>
