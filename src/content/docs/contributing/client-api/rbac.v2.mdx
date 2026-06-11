@@ -331,6 +331,11 @@ package:
         userSubject = principalSubject("john.doe", "redhat.com")
         for resp in listWorkspaces(inventoryClient, userSubject, "member"):
             print(resp)
+
+        # With a consistency token for read-after-write consistency
+        consistency = Consistency(at_least_as_fresh=ConsistencyToken(token=my_token))
+        for resp in listWorkspaces(inventoryClient, userSubject, "member", consistency=consistency):
+            print(resp)
         ```
       params:
         - name: inventory
@@ -351,6 +356,14 @@ package:
             name: string
           description: Optional token to resume listing from a previous page
           optional: true
+        - name: consistency
+          type:
+            name: Consistency
+            link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.Consistency
+          description: |
+            Optional consistency requirement for the request. The consistency requirement is
+            applied to every page of a paginated request. See [Consistency model](/docs/building-with-kessel/concepts/consistency/) for more details.
+          optional: true
       returns:
         name: "Iterable[StreamedListObjectsResponse]"
         link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.StreamedListObjectsResponse
@@ -367,6 +380,11 @@ package:
         ```python
         userSubject = principalSubject("john.doe", "redhat.com")
         async for resp in listWorkspacesAsync(inventoryClient, userSubject, "member"):
+            print(resp)
+
+        # With a consistency token for read-after-write consistency
+        consistency = Consistency(at_least_as_fresh=ConsistencyToken(token=my_token))
+        async for resp in listWorkspacesAsync(inventoryClient, userSubject, "member", consistency=consistency):
             print(resp)
         ```
       params:
@@ -387,6 +405,14 @@ package:
           type:
             name: string
           description: Optional token to resume listing from a previous page
+          optional: true
+        - name: consistency
+          type:
+            name: Consistency
+            link: https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2#kessel.inventory.v1beta2.Consistency
+          description: |
+            Optional consistency requirement for the request. The consistency requirement is
+            applied to every page of a paginated request. See [Consistency model](/docs/building-with-kessel/concepts/consistency/) for more details.
           optional: true
       returns:
         name: "AsyncIterator[StreamedListObjectsResponse]"
