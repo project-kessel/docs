@@ -134,7 +134,7 @@ Content depends on the specific request or backend state. Use for human debuggin
 |-----------------|------|------------|
 | `Authentication failed with decision: …` | `UNAUTHENTICATED` | Check credentials |
 | `Missing metadata for stream method: …` | `UNAUTHENTICATED` | Include metadata on stream |
-| `meta authorization context missing` | `UNKNOWN` (2) | Stream context propagation bug — same root cause as `authz context missing`; attach credentials |
+| `meta authorization context missing` | `UNAUTHENTICATED` | No auth context in chain | Attach OAuth2/mTLS credentials |
 | Protovalidate field-specific text (reason `VALIDATOR`) | `INVALID_ARGUMENT` | Fix cited field |
 | Sanitization failure (reason `SANITIZER`) | `INVALID_ARGUMENT` | Reporter representation contains values that can't be rebuilt after null removal |
 | Reason `NON-UNIQUE TRANSACTION ID` + DB detail | `INVALID_ARGUMENT` | Use unique transaction ID |
