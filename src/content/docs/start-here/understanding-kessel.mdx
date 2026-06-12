@@ -21,7 +21,7 @@ When you build resource-based APIs, you often need to handle several cross-cutti
 
 These problems get harder when multiple services need to work together. Consider a platform like Google Drive that supports documents, spreadsheets, and slides. If those are built by different teams or services, it's difficult to make them all behave consistently. Users expect to organize all of them into the same folders, share them the same way, and manage permissions in one place.
 
-Kessel provides the primitives to deliver these capabilities, at scale, without reinventing them. It has two main components: **Kessel Inventory** for tracking resources and their relationships, and **Kessel RBAC**, an opinionated but highly reusable access control and tenancy model so you can get right to work on what's valuable.
+Kessel provides the primitives to deliver these capabilities, at scale, without reinventing them. It has two main components: **Kessel Inventory** for tracking resources and their relationships, and **Kessel RBAC**, an opinionated but highly reusable access control and tenancy system so you can get right to work on what's valuable.
 
 ## Kessel Inventory
 
@@ -55,7 +55,7 @@ To learn more, see [Role-based access control](/docs/building-with-kessel/concep
 Inventory and RBAC are separate systems with a clear division of responsibilities:
 
 1. **Your service reports a resource** to Kessel Inventory, including its relationships (for example, "this document belongs to Workspace A").
-2. **Inventory stores the resource** and replicates permission-relevant relationships to the RBAC authorization graph.
+2. **Inventory stores the resource** and replicates permission-relevant relationships to the SpiceDB authorization graph.
 3. **When your service needs to check access**, it asks Kessel: "Does this user have the `view` permission on this document?" Kessel traverses the relationship graph and returns the answer.
 
 This separation means you can use Inventory on its own for resource tracking and events, or combine it with RBAC for full access control. Services don't need to implement their own permission logic; they just ask Kessel.
