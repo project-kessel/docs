@@ -1,10 +1,624 @@
 ---
 title: Protect an endpoint
+description: Learn how to protect API endpoints by checking user permissions with Kessel's authorization system, including schema definition, SDK integration, and error handling.
 sidebar:
   order: 40
 ---
 
-TODO:
+import { Aside, Tabs, TabItem, Code, LinkCard } from '@astrojs/starlight/components';
+import CodeExamples from 'src/components/CodeExamples.astro';
 
-- show how to load a basic example resource with relations defined using Kessel RBAC extensions
-- show how to use the kessel client in supported languages to protect 
+export const middlewareExamples = import.meta.glob('/src/examples/protect-endpoint/middleware.*', { query: '?raw', eager: true, import: 'default' });
+
+Protect your API endpoints by checking user permissions before granting access. You'll define permissions in KSL, initialize the SDK, and add permission checks to your middleware.
+
+## Prerequisites
+
+- Basic understanding of the [Kessel Schema Language (KSL)](/docs/building-with-kessel/concepts/schema) for defining resources with permissions
+
+## Define your service permissions
+
+The base RBAC schema (`rbac.ksl`) is already deployed to Kessel, so you only need to register your service's permissions.
+
+### Register workspace-level permissions
+
+Create a schema file for your service. For example, `myservice.ksl`:
+
+```ksl
+version 0.2
+namespace myservice
+
+import rbac
+
+// View permission for integrations - allows reading integration configurations
+@rbac.add_unified_permission(app:'myservice', resource:'integration', verb:'view');
+
+// Edit permission for integrations - allows creating/updating integration configurations
+@rbac.add_unified_permission(app:'myservice', resource:'integration', verb:'edit');
+```
+
+In this schema:
+- **`import rbac`** brings in the existing RBAC workspace hierarchy
+- **`app`** is your service name (`myservice`)
+- **`resource`** is the resource type within your service (`integration`)
+- **`verb`** is the action—typically `view` or `edit`
+- This creates permission names like `myservice_integration_view` and `myservice_integration_edit` for Check API calls
+
+These permissions can be checked at the workspace level and are automatically inherited through the workspace hierarchy.
+
+<Aside type="note">
+**Schema deployment** is handled separately from application code. The schema definition process is evolving—for current examples, see the [base schemas in rbac-config](https://github.com/project-kessel/rbac-config/tree/master/configs/prod/schemas/src) ([kessel.ksl](https://github.com/project-kessel/rbac-config/blob/master/configs/prod/schemas/src/kessel.ksl), [rbac.ksl](https://github.com/project-kessel/rbac-config/blob/master/configs/prod/schemas/src/rbac.ksl)).
+</Aside>
+
+<Aside type="tip">
+To understand how permissions are evaluated through the relationship graph, see [Relationships and permissions](/docs/building-with-kessel/concepts/relationships-permissions/).
+</Aside>
+
+## Initialize the SDK client
+
+The SDK handles authentication and TLS for you.
+
+<Tabs syncKey="language">
+<TabItem label="Go">
+
+Install the SDK:
+
+```bash
+go get github.com/project-kessel/kessel-sdk-go
+```
+
+Create the client:
+
+```go
+package main
+
+import (
+	"context"
+	"log"
+	"os"
+
+	"github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
+)
+
+func main() {
+	ctx := context.Background()
+	
+	// Create client using environment configuration
+	inventoryClient, conn, err := v1beta2.NewClientBuilder(os.Getenv("KESSEL_ENDPOINT")).
+		Insecure(). // For local dev - use authenticated connection in production
+		Build()
+	if err != nil {
+		log.Fatal("Failed to create client:", err)
+	}
+	defer conn.Close()
+	
+	// Use inventoryClient for permission checks
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install the SDK:
+
+```bash
+pip install kessel-sdk-py
+```
+
+Create the client:
+
+```python
+from kessel.inventory.v1beta2 import ClientBuilder
+import os
+
+KESSEL_ENDPOINT = os.getenv("KESSEL_ENDPOINT", "localhost:9000")
+
+# Create client using environment configuration
+stub, channel = ClientBuilder(KESSEL_ENDPOINT).insecure().build()
+
+with channel:
+    # Use stub for permission checks
+    pass
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the SDK:
+
+```bash
+npm install @project-kessel/kessel-sdk
+```
+
+Create the client:
+
+```javascript
+import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
+
+// Create client using environment configuration
+const client = new ClientBuilder(process.env.KESSEL_ENDPOINT)
+  .insecure() // For local dev - use authenticated connection in production
+  .buildAsync();
+
+// Use client for permission checks
+```
+
+</TabItem>
+<TabItem label="Ruby">
+
+Install the SDK:
+
+```bash
+gem install kessel-sdk
+```
+
+Create the client:
+
+```ruby
+require 'kessel-sdk'
+
+include Kessel::Inventory::V1beta2
+include Kessel::GRPC
+
+# Create client using environment configuration
+client = KesselInventoryService::ClientBuilder
+  .new(ENV.fetch('KESSEL_ENDPOINT', 'localhost:9000'))
+  .insecure # For local dev - use authenticated connection in production
+  .build
+
+# Use client for permission checks
+```
+
+</TabItem>
+<TabItem label="Java">
+
+Add the SDK dependency to your `pom.xml`:
+
+```xml
+<dependency>
+  <groupId>org.project-kessel</groupId>
+  <artifactId>kessel-sdk-java</artifactId>
+  <version>LATEST</version>
+</dependency>
+```
+
+Create the client:
+
+```java
+import com.nimbusds.jose.util.Pair;
+import io.grpc.ManagedChannel;
+import org.project_kessel.api.inventory.v1beta2.*;
+import static org.project_kessel.api.inventory.v1beta2.KesselInventoryServiceGrpc.KesselInventoryServiceBlockingStub;
+
+public class KesselClient {
+    public static void main(String[] args) {
+        String kesselEndpoint = System.getenv()
+            .getOrDefault("KESSEL_ENDPOINT", "localhost:9000");
+        
+        // Create client using environment configuration
+        Pair<KesselInventoryServiceBlockingStub, ManagedChannel> clientAndChannel =
+            new ClientBuilder(kesselEndpoint)
+                .insecure() // For local dev - use authenticated connection in production
+                .build();
+        
+        KesselInventoryServiceBlockingStub client = clientAndChannel.getLeft();
+        ManagedChannel channel = clientAndChannel.getRight();
+        
+        try {
+            // Use client for permission checks
+        } finally {
+            channel.shutdown();
+        }
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+For production, use OAuth2 credentials instead of `.insecure()`. The SDK handles token refresh automatically. See [Configure authentication](/docs/building-with-kessel/how-to/configure-authentication/) for setup.
+</Aside>
+
+## Implement permission checks
+
+Use `Check()` for reads and `CheckForUpdate()` for writes. The difference is consistency: reads can tolerate slight staleness, writes need the latest state.
+
+### When to use Check vs CheckForUpdate
+
+| Method | Consistency | Use For | Example Operations |
+|--------|-------------|---------|-------------------|
+| **Check()** | Eventually consistent (configurable) | Read operations, UI visibility decisions, standard authorization | GET requests, list filtering, showing/hiding UI elements |
+| **CheckForUpdate()** | Strongly consistent (always) | Write operations, sensitive operations | PUT/POST/DELETE requests, resource modification, credential access |
+
+<Aside type="tip">
+For a deeper understanding of consistency guarantees, replication windows, and advanced consistency modes, see the [Consistency model](/docs/building-with-kessel/concepts/consistency/) guide.
+</Aside>
+
+### Check: Read operations
+
+Use `Check()` for reads. Eventual consistency is fine here—users won't notice a few hundred milliseconds of staleness.
+
+<Tabs syncKey="language">
+<TabItem label="Go">
+
+```go
+import (
+	"context"
+	"log"
+
+	"github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
+	v2 "github.com/project-kessel/kessel-sdk-go/kessel/rbac/v2"
+)
+
+func checkReadPermission(ctx context.Context, client v1beta2.KesselInventoryServiceClient, userID, workspaceID string) (bool, error) {
+	checkRequest := &v1beta2.CheckRequest{
+		Object:   v2.WorkspaceResource(workspaceID),
+		Relation: "myservice_integration_view",
+		Subject:  v2.PrincipalSubject(userID, "redhat"),
+	}
+
+	response, err := client.Check(ctx, checkRequest)
+	if err != nil {
+		return false, err
+	}
+
+	return response.Allowed == v1beta2.Allowed_ALLOWED_TRUE, nil
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python
+from kessel.inventory.v1beta2 import check_request_pb2, allowed_pb2
+from kessel.rbac.v2 import principal_subject, workspace_resource
+
+def check_read_permission(stub, user_id: str, workspace_id: str) -> bool:
+    check_request = check_request_pb2.CheckRequest(
+        object=workspace_resource(workspace_id),
+        relation="myservice_integration_view",
+        subject=principal_subject(id=user_id, domain="redhat"),
+    )
+    
+    response = stub.Check(check_request)
+    return response.allowed == allowed_pb2.ALLOWED_TRUE
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```javascript
+import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
+import { Allowed } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/allowed";
+import { principalSubject, workspaceResource } from "@project-kessel/kessel-sdk/kessel/rbac/v2";
+
+async function checkReadPermission(client, userId, workspaceId) {
+  const checkRequest = {
+    object: workspaceResource(workspaceId),
+    relation: "myservice_integration_view",
+    subject: principalSubject(userId, "redhat"),
+  };
+  
+  try {
+    const response = await client.check(checkRequest);
+    return response.allowed === Allowed.ALLOWED_TRUE;
+  } catch (error) {
+    console.error("Check failed:", error);
+    return false;
+  }
+}
+```
+
+</TabItem>
+<TabItem label="Ruby">
+
+```ruby
+require 'kessel-sdk'
+
+include Kessel::Inventory::V1beta2
+include Kessel::RBAC::V2
+
+def check_read_permission(client, user_id, workspace_id)
+  check_request = CheckRequest.new(
+    object: workspace_resource(workspace_id),
+    relation: "myservice_integration_view",
+    subject: principal_subject(user_id, "redhat")
+  )
+  
+  response = client.check(check_request)
+  response.allowed == :ALLOWED_TRUE
+end
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.project_kessel.api.inventory.v1beta2.*;
+import org.project_kessel.api.rbac.v2.Utils;
+import static org.project_kessel.api.inventory.v1beta2.KesselInventoryServiceGrpc.KesselInventoryServiceBlockingStub;
+
+public boolean checkReadPermission(KesselInventoryServiceBlockingStub client, String userId, String workspaceId) {
+    CheckRequest checkRequest = CheckRequest.newBuilder()
+        .setObject(Utils.workspaceResource(workspaceId))
+        .setRelation("myservice_integration_view")
+        .setSubject(Utils.principalSubject(userId, "redhat"))
+        .build();
+    
+    CheckResponse response = client.check(checkRequest);
+    return response.getAllowed() == Allowed.ALLOWED_TRUE;
+}
+```
+
+</TabItem>
+</Tabs>
+
+### CheckForUpdate: Write operations
+
+Use `CheckForUpdate()` for writes. This ensures you're checking against the latest permission state.
+
+<Tabs syncKey="language">
+<TabItem label="Go">
+
+```go
+func checkWritePermission(ctx context.Context, client v1beta2.KesselInventoryServiceClient, userID, workspaceID string) (bool, error) {
+	checkRequest := &v1beta2.CheckForUpdateRequest{
+		Object:   v2.WorkspaceResource(workspaceID),
+		Relation: "myservice_integration_edit",
+		Subject:  v2.PrincipalSubject(userID, "redhat"),
+	}
+
+	response, err := client.CheckForUpdate(ctx, checkRequest)
+	if err != nil {
+		return false, err
+	}
+
+	return response.Allowed == v1beta2.Allowed_ALLOWED_TRUE, nil
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python
+from kessel.inventory.v1beta2 import (
+    check_for_update_request_pb2,
+    allowed_pb2,
+)
+from kessel.rbac.v2 import principal_subject, workspace_resource
+
+def check_write_permission(stub, user_id: str, workspace_id: str) -> bool:
+    check_request = check_for_update_request_pb2.CheckForUpdateRequest(
+        object=workspace_resource(workspace_id),
+        relation="myservice_integration_edit",
+        subject=principal_subject(id=user_id, domain="redhat"),
+    )
+    
+    response = stub.CheckForUpdate(check_request)
+    return response.allowed == allowed_pb2.ALLOWED_TRUE
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```javascript
+import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
+import { Allowed } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/allowed";
+import { principalSubject, workspaceResource } from "@project-kessel/kessel-sdk/kessel/rbac/v2";
+
+async function checkWritePermission(client, userId, workspaceId) {
+  const checkRequest = {
+    object: workspaceResource(workspaceId),
+    relation: "myservice_integration_edit",
+    subject: principalSubject(userId, "redhat"),
+  };
+  
+  try {
+    const response = await client.checkForUpdate(checkRequest);
+    return response.allowed === Allowed.ALLOWED_TRUE;
+  } catch (error) {
+    console.error("CheckForUpdate failed:", error);
+    return false;
+  }
+}
+```
+
+</TabItem>
+<TabItem label="Ruby">
+
+```ruby
+require 'kessel-sdk'
+
+include Kessel::Inventory::V1beta2
+include Kessel::RBAC::V2
+
+def check_write_permission(client, user_id, workspace_id)
+  check_request = CheckForUpdateRequest.new(
+    object: workspace_resource(workspace_id),
+    relation: "myservice_integration_edit",
+    subject: principal_subject(user_id, "redhat")
+  )
+  
+  response = client.check_for_update(check_request)
+  response.allowed == :ALLOWED_TRUE
+end
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.project_kessel.api.inventory.v1beta2.*;
+import org.project_kessel.api.rbac.v2.Utils;
+import static org.project_kessel.api.inventory.v1beta2.KesselInventoryServiceGrpc.KesselInventoryServiceBlockingStub;
+
+public boolean checkWritePermission(KesselInventoryServiceBlockingStub client, String userId, String workspaceId) {
+    CheckForUpdateRequest checkRequest = CheckForUpdateRequest.newBuilder()
+        .setObject(Utils.workspaceResource(workspaceId))
+        .setRelation("myservice_integration_edit")
+        .setSubject(Utils.principalSubject(userId, "redhat"))
+        .build();
+    
+    CheckForUpdateResponse response = client.checkForUpdate(checkRequest);
+    return response.getAllowed() == Allowed.ALLOWED_TRUE;
+}
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+Call `CheckForUpdate()` right before the write operation. Don't cache the result—permissions can change between the check and the write.
+</Aside>
+
+## Integrate with middleware
+
+Add permission checks to your framework's middleware:
+
+<Aside type="note">
+These examples use headers for simplicity. In production, extract user and workspace IDs from your auth middleware (JWT claims, session, OIDC) instead of trusting client headers.
+</Aside>
+
+**Client initialization:**
+
+<CodeExamples files={middlewareExamples} regions="setup" />
+
+**Middleware implementation:**
+
+<CodeExamples files={middlewareExamples} regions="middleware" />
+
+**Using the middleware:**
+
+<CodeExamples files={middlewareExamples} regions="usage" />
+
+<Aside type="tip">
+Complete example files are available in the [repository](https://github.com/project-kessel/docs/blob/main/src/examples/protect-endpoint).
+</Aside>
+
+<Aside type="caution">
+These examples use `Check()` for simplicity. In production, call `CheckForUpdate()` for writes (PUT/POST/DELETE) instead.
+</Aside>
+
+## Handle errors
+
+If Kessel is unavailable, decide whether to fail closed (deny access) or fail open (allow access). Fail closed is safer for most cases.
+
+<Tabs syncKey="language">
+<TabItem label="Go">
+
+```go
+func checkPermissionSafe(ctx context.Context, client v1beta2.KesselInventoryServiceClient, req *v1beta2.CheckRequest) bool {
+	response, err := client.Check(ctx, req)
+	if err != nil {
+		// Log the error for monitoring
+		log.Printf("Permission check failed: %v", err)
+		
+		// Fail closed: deny access when check fails
+		return false
+	}
+	
+	return response.Allowed == v1beta2.Allowed_ALLOWED_TRUE
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python
+from connectrpc.errors import ConnectError
+from kessel.inventory.v1beta2 import allowed_pb2
+
+def check_permission_safe(stub, check_request):
+    """Check permission with error handling."""
+    try:
+        response = stub.Check(check_request)
+        return response.allowed == allowed_pb2.ALLOWED_TRUE
+    except ConnectError as e:
+        # Log the error for monitoring
+        print(f"Permission check failed: {e.message}")
+        
+        # Fail closed: deny access when check fails
+        return False
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```javascript
+async function checkPermissionSafe(client, checkRequest) {
+  try {
+    const response = await client.check(checkRequest);
+    return response.allowed === Allowed.ALLOWED_TRUE;
+  } catch (error) {
+    // Log the error for monitoring
+    console.error("Permission check failed:", error);
+    
+    // Fail closed: deny access when check fails
+    return false;
+  }
+}
+```
+
+</TabItem>
+<TabItem label="Ruby">
+
+```ruby
+def check_permission_safe(client, check_request)
+  response = client.check(check_request)
+  response.allowed == :ALLOWED_TRUE
+rescue StandardError => e
+  # Log the error for monitoring
+  puts "Permission check failed: #{e.message}"
+  
+  # Fail closed: deny access when check fails
+  false
+end
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import io.grpc.StatusRuntimeException;
+
+public boolean checkPermissionSafe(KesselInventoryServiceBlockingStub client, CheckRequest checkRequest) {
+    try {
+        CheckResponse response = client.check(checkRequest);
+        return response.getAllowed() == Allowed.ALLOWED_TRUE;
+    } catch (StatusRuntimeException e) {
+        // Log the error for monitoring
+        System.err.println("Permission check failed: " + e.getMessage());
+        
+        // Fail closed: deny access when check fails
+        return false;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+All examples deny access when checks fail. This is the secure default. Log errors so you can catch Kessel availability issues.
+</Aside>
+
+## Next steps
+
+<LinkCard
+  title="Kessel Schema Language"
+  description="Design complex permission models with relationships and custom resource types."
+  href="/docs/building-with-kessel/concepts/schema/"
+/>
+
+<LinkCard
+  title="Report resources"
+  description="Create the resource instances you're protecting using the inventory API."
+  href="/docs/building-with-kessel/how-to/report-resources/"
+/>
+
+<LinkCard
+  title="Relationships and permissions"
+  description="Understand how permissions are evaluated through the relationship graph."
+  href="/docs/building-with-kessel/concepts/relationships-permissions/"
+/>
