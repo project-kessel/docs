@@ -1,0 +1,143 @@
+---
+title: "Configure authentication"
+description: "How to enable and test OIDC authentication with the Kessel Inventory API."
+sidebar:
+  order: 35
+---
+
+import { Aside, Steps, LinkCard } from '@astrojs/starlight/components';
+
+By default, the Inventory API runs with authentication disabled. This guide walks through enabling OIDC authentication, requesting a bearer token, and testing authenticated calls. This is useful for verifying that your service can authenticate before deploying to a production environment.
+
+## How the authenticator chain works
+
+The Inventory API uses a configurable authenticator chain. Each authenticator in the chain is evaluated in order, and the first one that succeeds grants access.
+
+| Type | Description | Typical use |
+|------|-------------|-------------|
+| `oidc` | Validates JWT bearer tokens from an OIDC provider | API access with a service account |
+| `allow-unauthenticated` | Allows all requests without credentials | Local development and testing |
+
+Each authenticator can be enabled or disabled per transport (`http` and `grpc` independently).
+
+## Prerequisites
+
+- A running Kessel Inventory API instance (see [Run locally with Docker Compose](/docs/building-with-kessel/how-to/run-with-docker/))
+- `grpcurl` installed (for testing authenticated gRPC calls)
+- `curl` installed (for requesting tokens)
+- A service account with client credentials from your OIDC provider (client ID and client secret)
+
+<Aside type="tip">
+    For Red Hatters: Red Hat-specific OIDC information can be found in the supplementary "Using Authentication" guide in our inScope documentation pages.
+</Aside>
+
+## Enabling authentication locally
+
+<Steps>
+
+1. **Clone the Inventory API repository**
+
+    ```bash
+    git clone https://github.com/project-kessel/inventory-api.git
+    cd inventory-api
+    ```
+
+2. **Update the config file**
+
+    The config file depends on how you run the Inventory API:
+
+    - **Binary** (`make run`): edit [`.inventory-api.yaml`](https://github.com/project-kessel/inventory-api/blob/main/.inventory-api.yaml)
+    - **Containers** (`make inventory-up`): edit [`development/configs/base.yaml`](https://github.com/project-kessel/inventory-api/blob/main/development/configs/base.yaml)
+
+    Replace the `authn` section with:
+
+    ```yaml /<[^>]+>/
+    authn:
+      authenticator:
+        type: first_match
+        chain:
+          - type: oidc
+            enable: true
+            transport:
+              http: true
+              grpc: true
+            config:
+              authn-server-url: <ISSUER_URL>
+              skip-client-id-check: true
+              skip-issuer-check: true
+              insecure-client: false
+    ```
+
+    Set `<ISSUER_URL>` to the OIDC realm URL for your identity provider. For example, if you are using Keycloak locally, this would be something like `http://localhost:8084/realms/kessel`.
+
+    <Aside type="tip">
+      There is a dedicated `make inventory-up-sso` target that starts a local Keycloak instance for OIDC testing. This is the easiest way to test auth locally without needing an external identity provider. See the [compose guide](https://github.com/project-kessel/inventory-api/blob/main/docs/dev-guides/docker-compose-options.md#with-sso-keycloak) for details.
+    </Aside>
+
+3. **Start the Inventory API**
+
+    Run with `make run` (binary) or `make inventory-up` (containers).
+
+</Steps>
+
+## Requesting a bearer token
+
+Use the OAuth 2.0 client credentials flow to request a token from your identity provider:
+
+```bash /<[^>]+>/
+curl -s '<ISSUER_URL>/protocol/openid-connect/token' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data-urlencode 'grant_type=client_credentials' \
+    --data-urlencode 'client_id=<CLIENT_ID>' \
+    --data-urlencode 'client_secret=<CLIENT_SECRET>'
+```
+
+The response includes an `access_token` field. Use this as your bearer token in the next step.
+
+<Aside type="note">
+  The token URL path may vary by provider. The example above uses the standard Keycloak path. Consult your OIDC provider's documentation if yours differs.
+</Aside>
+
+## Testing an authenticated call
+
+With a valid token, test an authenticated gRPC call to the Inventory API:
+
+```bash /<[^>]+>/
+grpcurl -plaintext -H "Authorization: bearer <TOKEN>" \
+    localhost:9000 \
+    kessel.inventory.v1.KesselInventoryHealthService.GetReadyz
+```
+
+Expected output:
+
+```json
+{
+  "status": "STORAGE postgres and RELATIONS-API",
+  "code": 200
+}
+```
+
+If you see an `Unauthenticated` error, verify that:
+- The `authn-server-url` in your config matches your OIDC provider's realm URL
+- Your token has not expired
+- The Inventory API was restarted after the config change
+
+## Next steps
+
+<LinkCard
+  title="Enable TLS"
+  description="Configure TLS transport security for secure communication with Kessel."
+  href="/docs/building-with-kessel/how-to/enable-tls/"
+/>
+
+<LinkCard
+  title="Authenticate with Kessel SDKs"
+  description="Set up OAuth 2.0 authentication in any Kessel client SDK."
+  href="/docs/building-with-kessel/how-to/authenticate-with-sdks/"
+/>
+
+<LinkCard
+  title="Protect an endpoint"
+  description="Use Kessel to enforce access control on your service's endpoints."
+  href="/docs/building-with-kessel/how-to/protect-endpoint/"
+/>

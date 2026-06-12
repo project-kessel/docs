@@ -36,7 +36,22 @@ When you perform a permission check, you choose how fresh the authorization data
   The "Self" variants (`CheckSelf`, `CheckSelfBulk`) automatically use the authenticated caller as the subject, so you don't need to provide a subject in the request. This is convenient for user-facing authorization decisions.
 </Aside>
 
-All check methods support three consistency modes:
+### Check vs CheckForUpdate
+
+The most important distinction is between `Check` and `CheckForUpdate`:
+
+- **`Check`** lets the caller choose a consistency mode (see below). If none is specified, it defaults to `minimize_latency`, which is fast but may return results based on slightly stale data. Use `Check` for read-only operations like loading a page or listing resources.
+
+- **`CheckForUpdate`** always uses full consistency. There is no option to change this. The authorization backend evaluates the check against the latest committed state, guaranteeing the result reflects all writes that have completed. Use `CheckForUpdate` before update or delete operations where acting on stale data could cause a conflict or security issue.
+
+| Method | Consistency | Caller control | Use when |
+|--------|-------------|----------------|----------|
+| `Check` | Caller's choice (default: `minimize_latency`) | Full | Reading, browsing, listing |
+| `CheckForUpdate` | Always fully consistent | None | Before modifying or deleting a resource |
+
+The same distinction applies to their bulk variants: `CheckBulk` supports caller-chosen consistency, while `CheckForUpdateBulk` always uses full consistency.
+
+All check methods except `CheckForUpdate` and `CheckForUpdateBulk` support three consistency modes:
 
 ### `minimize_latency`
 
@@ -117,12 +132,13 @@ If you choose not to use IMMEDIATE mode, consider these patterns:
 - **Optimistic UI** -- assume the operation will succeed and update the UI immediately. Reconcile later if the backend state differs.
 - **Processing indicator** -- show a brief "updating permissions..." state after a write, then refresh.
 - **Client-side caching** -- after a successful write, cache the expected authorization state on the client and use it until the next full refresh.
+- **Retry with backoff** -- for service-to-service flows where a check must reflect a recent write, retry the check with a short backoff (e.g., 100ms, 200ms, 400ms) rather than adding a fixed `sleep()`. This keeps latency low in the common case while handling the occasional slower replication. Prefer `at_least_as_fresh` with a consistency token from the write over blind retries when possible.
 
 ## Limitations
 
 There are several constraints to be aware of when working with Kessel's consistency model:
 
-- **Bulk operations do not support `at_least_as_acknowledged`.** The bulk check methods (`CheckBulk`, `CheckForUpdateBulk`, `CheckSelfBulk`) span multiple resources, and looking up a consistency token per resource would be prohibitively expensive. Bulk checks use `minimize_latency` or `at_least_as_fresh`.
+- **Bulk operations do not support `at_least_as_acknowledged`.** `CheckBulk` and `CheckSelfBulk` span multiple resources, and looking up a consistency token per resource would be prohibitively expensive. These methods support `minimize_latency` or `at_least_as_fresh` only. (`CheckForUpdateBulk` is not affected by this limitation because it always uses full consistency, as described above.)
 
 - **Multi-resource scenarios require care.** If your operation touches multiple resources, each resource has its own consistency token. There is no single token that covers all of them. For cross-resource consistency, use `at_least_as_fresh` with a token that covers the latest write across all resources involved.
 

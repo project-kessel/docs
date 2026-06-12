@@ -1,3 +1,246 @@
 ---
 title: Glossary
+description: Definitions of core terms and concepts used throughout the Kessel documentation.
 ---
+
+import { LinkCard } from '@astrojs/starlight/components';
+
+This glossary defines the key terms used throughout the Kessel documentation. Terms are organized by domain. Each definition links to the relevant concept or reference page where you can learn more.
+
+## Resources and Data
+
+### Resource
+
+Any addressable entity that can be modeled, queried, and governed in Kessel. In Kessel, everything is a resource: users, groups, workspaces, roles, hosts, clusters, and documents are all modeled uniformly with types, identifiers, and [relationships](#relationship). Application-specific resources are reported to Kessel through the [Inventory API](#kessel-inventory-api).
+
+See [Resources and representations](/docs/building-with-kessel/concepts/resources-representations/).
+
+### Resource Type
+
+A classification of resources in Kessel, analogous to a table in a relational database. Resource types are part of Kessel's [meta-model](#meta-model) approach: they are defined declaratively via [schema](#schema), not hard-coded. Adding a new resource type is a configuration change, not a code change. Each resource type defines valid [representations](#representation), [reporters](#reporter), and [relationships](#relationship).
+
+See [Resources and representations](/docs/building-with-kessel/concepts/resources-representations/) and [Schema and extensibility](/docs/building-with-kessel/concepts/schema/).
+
+### Representation
+
+The state of a [resource](#resource) as seen by a particular service. Kessel supports two kinds: **common representations** (attributes shared across all [reporters](#reporter), such as `workspace_id`) and **reporter-specific representations** (attributes unique to a single reporter's perspective). Each representation has its own attribute schema defined in JSON schema.
+
+See [Resources and representations](/docs/building-with-kessel/concepts/resources-representations/).
+
+### Reporter
+
+A service that reports resource [representations](#representation) to Kessel. When a reporter sends data to Kessel via `ReportResource`, it creates or updates the representation of a resource from that reporter's perspective.
+
+See [Resources and representations](/docs/building-with-kessel/concepts/resources-representations/).
+
+### Correlation
+
+*(Planned, not yet implemented.)* The mechanism that will link multiple [representations](#representation) from different [reporters](#reporter) into a single [resource](#resource) identity using shared attributes as keys. Currently, each reporter's representation creates a separate resource in Kessel.
+
+See [Resources and representations](/docs/building-with-kessel/concepts/resources-representations/).
+
+### Meta-Model
+
+Kessel's approach to extensibility. Instead of hard-coding specific [resource types](#resource-type) into its implementation, Kessel knows about the structure that all resource types share (type name, representations, reporters, relationships) and operates generically over any configured type. This means new resource types can be added through [schema](#schema) configuration without modifying Kessel's code.
+
+See [Schema and extensibility](/docs/building-with-kessel/concepts/schema/).
+
+## Access Control
+
+### Permission
+
+An action that can be performed on a specific type of resource, using the format `application:resource_type:operation` (for example, `inventory:hosts:read`). Wildcards are supported. Permissions are either **data-level** (scoped to [workspaces](#workspace)) or **org-level** (applied organization-wide).
+
+See [Role-based access control](/docs/building-with-kessel/concepts/rbac/).
+
+### Role
+
+A named collection of [permissions](#permission) that can be granted to [subjects](#subject) via [role bindings](#role-binding). Kessel has three role types: **Custom** (created by admins, modifiable), **Seeded** (system-provided, not modifiable), and **Platform** (internal aggregate roles).
+
+See [Role-based access control](/docs/building-with-kessel/concepts/rbac/).
+
+### Role Binding
+
+The link that grants a [role's](#role) permissions to a [subject](#subject) on a specific [workspace](#workspace) or [tenant](#tenant). The core RBAC formula is: Subject (who) + Role (what permissions) + Resource (where) = Role Binding.
+
+See [Role-based access control](/docs/building-with-kessel/concepts/rbac/).
+
+### Subject
+
+The entity that has a [relation](#relation) or is performing an action. In the context of [role bindings](#role-binding), a subject is the "who" that receives a role's permissions. Role bindings currently target [groups](#group); binding to individual [principals](#principal) is planned for a future release.
+
+See [Role-based access control](/docs/building-with-kessel/concepts/rbac/) and [Relationships and permissions](/docs/building-with-kessel/concepts/relationships-permissions/).
+
+### Subject Set
+
+The set of all [resources](#resource) that share a particular [relation](#relation) on another resource (for example, "all members of the Engineering group"). A single [relationship](#relationship) to a subject set covers all members, and effective permissions update automatically as membership changes.
+
+See [Relationships and permissions](/docs/building-with-kessel/concepts/relationships-permissions/).
+
+### Principal
+
+An individual identity in Kessel, either a `user` (human authenticated via SSO/OIDC) or a `service-account` (machine identity for service-to-service calls).
+
+See [Identity and multi-tenancy](/docs/building-with-kessel/concepts/tenancy/).
+
+### Group
+
+A collection of [principals](#principal). [Role bindings](#role-binding) typically target groups rather than individual users. Kessel provides two special groups: the **Platform Default Group** (all users) and the **Admin Default Group** (organization admins).
+
+See [Role-based access control](/docs/building-with-kessel/concepts/rbac/).
+
+## Workspaces and Tenancy
+
+### Workspace
+
+A container for resources that serves as a scope for permissions. When you grant a role to a user on a workspace, that user gets those permissions on all resources within that workspace and its children. Workspaces form a hierarchy (tree) rooted at the [Root Workspace](#root-workspace).
+
+See [Identity and multi-tenancy](/docs/building-with-kessel/concepts/tenancy/).
+
+### Root Workspace
+
+The top-level workspace in a tenant's hierarchy. Every organization gets exactly one Root Workspace when the tenant is created. Permissions granted at the Root Workspace cascade to all workspaces below it. It must have no parent.
+
+See [Identity and multi-tenancy](/docs/building-with-kessel/concepts/tenancy/).
+
+### Default Workspace
+
+The primary workspace where most resources live. Every organization gets exactly one Default Workspace when the tenant is created. Its parent is always the [Root Workspace](#root-workspace). Use it for organization-wide resources.
+
+See [Identity and multi-tenancy](/docs/building-with-kessel/concepts/tenancy/).
+
+### Tenant
+
+An organization in Kessel, identified by a unique **org ID**. Each tenant has its own isolated [workspace](#workspace) tree, [roles](#role), [groups](#group), and [principals](#principal). Database constraints prevent cross-tenant access.
+
+See [Identity and multi-tenancy](/docs/building-with-kessel/concepts/tenancy/).
+
+## Schema and Authorization
+
+### Schema
+
+The declarative configuration that defines a [resource type's](#resource-type) valid [representations](#representation), [reporters](#reporter), and [relationships](#relationship). Resource attributes are validated using [JSON Schema](http://json-schema.org/). Relationships and permissions are defined in [KSL](#ksl). Schema drives validation at write time: if reported data does not match the schema, the request is rejected.
+
+See [Schema and extensibility](/docs/building-with-kessel/concepts/schema/) and [Getting started](/docs/start-here/getting-started/).
+
+### KSL
+
+**Kessel Schema Language.** The language for describing resources and their relationships, including what permissions apply to each resource type. KSL files are compiled to [SpiceDB](#spicedb) schema using the `ksl` compiler.
+
+See [Getting started](/docs/start-here/getting-started/).
+
+### Relation
+
+A named string that defines a *type* of connection between two [resources](#resource), such as `member`, `viewer`, `parent`, or `workspace`. Relations are directional: "group:engineering has member user:alice" is different from the reverse. Relations are defined in [KSL](#ksl) schema and realized as [relationships](#relationship) stored in [SpiceDB](#spicedb).
+
+See [Relationships and permissions](/docs/building-with-kessel/concepts/relationships-permissions/).
+
+### Relationship
+
+A specific instance of a [relation](#relation) between two [resources](#resource), stored as a [tuple](#tuple) in the [authorization graph](#authorization-graph). Relationships can be **stored** (explicitly created by reporting resources, creating role bindings, etc.) or **computed** (derived from rules that combine stored relationships, such as permission inheritance through the workspace hierarchy).
+
+See [Relationships and permissions](/docs/building-with-kessel/concepts/relationships-permissions/).
+
+### Tuple
+
+A unit of relationship data stored in [SpiceDB](#spicedb). Each tuple represents a single [relation](#relation) between two entities (for example, "user Alice is a member of the Engineering group" or "host-123 belongs to the Engineering workspace"). Permission checks are evaluated by traversing tuples in the authorization graph.
+
+### Authorization Graph
+
+The graph of [tuples](#tuple) stored in [SpiceDB](#spicedb) that represents all [relationships](#relationship) between resources, users, groups, roles, and workspaces. [Check](#check) operations traverse this graph to evaluate permissions.
+
+## API Operations
+
+### Check
+
+A permission check that asks: "Does this [subject](#subject) have this [permission](#permission) on this [resource](#resource)?" Kessel provides several variants (including bulk and strongly consistent options) that support different [consistency modes](#consistency-mode).
+
+See [Consistency model](/docs/building-with-kessel/concepts/consistency/) and [Relationships and permissions](/docs/building-with-kessel/concepts/relationships-permissions/).
+
+### StreamedListObjects
+
+An API operation that returns the set of [resources](#resource) a given [subject](#subject) can access with a specified permission. Useful for building filtered list views ("show me all the hosts I can read"). Results are streamed as they are found.
+
+See [Relationships and permissions](/docs/building-with-kessel/concepts/relationships-permissions/).
+
+### StreamedListSubjects
+
+An API operation that returns the set of [subjects](#subject) who have a specified [relation](#relation) on a given [resource](#resource). Useful for answering "who has access to this resource?" Results are streamed as they are found.
+
+See [Relationships and permissions](/docs/building-with-kessel/concepts/relationships-permissions/).
+
+### ReportResource
+
+The API operation used by [reporters](#reporter) to create, update, or delete resource [representations](#representation) in Kessel. When called, the Inventory API writes to its database and replicates permission-relevant [relationships](#relationship) to [SpiceDB](#spicedb), either asynchronously (default) or synchronously if immediate consistency is requested.
+
+See [Report resources](/docs/building-with-kessel/how-to/report-resources/).
+
+## Consistency
+
+### Consistency Mode
+
+The level of freshness guaranteed when performing a [Check](#check). Kessel provides several modes that let services choose whether to prioritize speed or data freshness when evaluating permissions.
+
+See [Consistency model](/docs/building-with-kessel/concepts/consistency/).
+
+### Consistency Token
+
+An opaque value representing a specific point in the [authorization graph's](#authorization-graph) transaction log. Used with certain [consistency modes](#consistency-mode) to guarantee that a [Check](#check) reflects at least a known replication state.
+
+See [Consistency model](/docs/building-with-kessel/concepts/consistency/).
+
+### Write Visibility (IMMEDIATE Mode)
+
+A mode for [ReportResource](#reportresource) that waits for replication to the [authorization graph](#authorization-graph) to complete before returning success, trading higher latency for guaranteed write visibility.
+
+See [Consistency model](/docs/building-with-kessel/concepts/consistency/).
+
+## Data Replication
+
+### Change Data Capture (CDC)
+
+A technique that captures row-level changes to database tables and publishes them to a message broker. Kessel uses CDC internally to replicate resource data from the inventory database to the [authorization graph](#authorization-graph). Service providers can also use CDC with the [outbox pattern](#outbox-pattern) to report resources without direct API calls.
+
+See [Report resources](/docs/building-with-kessel/how-to/report-resources/) and [Monitoring data replication](/docs/running-kessel/monitoring-kessel/monitoring-data-replication-inventory-api/).
+
+### Outbox Pattern
+
+A strategy that solves the dual-write problem by writing both business data and a messaging event in the same database transaction. A [CDC](#change-data-capture-cdc) connector (typically [Debezium](#debezium)) then captures the outbox rows and publishes them to a message broker.
+
+See [Report resources](/docs/building-with-kessel/how-to/report-resources/).
+
+### Debezium
+
+An open-source CDC platform that captures row-level changes from databases and streams them to Apache Kafka. Kessel uses Debezium to capture changes from the inventory database's outbox table and publish them to Kafka topics for downstream processing.
+
+See [Monitoring data replication](/docs/running-kessel/monitoring-kessel/monitoring-data-replication-inventory-api/).
+
+## Architecture
+
+### Kessel Inventory API
+
+The central API for reporting resources, checking permissions, and listing accessible resources. This is the primary integration point for services building with Kessel. It uses gRPC as the primary protocol.
+
+### RBAC Service
+
+The service that manages [roles](#role), [role bindings](#role-binding), [workspaces](#workspace), and [group](#group)-to-principal mappings. The RBAC service writes relationship changes to the [authorization graph](#authorization-graph) via its own replication pipeline.
+
+### SpiceDB
+
+The graph database that serves as Kessel's authorization backend. SpiceDB stores [tuples](#tuple) and evaluates permission checks by traversing the [authorization graph](#authorization-graph). It is an open-source implementation inspired by [Google's Zanzibar paper](https://research.google/pubs/zanzibar-googles-consistent-global-authorization-system/).
+
+See [Architecture](/docs/running-kessel/architecture/) for more.
+
+## Further Reading
+
+<LinkCard
+  title="Understanding Kessel"
+  description="A high-level introduction to what Kessel is and the problems it solves."
+  href="/docs/start-here/understanding-kessel/"
+/>
+
+<LinkCard
+  title="Getting started"
+  description="Set up Kessel from scratch with a basic document management example."
+  href="/docs/start-here/getting-started/"
+/>

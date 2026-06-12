@@ -21,9 +21,8 @@ import { Aside } from '@astrojs/starlight/components';
 
 ### Protocols
 
-- Our primary protocol is gRPC, but it is not required
-- For gRPC services, HTTP REST should be supported, but not the default, for client libraries
-  - HTTP may not support all of the features of the corresponding gRPC API, e.g. streaming endpoints.
+gRPC is the primary and currently the only supported protocol for Kessel SDKs.
+
 
 ### Client generation
 
@@ -98,7 +97,7 @@ The _suffixes_ of these imports SHOULD be consistent from language to language (
 
 - [`{prefix}.{service}.{major_version}`](../client-api/service-version): Package for code specific to service and API version, where `{service}` is the separately versioned service (e.g. "inventory" or "rbac") and `{major_version}` is the major revision of the API (e.g. v1beta2, v1, v2), such as generated client code.
 - [`{prefix}.grpc`](../client-api/grpc): Package for utility methods or middleware specific to gRPC and are therefore only coupled to gRPC versions, not to a service API version (e.g. generic gRPC authentication middleware code goes here).
-- [`{prefix}.http`](../client-api/http): Package for utility methods or middleware specific to HTTP (whatever the library used) and therefore coupled to that library (or language runtime), not to a specific API version.
+- [`{prefix}.http`](../client-api/http): Reserved for HTTP transport utilities if HTTP support is added in the future. Not currently implemented in any SDK.
 - [`{prefix}.middleware`](../client-api/middleware): Package for reusable middleware or utilities not specific to transport (e.g. gRPC) or API version.
 
 **Occasionally, a piece of code is dependent on multiple boundaries** (such as RBAC _and_ a particular API version, or gRPC _and_ a particular integration). In these cases, use some language specific means to further delineate (such as sub-packages, files, classes, etc).

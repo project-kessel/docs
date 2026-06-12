@@ -45,6 +45,7 @@ const baseStarlightConfig = {
       items: [
         "start-here/getting-started",
         "start-here/understanding-kessel",
+        "start-here/roadmap",
       ],
     },
     {
@@ -65,6 +66,7 @@ const baseStarlightConfig = {
           collapsed: true,
           items: [
             'building-with-kessel/reference/error-codes',
+            'building-with-kessel/reference/sdks',
             'building-with-kessel/reference/schema',
             'building-with-kessel/reference/glossary',
             {

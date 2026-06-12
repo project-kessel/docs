@@ -1,9 +1,9 @@
 ---
-title: Getting Started with RBAC
-description: Step-by-step instructions for installing and running Kessel with your first managed and access controlled resource.
+title: Quick Start
+description: Set up Kessel from scratch, define a resource type with permissions, report resources, and check access.
 ---
 
-import { Aside, Badge, Card, CardGrid, LinkButton, Steps, Tabs, TabItem, Code } from '@astrojs/starlight/components';
+import { Aside, Badge, Card, CardGrid, LinkButton, LinkCard, Steps, Tabs, TabItem, Code } from '@astrojs/starlight/components';
 import CodeExamples from 'src/components/CodeExamples.astro';
 
 export const gettingStartedExamples = import.meta.glob('/src/examples/getting-started/example.*', { query: '?raw', eager: true, import: 'default' });
@@ -21,27 +21,35 @@ import createRoleBindingScript from 'src/examples/scripts/create-role-binding.sh
 
 export const createFile = (path, content) => `cat > ${path} << 'EOF'\n${content.trim()}\nEOF`;
 
-**This tutorial walks you through setting up Kessel from scratch with a basic document management example.**
-You'll learn how to use Kessel to allow customers to organize and share documents in a Google Drive-like application.
-Along the way, you'll get introduced to the following concepts:
+This tutorial walks you through setting up Kessel from scratch. By the end, you will have:
 
-- [**Resources and reporter representations**](../../building-with-kessel/concepts/resources-representations): The basic building block for leveraging Kessel's access control and inventory capabilities.
-- [**Schema**](../../building-with-kessel/concepts/schema): The language for describing resources and their relationships.
-- [**RBAC**](../../building-with-kessel/concepts/rbac): The access control and tenancy model for Kessel.
-- [**Reporting resources**](../../building-with-kessel/how-to/report-resources): The process of telling Kessel about a resource and its relationships.
-- [**Protecting resource access**](../../building-with-kessel/how-to/protect-endpoint): How to protect access to a resource.
+1. **Run Kessel** locally with Docker Compose
+2. **Defined a resource type** with permissions using Kessel's schema language
+3. **Reported a resource** to Kessel's inventory
+4. **Checked permissions** to verify access control is working
 
-<Aside type="tip" title="Tip: Insights migration guide">
-If you are migrating an existing Red Hat Insights application to Kessel, follow [Migrate from RBAC v1 to RBAC v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) which is a guide that will walk you through all the steps of this specific use-case.
+The example uses a simple document management scenario, similar to Google Drive: users create documents, organize them into workspaces, and share access through roles.
+
+<Aside type="tip" title="Want to understand the concepts first?">
+If you'd prefer to learn about what Kessel is and how its pieces fit together before diving into code, start with [Understanding Kessel](../understanding-kessel/).
+</Aside>
+
+Along the way, you'll touch on these concepts (each links to a deeper explanation):
+
+- [**Resources and representations**](../../building-with-kessel/concepts/resources-representations) - the building blocks of Kessel's inventory
+- [**Schema**](../../building-with-kessel/concepts/schema) - how you describe resource types and their relationships
+- [**RBAC**](../../building-with-kessel/concepts/rbac) - roles, role bindings, and permission checks
+- [**Reporting resources**](../../building-with-kessel/how-to/report-resources) - telling Kessel about your resources
+- [**Protecting resource access**](../../building-with-kessel/how-to/protect-endpoint) - checking permissions before serving a request
+
+<Aside type="tip" title="Migrating from RBAC v1?">
+If you are migrating an existing Red Hat Insights application to Kessel, see [Migrate from RBAC v1 to RBAC v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) for a step-by-step guide.
 </Aside>
 
 <Aside type="note" title="Some assembly required">Parts of this workflow are evolving. Schema configuration, RBAC management, and the local development setup are all being simplified.
-See the [roadmap](#where-are-we-going) for details on what's changing.</Aside>
+See the [roadmap](/docs/start-here/roadmap/) for details on what's changing.</Aside>
 
-## Quick start
-
-
-### Prerequisites
+## Prerequisites
 
 Let's get some prerequisites out of the way. These are temporary solutions, so don't worry about them too much.
 
@@ -102,24 +110,21 @@ Let's get some prerequisites out of the way. These are temporary solutions, so d
 
 </Steps>
 
-### Configure Resources
+## Configure resources
 
-Now the interesting part. To protect and share your application's <i>resources</i>, you first have to configure resource _schema_.
+Now for the interesting part. To protect and share your application's resources, you first need to configure a resource schema.
 
-The following is an example of a drive like schema as described in [Understanding Kessel](../understanding-kessel).
-It will consistent of a simple document which is organized into Kessel's Workspaces.
-It will have assignable permissions which leverage the common Kessel RBAC model.
+The example below defines a simple "document" resource type, similar to the scenario described in [Understanding Kessel](../understanding-kessel/).
+Documents are organized into workspaces and have assignable permissions through Kessel's RBAC model.
 
 
 <Steps>
-1. **First we have to tell Kessel about the resource type.**
-   In order to insert rows into a database, you have to define the tables and their columns.
-   In Kessel, it is the same thing. Instead of a table, you have a resource type.
-   Instead of columns, you have JSON-like attributes and the relationships they imply.
-   Relationships can be used for access control.
+1. **Tell Kessel about the resource type.**
+   Just like a database needs table definitions before you can insert rows, Kessel needs to know about your resource types before you can report resources.
+   A resource type defines the attributes a resource can have and the relationships it participates in. Relationships are what power access control.
 
-   **In Kessel, a single resource can have multiple <i>representations</i> shared by different <i>reporters</i>.**
-   For this tutorial, we'll define a single resource type called "document" which will be shared by a single reporter called "drive".
+   A single resource can have multiple **representations** from different **reporters** (services that contribute data about the resource).
+   For this tutorial, we'll define one resource type called "document" with one reporter called "drive".
 
    The metadata for resources and reporters follows a directory structure.
 
@@ -128,19 +133,17 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
     mkdir -p document/
     ```
 
-    The document resource type has a single a 'drive' reporter.
+    The document resource type has a single "drive" reporter.
 
     <Code code={createFile('document/config.yaml', documentConfig)} lang="bash" />
 
-    Documents have a "common" <i>representation</i> (JSON data). Common representation is "common" regardless of the reporter.
-    Here we configure the common representation schema. It includes a required attribute called "workspace_id".
+    Documents have a **common representation** (shared JSON data that is the same regardless of which reporter submits it).
+    Here we configure the common representation schema, which includes a required `workspace_id` attribute.
 
-    A <i>workspace</i> is a resource built-in to Kessel that groups other resources (including workspaces) together.
-    This can be use to construct a resource hierarchy, common to many SaaS applications.
-    In this tutorial, we use this instead of Drive folders.
+    A **workspace** is a built-in Kessel resource that groups other resources together, similar to a folder.
+    You can nest workspaces to create a resource hierarchy. In this tutorial, workspaces take the place of Drive folders.
 
-    The workspace is in the common representation, because a document is always in a single workspace,
-    regardless of how many reporters there are.
+    The workspace relationship is part of the common representation because a document always belongs to exactly one workspace, no matter how many reporters contribute data about it.
 
     <Code code={createFile('document/common_representation.json', commonRepresentation)} lang="bash" />
 
@@ -180,7 +183,7 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
     </details>
 </Steps>
 
-### Install and run Kessel
+## Install and run Kessel
 
 <Steps>
 1. **Clone the Kessel Inventory API repository and load your custom schema.**
@@ -207,22 +210,17 @@ It will have assignable permissions which leverage the common Kessel RBAC model.
     For more details on the full stack, configuration options, and troubleshooting, see [Run locally with Docker Compose](/building-with-kessel/how-to/run-with-docker/).
 </Steps>
 
-### Set up access with RBAC
+## Set up access with RBAC
 
-Now Kessel is running. You configured the "built-in" RBAC schemas in prerequisites.
-Then you configured a document resource and extended RBAC resources like <i>role</i> and <i>workspace</i> with relevant permissions.
+Kessel is running. You've configured the built-in RBAC schemas and defined a document resource type with permissions. Now you need to grant a user access.
 
-For a user to get access, three things need to come together:
+For a user to get access, three things come together:
 
-1. One or more permissions. These are aggregated into a role.
-2. A resource. These can be aggregated into a workspace (or other resources as defined by schema).
-3. A subject (e.g. a user). These can be aggregated into a group.
+1. **Permissions**, grouped into a **role**.
+2. **Resources**, which can be grouped into a **workspace**.
+3. **A subject** (for example, a user), which can belong to a **group**.
 
-The union of these three things is a <i>role binding</i>. So for our next step, we will create a role to group together some permissions.
-Then, we'll create a role binding by combining a **role** (the one we just created), a **resource** (some workspace), and a **subject** (some user).
-
-
-This results in that user having the access described by the role to that workspace, and any documents with a "workspace" relation to it.
+A **role binding** ties these together: it grants a role to a subject on a specific resource or workspace. In the next steps, you'll create a role with some permissions, then bind that role to a user on a workspace. This gives the user access to that workspace and any documents inside it.
 
 <Steps>
 1. **Create a role**
@@ -241,11 +239,11 @@ This results in that user having the access described by the role to that worksp
 
 </Steps>
 
-### Setting up your environment
+## Set up your environment
 
-Kessel is configured and access is granted at the workspace level. Now onto your code and your resources.
+Kessel is configured and access is granted at the workspace level. Now it's time to write some code.
 
-We'll start by setting up a client you can use to interact with Kessel. We have SDKs for many popular languages, or you can use the raw API with your favorite tool.
+Start by setting up a client to interact with Kessel. SDKs are available for many popular languages, or you can use the gRPC API directly.
 
 <Steps>
 1. **Install dependencies.**
@@ -281,14 +279,27 @@ We'll start by setting up a client you can use to interact with Kessel. We have 
             <dependency>
               <groupId>org.project-kessel</groupId>
               <artifactId>kessel-sdk</artifactId>
-              <version>1.2.1</version>
+              <version>1.7.0</version>
+            </dependency>
+            <dependency>
+              <groupId>io.grpc</groupId>
+              <artifactId>grpc-netty-shaded</artifactId>
+              <version>1.77.0</version>
+              <scope>runtime</scope>
+            </dependency>
+            <dependency>
+              <groupId>com.nimbusds</groupId>
+              <artifactId>oauth2-oidc-sdk</artifactId>
+              <version>11.30.1</version>
             </dependency>
             ```
           </TabItem>
           <TabItem label="Gradle">
             ```groovy
             dependencies {
-              implementation 'org.project-kessel:kessel-sdk:1.2.1'
+              implementation 'org.project-kessel:kessel-sdk:1.6.0'
+              runtimeOnly 'io.grpc:grpc-netty-shaded:1.77.0'
+              implementation 'com.nimbusds:oauth2-oidc-sdk:11.30.1'
             }
             ```
           </TabItem>
@@ -309,44 +320,67 @@ We'll start by setting up a client you can use to interact with Kessel. We have 
     <CodeExamples files={gettingStartedExamples} regions="setup" />
 </Steps>
 
-### Reporting resources
+## Report a resource
 
-Before you can check access about a resource, Kessel needs to know about it.
-Kessel learns about resources by <i>reporting</i> them.
+Before you can check access on a resource, Kessel needs to know about it. You tell Kessel about resources by **reporting** them.
 
-In this example, the document resource is reported which includes its relationship to a workspace.
-This inherits the access granted at at the workspace level, as defined by the document schema.
+In this example, a document is reported along with its relationship to a workspace. Because the document belongs to a workspace, it inherits the access you granted at the workspace level.
 
 <CodeExamples files={gettingStartedExamples} regions="report" />
 
-### Checking permissions
+## Check permissions
 
-Once Kessel knows about a resource (and its relationships), you can check access by virtue of checking if the user has an expected <i>relationship</i> to the resource, as defined by your schema.
+Once Kessel knows about a resource and its relationships, you can check whether a user has a specific permission on it.
+
+<Aside type="caution" title="Consistency: what to expect">
+Kessel is eventually consistent. After reporting a resource, there is a brief window (typically 100-500ms) where permission checks may not yet reflect the change. If your check returns `ALLOWED_FALSE` right after a report, that's expected.
+
+Kessel provides several ways to handle this, including fully consistent checks (`CheckForUpdate`) and write visibility modes. See the [Consistency model](/docs/building-with-kessel/concepts/consistency/) for details.
+</Aside>
 
 <CodeExamples files={gettingStartedExamples} regions="check" />
 
-### Complete example
+## Complete example
 
 <CodeExamples files={gettingStartedExamples} />
 
-## Next steps and roadmap
+## Try it yourself
 
-### Exercises
+Experiment with the schema and relationships. Can you:
 
-Try to experiment with the schema and relationships. Can you...
+- Create a new role with different permissions?
+- Assign that role to another user?
+- Add a new permission to the document resource type?
 
-- Create a new role?
-- Assign that role to a user?
-- Add a new permission to the document?
+## Next steps
 
-### How to contribute
+### Learn the concepts
 
-We're open to contributions! Check us out on GitHub at [project-kessel](https://github.com/project-kessel).
+If you haven't already, read [Understanding Kessel](../understanding-kessel/) to learn how Kessel Inventory and Kessel RBAC work together and why the system is designed this way.
 
-### Where are we going?
+### Go deeper with guides
 
-| Feature                      | Today                                                                                       | What's Next                                                                                        |
-|------------------------------|---------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
-| **Schema Language**          | Resource attributes (JSON config) and permissions (KSL) use separate files                  | Unified schema language that combines attributes and permissions                                   |
-| **Configuration Method**     | Edit schema and config via files                                                            | Configure everything at runtime via an API                                                         |
-| **RBAC Management**          | Use temporary scripts or the pre-Kessel RBAC v1 API                                         | Use an RBAC management API (v2) to encapsulate access grants and workspace management              |
+<CardGrid>
+  <LinkCard title="Report resources" href="/docs/building-with-kessel/how-to/report-resources/" description="Learn how to report different resource types and representations." />
+  <LinkCard title="Protect an endpoint" href="/docs/building-with-kessel/how-to/protect-endpoint/" description="Add permission checks to your API endpoints." />
+  <LinkCard title="Manage access with RBAC" href="/docs/building-with-kessel/how-to/rbac/" description="Create roles, groups, and role bindings." />
+  <LinkCard title="Design permissions" href="/docs/building-with-kessel/how-to/design-permissions/" description="Plan your permission schema for real-world use cases." />
+</CardGrid>
+
+### What's changing
+
+Several parts of this workflow are being simplified, including schema configuration, RBAC management, and local development setup.
+
+<LinkButton href="/docs/start-here/roadmap/" icon="right-arrow" variant="secondary">View the roadmap</LinkButton>
+
+### Feedback
+
+Have a use case or gap you'd like to see addressed? Found a bug?
+
+<LinkButton href="https://redhat.atlassian.net/jira/software/c/projects/RHCLOUD/form/465" icon="external" variant="secondary">
+  Request a feature (RFE)
+</LinkButton>
+
+<LinkButton href="https://redhat.atlassian.net/jira/software/c/projects/RHCLOUD/form/501" icon="external" variant="secondary">
+  Report a bug
+</LinkButton>
