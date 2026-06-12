@@ -70,6 +70,10 @@ This defines two permissions (`task_view`, `task_edit`) that flow through the wo
 
 For the full schema workflow (writing the base `kessel.ksl` and `rbac.ksl` files, compiling with `ksl`, creating resource type configuration, and loading into Kessel), see the Quick Start sections on [configuring resources](../getting-started/#configure-resources) and [installing Kessel](../getting-started/#install-and-run-kessel). The steps below assume your schema is compiled and loaded.
 
+<Aside type="tip" title="Need the complete files?">
+The KSL schema, resource type configuration, and full working code examples for this tutorial are available in the [examples/integrate](https://github.com/project-kessel/docs/tree/main/src/examples/integrate) directory. Use them as a reference if you get stuck.
+</Aside>
+
 ## Add the SDK and create an authenticated client
 
 The Quick Start uses `insecure()` mode for local development. For a real integration, configure the SDK with OAuth2 credentials and TLS.
@@ -83,6 +87,10 @@ The Quick Start uses `insecure()` mode for local development. For a real integra
 
     <CodeExamples files={integrationExamples} regions="client-setup" />
 
+    <Aside type="note" title="Environment variables differ by language">
+    Go passes the token endpoint directly via `KESSEL_TOKEN_ENDPOINT`. Python and TypeScript discover it automatically via OIDC discovery from `KESSEL_ISSUER_URL`. Both approaches produce the same result, but your environment setup will differ depending on which language you use. Check the code tab for the specific variables your language expects.
+    </Aside>
+
     For a detailed walkthrough of TLS certificate loading and OAuth2 configuration, see [Enable TLS](/docs/building-with-kessel/how-to/enable-tls/).
 </Steps>
 
@@ -95,6 +103,8 @@ When developing locally against a Kessel instance started with `make kessel-up`,
 Your service needs to tell Kessel about resources as they are created, updated, and deleted. The natural place to do this is right after your existing database operations.
 
 The pattern is straightforward: after your service method successfully writes to the database, report the resource to Kessel. If the Kessel report fails, log the error but don't fail the request. The resource exists in your database and Kessel will catch up on the next report.
+
+The example below shows the create path. Deletes follow the same pattern: after removing the resource from your database, call `ReportResource` with `resource_deleted: true` so Kessel removes it from the authorization graph. See the [complete examples](https://github.com/project-kessel/docs/tree/main/src/examples/integrate) for the full create and delete implementation.
 
 <CodeExamples files={integrationExamples} regions="report-on-create" />
 
@@ -113,7 +123,7 @@ For high-throughput services, reporting inline may not be practical. See [Report
 The most impactful integration point is adding permission checks to your existing endpoints. Rather than scattering `Check` calls through every service method, wrap them in a gRPC server interceptor that runs before the handler executes.
 
 The interceptor:
-1. Extracts the user identity and resource ID from gRPC metadata
+1. Extracts the user identity from gRPC metadata and the resource ID from the request or metadata (the approach varies by language)
 2. Calls Kessel's `Check` API
 3. Returns `PERMISSION_DENIED` if the user lacks the required permission
 4. Forwards the call to the handler if access is granted

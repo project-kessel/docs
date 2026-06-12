@@ -1,0 +1,3 @@
+resource_type: task
+reporter_name: TASKMANAGER
+namespace: taskmanager

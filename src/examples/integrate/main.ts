@@ -1,18 +1,26 @@
 import { readFileSync } from "fs";
-import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
-import { fetchOIDCDiscovery, OAuth2ClientCredentials } from "@project-kessel/kessel-sdk/kessel/auth";
-import type { CheckRequest } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/check_request";
-import type { ReportResourceRequest } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/report_resource_request";
+import {
+    Server,
+    ServerCredentials,
+    Metadata,
+    credentials,
+    status as grpcStatus,
+} from "@grpc/grpc-js";
 import type {
     ServerUnaryCall,
     sendUnaryData,
     handleUnaryCall,
-    Metadata,
     ServerInterceptingCall,
 } from "@grpc/grpc-js";
-import { credentials, status as grpcStatus } from "@grpc/grpc-js";
+import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
+import { fetchOIDCDiscovery, OAuth2ClientCredentials } from "@project-kessel/kessel-sdk/kessel/auth";
+import type { CheckRequest } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/check_request";
+import type { ReportResourceRequest } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/report_resource_request";
 
-//#region client-setup
+// ---------------------------------------------------------------------------
+// Kessel client
+// ---------------------------------------------------------------------------
+
 async function createKesselClient() {
     const discovery = await fetchOIDCDiscovery(process.env.KESSEL_ISSUER_URL!);
 
@@ -29,27 +37,30 @@ async function createKesselClient() {
         .oauth2ClientAuthenticated(auth, tlsCreds)
         .buildAsync();
 }
-//#endregion
 
 const kesselClient = await createKesselClient();
 
-//#region report-on-create
+const INSTANCE_ID = process.env.REPORTER_INSTANCE_ID ?? "taskmanager-1";
+const BASE_URL = process.env.BASE_URL ?? "http://localhost:8080";
+
+// ---------------------------------------------------------------------------
+// Task service handlers
+// ---------------------------------------------------------------------------
+
 const createTask: handleUnaryCall<CreateTaskRequest, CreateTaskResponse> = async (
     call: ServerUnaryCall<CreateTaskRequest, CreateTaskResponse>,
     callback: sendUnaryData<CreateTaskResponse>
 ) => {
-    // --- Your existing service logic ---
     const task = await db.insertTask(call.request);
 
-    // --- Report to Kessel ---
     const reportRequest: ReportResourceRequest = {
         type: "task",
         reporterType: "TASKMANAGER",
-        reporterInstanceId: process.env.REPORTER_INSTANCE_ID ?? "taskmanager-1",
+        reporterInstanceId: INSTANCE_ID,
         representations: {
             metadata: {
                 localResourceId: task.id,
-                apiHref: `${process.env.BASE_URL}/api/tasks/${task.id}`,
+                apiHref: `${BASE_URL}/api/tasks/${task.id}`,
             },
             common: { workspace_id: task.workspaceId },
             reporter: { title: task.title, status: task.status },
@@ -59,18 +70,45 @@ const createTask: handleUnaryCall<CreateTaskRequest, CreateTaskResponse> = async
     try {
         await kesselClient.reportResource(reportRequest);
     } catch (err) {
-        // Log but don't fail. The resource exists in your database;
-        // Kessel will catch up on the next report or reconciliation.
         console.warn(`kessel: failed to report task ${task.id}:`, err);
     }
 
     callback(null, { task });
 };
-//#endregion
 
-//#region check-middleware
+const deleteTask: handleUnaryCall<DeleteTaskRequest, DeleteTaskResponse> = async (
+    call: ServerUnaryCall<DeleteTaskRequest, DeleteTaskResponse>,
+    callback: sendUnaryData<DeleteTaskResponse>
+) => {
+    await db.deleteTask(call.request.id);
+
+    const reportRequest: ReportResourceRequest = {
+        type: "task",
+        reporterType: "TASKMANAGER",
+        reporterInstanceId: INSTANCE_ID,
+        representations: {
+            metadata: {
+                localResourceId: call.request.id,
+                resourceDeleted: true,
+            },
+        },
+    };
+
+    try {
+        await kesselClient.reportResource(reportRequest);
+    } catch (err) {
+        console.warn(`kessel: failed to report task deletion ${call.request.id}:`, err);
+    }
+
+    callback(null, {});
+};
+
+// ---------------------------------------------------------------------------
+// Kessel auth interceptor
+// ---------------------------------------------------------------------------
+
 function kesselAuthInterceptor(
-    kesselClient: Awaited<ReturnType<typeof createKesselClient>>,
+    client: typeof kesselClient,
     resourceType: string,
     reporterType: string,
     relation: string
@@ -109,7 +147,7 @@ function kesselAuthInterceptor(
         };
 
         try {
-            const response = await kesselClient.check(checkRequest);
+            const response = await client.check(checkRequest);
             if (response.allowed !== 1) { // ALLOWED_TRUE
                 call.sendStatus({
                     code: grpcStatus.PERMISSION_DENIED,
@@ -136,18 +174,43 @@ function kesselAuthInterceptor(
     };
 }
 
-// Wire it up when creating the gRPC server:
-//
-//   const server = new grpc.Server({
-//       interceptors: [
-//           kesselAuthInterceptor(kesselClient, "task", "TASKMANAGER", "view"),
-//       ],
-//   });
-//   server.addService(TaskServiceDefinition, { createTask });
-//#endregion
+// ---------------------------------------------------------------------------
+// Server startup
+// ---------------------------------------------------------------------------
 
-// Type stubs for compilation context.
+const server = new Server({
+    interceptors: [
+        kesselAuthInterceptor(kesselClient, "task", "TASKMANAGER", "view"),
+    ],
+});
+
+// Register your service with the gRPC server.
+// In a real project this would use the generated service definition:
+//   server.addService(TaskServiceDefinition, { createTask, deleteTask });
+
+server.bindAsync(
+    "0.0.0.0:8080",
+    ServerCredentials.createInsecure(),
+    (err, port) => {
+        if (err) {
+            console.error("failed to bind:", err);
+            process.exit(1);
+        }
+        console.log(`serving on :${port}`);
+    }
+);
+
+// ---------------------------------------------------------------------------
+// Stubs (stand in for your protobuf-generated types and database layer)
+// ---------------------------------------------------------------------------
+
 interface CreateTaskRequest { title: string; workspaceId: string }
 interface CreateTaskResponse { task: Task }
+interface DeleteTaskRequest { id: string }
+interface DeleteTaskResponse {}
 interface Task { id: string; workspaceId: string; title: string; status: string }
-const db = { insertTask: async (req: CreateTaskRequest): Promise<Task> => ({} as Task) };
+
+const db = {
+    insertTask: async (req: CreateTaskRequest): Promise<Task> => ({} as Task),
+    deleteTask: async (id: string): Promise<void> => {},
+};
