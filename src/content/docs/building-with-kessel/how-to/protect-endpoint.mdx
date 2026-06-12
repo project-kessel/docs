@@ -6,6 +6,9 @@ sidebar:
 ---
 
 import { Aside, Tabs, TabItem, Code, LinkCard } from '@astrojs/starlight/components';
+import CodeExamples from 'src/components/CodeExamples.astro';
+
+export const middlewareExamples = import.meta.glob('/src/examples/protect-endpoint/middleware.*', { query: '?raw', eager: true, import: 'default' });
 
 Protect your API endpoints by checking user permissions before granting access. You'll define permissions in KSL, initialize the SDK, and add permission checks to your middleware.
 
@@ -119,7 +122,7 @@ with channel:
 ```
 
 </TabItem>
-<TabItem label="Node.js">
+<TabItem label="TypeScript">
 
 Install the SDK:
 
@@ -283,7 +286,7 @@ def check_read_permission(stub, user_id: str, workspace_id: str) -> bool:
 ```
 
 </TabItem>
-<TabItem label="Node.js">
+<TabItem label="TypeScript">
 
 ```javascript
 import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
@@ -397,7 +400,7 @@ def check_write_permission(stub, user_id: str, workspace_id: str) -> bool:
 ```
 
 </TabItem>
-<TabItem label="Node.js">
+<TabItem label="TypeScript">
 
 ```javascript
 import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
@@ -477,445 +480,21 @@ Add permission checks to your framework's middleware:
 These examples use headers for simplicity. In production, extract user and workspace IDs from your auth middleware (JWT claims, session, OIDC) instead of trusting client headers.
 </Aside>
 
-<Tabs syncKey="language">
-<TabItem label="Go">
+**Client initialization:**
 
-**HTTP middleware**
+<CodeExamples files={middlewareExamples} regions="setup" />
 
-```go
-package main
+**Middleware implementation:**
 
-import (
-	"context"
-	"net/http"
-	"os"
+<CodeExamples files={middlewareExamples} regions="middleware" />
 
-	"github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
-	v2 "github.com/project-kessel/kessel-sdk-go/kessel/rbac/v2"
-)
+**Using the middleware:**
 
-var kesselClient v1beta2.KesselInventoryServiceClient
+<CodeExamples files={middlewareExamples} regions="usage" />
 
-func init() {
-	client, conn, err := v1beta2.NewClientBuilder(os.Getenv("KESSEL_ENDPOINT")).
-		Insecure().
-		Build()
-	if err != nil {
-		panic(err)
-	}
-	kesselClient = client
-	// Note: In production, handle conn.Close() properly
-}
-
-// RequirePermission middleware checks if user has required permission
-func RequirePermission(relation string, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Extract user from header (from your auth middleware)
-		userID := r.Header.Get("X-User-ID")
-		if userID == "" {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		// Extract workspace ID from header or request context
-		workspaceID := r.Header.Get("X-Workspace-ID")
-		if workspaceID == "" {
-			http.Error(w, "Missing workspace", http.StatusBadRequest)
-			return
-		}
-		
-		// Check permission
-		checkReq := &v1beta2.CheckRequest{
-			Object:   v2.WorkspaceResource(workspaceID),
-			Relation: relation,
-			Subject:  v2.PrincipalSubject(userID, "redhat"),
-		}
-		
-		response, err := kesselClient.Check(context.Background(), checkReq)
-		if err != nil {
-			http.Error(w, "Permission check failed", http.StatusInternalServerError)
-			return
-		}
-		
-		if response.Allowed != v1beta2.Allowed_ALLOWED_TRUE {
-			http.Error(w, "Forbidden", http.StatusForbidden)
-			return
-		}
-		
-		// Permission granted
-		next(w, r)
-	}
-}
-
-func main() {
-	http.HandleFunc("GET /integrations/{id}", RequirePermission("myservice_integration_view", getIntegrationHandler))
-	http.HandleFunc("PUT /integrations/{id}", RequirePermission("myservice_integration_edit", updateIntegrationHandler))
-	
-	http.ListenAndServe(":8080", nil)
-}
-
-func getIntegrationHandler(w http.ResponseWriter, r *http.Request) {
-	// Handle GET request
-}
-
-func updateIntegrationHandler(w http.ResponseWriter, r *http.Request) {
-	// Handle PUT request
-}
-```
-
-</TabItem>
-<TabItem label="Python">
-
-**Flask decorator**
-
-```python
-from flask import Flask, request, abort
-from functools import wraps
-from kessel.inventory.v1beta2 import (
-    ClientBuilder,
-    check_request_pb2,
-    allowed_pb2,
-)
-from kessel.rbac.v2 import principal_subject, workspace_resource
-from connectrpc.errors import ConnectError
-
-app = Flask(__name__)
-
-# Initialize Kessel client
-stub, channel = ClientBuilder("localhost:9000").insecure().build()
-
-def require_permission(relation: str):
-    """Decorator to require permission check before executing endpoint."""
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            # Extract user from request headers
-            user_id = request.headers.get("X-User-ID")
-            user_domain = request.headers.get("X-User-Domain", "redhat")
-            
-            # Extract workspace from header
-            workspace_id = request.headers.get("X-Workspace-ID")
-            
-            if not user_id or not workspace_id:
-                abort(400, "Missing required headers")
-            
-            try:
-                # Build check request
-                check_req = check_request_pb2.CheckRequest(
-                    subject=principal_subject(user_id, user_domain),
-                    relation=relation,
-                    object=workspace_resource(workspace_id),
-                )
-                
-                # Perform permission check
-                response = stub.Check(check_req)
-                
-                if response.allowed != allowed_pb2.ALLOWED_TRUE:
-                    abort(403, f"Permission denied for relation '{relation}'")
-                
-                # Permission granted, proceed
-                return f(*args, **kwargs)
-                
-            except ConnectError as e:
-                abort(500, f"Permission check failed: {e.message}")
-        
-        return decorated_function
-    return decorator
-
-@app.route("/integrations/<integration_id>", methods=["GET"])
-@require_permission(relation="myservice_integration_view")
-def get_integration(integration_id):
-    return {"integration_id": integration_id, "name": "Example Integration"}
-
-@app.route("/integrations/<integration_id>", methods=["PUT"])
-@require_permission(relation="myservice_integration_edit")
-def update_integration(integration_id):
-    return {"status": "updated"}
-
-with channel:
-    app.run(debug=True)
-```
-
-**FastAPI dependency injection**
-
-```python
-from fastapi import FastAPI, Depends, HTTPException, Header
-from kessel.inventory.v1beta2 import (
-    ClientBuilder,
-    check_request_pb2,
-    allowed_pb2,
-)
-from kessel.rbac.v2 import principal_subject, workspace_resource
-from connectrpc.errors import ConnectError
-from typing import Optional
-
-app = FastAPI()
-
-# Initialize Kessel client
-stub, channel = ClientBuilder("localhost:9000").insecure().build()
-
-async def check_permission(
-    relation: str,
-    x_user_id: Optional[str] = Header(None),
-    x_user_domain: Optional[str] = Header("redhat"),
-    x_workspace_id: Optional[str] = Header(None),
-):
-    """Dependency for checking permissions."""
-    if not x_user_id or not x_workspace_id:
-        raise HTTPException(status_code=400, detail="Missing required headers")
-    
-    try:
-        check_req = check_request_pb2.CheckRequest(
-            subject=principal_subject(x_user_id, x_user_domain),
-            relation=relation,
-            object=workspace_resource(x_workspace_id),
-        )
-        
-        response = stub.Check(check_req)
-        
-        if response.allowed != allowed_pb2.ALLOWED_TRUE:
-            raise HTTPException(status_code=403, detail="Permission denied")
-        
-        return True
-        
-    except ConnectError as e:
-        raise HTTPException(status_code=500, detail=f"Permission check failed: {e.message}")
-
-@app.get("/integrations/{integration_id}")
-async def get_integration(
-    integration_id: str,
-    permitted: bool = Depends(lambda: check_permission("myservice_integration_view"))
-):
-    return {"integration_id": integration_id, "name": "Example Integration"}
-
-@app.put("/integrations/{integration_id}")
-async def update_integration(
-    integration_id: str,
-    permitted: bool = Depends(lambda: check_permission("myservice_integration_edit"))
-):
-    return {"status": "updated"}
-```
-
-</TabItem>
-<TabItem label="Node.js">
-
-**Express middleware**
-
-```javascript
-import express from "express";
-import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
-import { Allowed } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/allowed";
-import { principalSubject, workspaceResource } from "@project-kessel/kessel-sdk/kessel/rbac/v2";
-
-const app = express();
-
-// Initialize Kessel client
-const client = new ClientBuilder(process.env.KESSEL_ENDPOINT)
-  .insecure()
-  .buildAsync();
-
-// Middleware to require permission check
-function requirePermission(relation) {
-  return async (req, res, next) => {
-    // Extract user from header (from your auth middleware)
-    const userId = req.headers["x-user-id"];
-    const userDomain = req.headers["x-user-domain"] || "redhat";
-    
-    // Extract workspace from header
-    const workspaceId = req.headers["x-workspace-id"];
-    
-    if (!userId || !workspaceId) {
-      return res.status(400).json({ error: "Missing required headers" });
-    }
-    
-    try {
-      // Build check request
-      const checkRequest = {
-        subject: principalSubject(userId, userDomain),
-        relation: relation,
-        object: workspaceResource(workspaceId),
-      };
-      
-      // Perform permission check
-      const response = await client.check(checkRequest);
-      
-      if (response.allowed !== Allowed.ALLOWED_TRUE) {
-        return res.status(403).json({ error: `Permission denied for relation '${relation}'` });
-      }
-      
-      // Permission granted, proceed
-      next();
-    } catch (error) {
-      console.error("Permission check failed:", error);
-      return res.status(500).json({ error: "Permission check failed" });
-    }
-  };
-}
-
-app.get("/integrations/:id", 
-  requirePermission("myservice_integration_view"),
-  (req, res) => {
-    res.json({ integration_id: req.params.id, name: "Example Integration" });
-  }
-);
-
-app.put("/integrations/:id",
-  requirePermission("myservice_integration_edit"),
-  (req, res) => {
-    res.json({ status: "updated" });
-  }
-);
-
-app.listen(3000, () => console.log("Server running on port 3000"));
-```
-
-</TabItem>
-<TabItem label="Ruby">
-
-**Sinatra filter**
-
-```ruby
-require 'sinatra'
-require 'kessel-sdk'
-
-include Kessel::Inventory::V1beta2
-include Kessel::RBAC::V2
-
-# Initialize Kessel client
-set :kessel_client, KesselInventoryService::ClientBuilder
-  .new(ENV.fetch('KESSEL_ENDPOINT', 'localhost:9000'))
-  .insecure
-  .build
-
-# Helper method to require permission
-def require_permission(relation)
-  user_id = request.env['HTTP_X_USER_ID']
-  user_domain = request.env['HTTP_X_USER_DOMAIN'] || 'redhat'
-  workspace_id = request.env['HTTP_X_WORKSPACE_ID']
-  
-  halt 400, { error: 'Missing required headers' }.to_json unless user_id && workspace_id
-  
-  begin
-    check_request = CheckRequest.new(
-      subject: principal_subject(user_id, user_domain),
-      relation: relation,
-      object: workspace_resource(workspace_id)
-    )
-    
-    response = settings.kessel_client.check(check_request)
-    
-    unless response.allowed == :ALLOWED_TRUE
-      halt 403, { error: "Permission denied for relation '#{relation}'" }.to_json
-    end
-  rescue StandardError => e
-    puts "Permission check failed: #{e.message}"
-    halt 500, { error: 'Permission check failed' }.to_json
-  end
-end
-
-get '/integrations/:id' do
-  require_permission('myservice_integration_view')
-  { integration_id: params[:id], name: 'Example Integration' }.to_json
-end
-
-put '/integrations/:id' do
-  require_permission('myservice_integration_edit')
-  { status: 'updated' }.to_json
-end
-```
-
-</TabItem>
-<TabItem label="Java">
-
-**Spring Boot filter**
-
-```java
-import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import org.project_kessel.api.inventory.v1beta2.*;
-import org.project_kessel.api.rbac.v2.Utils;
-import static org.project_kessel.api.inventory.v1beta2.KesselInventoryServiceGrpc.KesselInventoryServiceBlockingStub;
-import java.io.IOException;
-
-@Component
-public class PermissionFilter extends OncePerRequestFilter {
-    
-    private final KesselInventoryServiceBlockingStub kesselClient;
-    
-    public PermissionFilter(KesselInventoryServiceBlockingStub kesselClient) {
-        this.kesselClient = kesselClient;
-    }
-    
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, 
-                                   HttpServletResponse response, 
-                                   FilterChain filterChain) 
-                                   throws ServletException, IOException {
-        
-        String userId = request.getHeader("X-User-ID");
-        String userDomain = request.getHeader("X-User-Domain");
-        if (userDomain == null) userDomain = "redhat";
-        String workspaceId = request.getHeader("X-Workspace-ID");
-        
-        if (userId == null || workspaceId == null) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            response.getWriter().write("{\"error\":\"Missing required headers\"}");
-            return;
-        }
-        
-        // Determine required relation based on endpoint and method
-        String relation = getRequiredRelation(request);
-        if (relation == null) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-        
-        try {
-            CheckRequest checkRequest = CheckRequest.newBuilder()
-                .setSubject(Utils.principalSubject(userId, userDomain))
-                .setRelation(relation)
-                .setObject(Utils.workspaceResource(workspaceId))
-                .build();
-            
-            CheckResponse checkResponse = kesselClient.check(checkRequest);
-            
-            if (checkResponse.getAllowed() != Allowed.ALLOWED_TRUE) {
-                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                response.getWriter().write("{\"error\":\"Permission denied\"}");
-                return;
-            }
-            
-            filterChain.doFilter(request, response);
-            
-        } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            response.getWriter().write("{\"error\":\"Permission check failed\"}");
-        }
-    }
-    
-    private String getRequiredRelation(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        String method = request.getMethod();
-        
-        if (path.startsWith("/integrations/")) {
-            if ("GET".equals(method)) {
-                return "myservice_integration_view";
-            } else if ("PUT".equals(method) || "POST".equals(method) || "DELETE".equals(method)) {
-                return "myservice_integration_edit";
-            }
-        }
-        
-        return null; // No permission required
-    }
-}
-```
-
-</TabItem>
-</Tabs>
+<Aside type="tip">
+Complete example files are available in the [repository](https://github.com/project-kessel/docs/blob/main/src/examples/protect-endpoint).
+</Aside>
 
 <Aside type="caution">
 These examples use `Check()` for simplicity. In production, call `CheckForUpdate()` for writes (PUT/POST/DELETE) instead.
@@ -964,7 +543,7 @@ def check_permission_safe(stub, check_request):
 ```
 
 </TabItem>
-<TabItem label="Node.js">
+<TabItem label="TypeScript">
 
 ```javascript
 async function checkPermissionSafe(client, checkRequest) {
