@@ -47,7 +47,7 @@ In this schema:
 These permissions can be checked at the workspace level and are automatically inherited through the workspace hierarchy.
 
 <Aside type="note">
-**Schema deployment** is handled separately from application code. The schema definition process is evolving—for current examples, see the [base schemas in rbac-config](https://github.com/RedHatInsights/rbac-config/tree/master/configs/prod/schemas/src) ([kessel.ksl](https://github.com/RedHatInsights/rbac-config/blob/master/configs/prod/schemas/src/kessel.ksl), [rbac.ksl](https://github.com/RedHatInsights/rbac-config/blob/master/configs/prod/schemas/src/rbac.ksl)).
+**Schema deployment** is handled separately from application code. The schema definition process is evolving—for current examples, see the [base schemas in rbac-config](https://github.com/project-kessel/rbac-config/tree/master/configs/prod/schemas/src) ([kessel.ksl](https://github.com/project-kessel/rbac-config/blob/master/configs/prod/schemas/src/kessel.ksl), [rbac.ksl](https://github.com/project-kessel/rbac-config/blob/master/configs/prod/schemas/src/rbac.ksl)).
 </Aside>
 
 <Aside type="tip">
@@ -549,7 +549,7 @@ def check_permission_safe(stub, check_request):
 async function checkPermissionSafe(client, checkRequest) {
   try {
     const response = await client.check(checkRequest);
-    return response.allowed === "ALLOWED_TRUE";
+    return response.allowed === Allowed.ALLOWED_TRUE;
   } catch (error) {
     // Log the error for monitoring
     console.error("Permission check failed:", error);
