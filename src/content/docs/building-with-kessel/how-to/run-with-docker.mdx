@@ -80,8 +80,7 @@ run the [integration test](#run-the-integration-test) or interact directly with 
 </Steps>
 
 <Aside type="note">
-The first run downloads several container images and may take a few minutes. Subsequent starts reuse cached images and are much faster.
-The Kafka infrastructure typically takes about 60 seconds to become fully ready.
+Each run ensures the latest images are pulled down to avoid issues with stale versions of each service. The Kafka infrastructure typically takes about 60 seconds to become fully ready.
 </Aside>
 
 To check that all containers are running and healthy (Docker users: substitute `docker` for `podman`):
