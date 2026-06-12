@@ -77,7 +77,7 @@ KPIs to document: Message Processing Failure Rate, Consumer Error Rate, Kafka Er
 
 ## Authentication Error Handling
 
-- OAuth2 token management includes automatic retry on authentication failures (documented in `src/content/docs/building-with-kessel/how-to/authenticate-with-python-sdk.mdx`)
+- OAuth2 token management includes automatic retry on authentication failures (documented in `src/content/docs/building-with-kessel/how-to/authenticate-with-sdks.mdx`)
 - `OAuth2ClientCredentials.getToken()` caches tokens and refreshes when expiry is within 300 seconds
 - `forceRefresh` parameter exists but is documented as "NOT RECOMMENDED"
 - Implementations of `getToken()` must be thread-safe
