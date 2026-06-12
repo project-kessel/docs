@@ -19,24 +19,27 @@ The base RBAC schema (`rbac.ksl`) is already deployed to Kessel, so you only nee
 
 ### Register workspace-level permissions
 
-Create a schema file for your service. For example, `notifications.ksl`:
+Create a schema file for your service. For example, `myservice.ksl`:
 
 ```ksl
-version 0.1
-namespace notifications
+version 0.2
+namespace myservice
 
 import rbac
 
-@rbac.add_v1_based_permission(app:'notifications', resource:'integrations', verb:'read', v2_perm:'notifications_integrations_view');
-@rbac.add_v1_based_permission(app:'notifications', resource:'integrations', verb:'write', v2_perm:'notifications_integrations_edit');
+// View permission for integrations - allows reading integration configurations
+@rbac.add_unified_permission(app:'myservice', resource:'integration', verb:'view');
+
+// Edit permission for integrations - allows creating/updating integration configurations
+@rbac.add_unified_permission(app:'myservice', resource:'integration', verb:'edit');
 ```
 
 In this schema:
 - **`import rbac`** brings in the existing RBAC workspace hierarchy
-- **`app`** is your service name (`notifications`)
-- **`resource`** is the resource type within your service (`integrations`)
-- **`verb`** is the action—typically `read` or `write`
-- **`v2_perm`** is the permission name for Check API calls, following the pattern `{app}_{resource}_{view|edit}`
+- **`app`** is your service name (`myservice`)
+- **`resource`** is the resource type within your service (`integration`)
+- **`verb`** is the action—typically `view` or `edit`
+- This creates permission names like `myservice_integration_view` and `myservice_integration_edit` for Check API calls
 
 These permissions can be checked at the workspace level and are automatically inherited through the workspace hierarchy.
 
@@ -248,7 +251,7 @@ import (
 func checkReadPermission(ctx context.Context, client v1beta2.KesselInventoryServiceClient, userID, workspaceID string) (bool, error) {
 	checkRequest := &v1beta2.CheckRequest{
 		Object:   v2.WorkspaceResource(workspaceID),
-		Relation: "notifications_integrations_view",
+		Relation: "myservice_integration_view",
 		Subject:  v2.PrincipalSubject(userID, "redhat"),
 	}
 
@@ -271,7 +274,7 @@ from kessel.rbac.v2 import principal_subject, workspace_resource
 def check_read_permission(stub, user_id: str, workspace_id: str) -> bool:
     check_request = check_request_pb2.CheckRequest(
         object=workspace_resource(workspace_id),
-        relation="notifications_integrations_view",
+        relation="myservice_integration_view",
         subject=principal_subject(id=user_id, domain="redhat"),
     )
     
@@ -284,18 +287,19 @@ def check_read_permission(stub, user_id: str, workspace_id: str) -> bool:
 
 ```javascript
 import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
+import { Allowed } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/allowed";
 import { principalSubject, workspaceResource } from "@project-kessel/kessel-sdk/kessel/rbac/v2";
 
 async function checkReadPermission(client, userId, workspaceId) {
   const checkRequest = {
     object: workspaceResource(workspaceId),
-    relation: "notifications_integrations_view",
+    relation: "myservice_integration_view",
     subject: principalSubject(userId, "redhat"),
   };
   
   try {
     const response = await client.check(checkRequest);
-    return response.allowed === "ALLOWED_TRUE";
+    return response.allowed === Allowed.ALLOWED_TRUE;
   } catch (error) {
     console.error("Check failed:", error);
     return false;
@@ -315,7 +319,7 @@ include Kessel::RBAC::V2
 def check_read_permission(client, user_id, workspace_id)
   check_request = CheckRequest.new(
     object: workspace_resource(workspace_id),
-    relation: "notifications_integrations_view",
+    relation: "myservice_integration_view",
     subject: principal_subject(user_id, "redhat")
   )
   
@@ -335,7 +339,7 @@ import static org.project_kessel.api.inventory.v1beta2.KesselInventoryServiceGrp
 public boolean checkReadPermission(KesselInventoryServiceBlockingStub client, String userId, String workspaceId) {
     CheckRequest checkRequest = CheckRequest.newBuilder()
         .setObject(Utils.workspaceResource(workspaceId))
-        .setRelation("notifications_integrations_view")
+        .setRelation("myservice_integration_view")
         .setSubject(Utils.principalSubject(userId, "redhat"))
         .build();
     
@@ -358,7 +362,7 @@ Use `CheckForUpdate()` for writes. This ensures you're checking against the late
 func checkWritePermission(ctx context.Context, client v1beta2.KesselInventoryServiceClient, userID, workspaceID string) (bool, error) {
 	checkRequest := &v1beta2.CheckForUpdateRequest{
 		Object:   v2.WorkspaceResource(workspaceID),
-		Relation: "notifications_integrations_edit",
+		Relation: "myservice_integration_edit",
 		Subject:  v2.PrincipalSubject(userID, "redhat"),
 	}
 
@@ -384,7 +388,7 @@ from kessel.rbac.v2 import principal_subject, workspace_resource
 def check_write_permission(stub, user_id: str, workspace_id: str) -> bool:
     check_request = check_for_update_request_pb2.CheckForUpdateRequest(
         object=workspace_resource(workspace_id),
-        relation="notifications_integrations_edit",
+        relation="myservice_integration_edit",
         subject=principal_subject(id=user_id, domain="redhat"),
     )
     
@@ -397,18 +401,19 @@ def check_write_permission(stub, user_id: str, workspace_id: str) -> bool:
 
 ```javascript
 import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
+import { Allowed } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/allowed";
 import { principalSubject, workspaceResource } from "@project-kessel/kessel-sdk/kessel/rbac/v2";
 
 async function checkWritePermission(client, userId, workspaceId) {
   const checkRequest = {
     object: workspaceResource(workspaceId),
-    relation: "notifications_integrations_edit",
+    relation: "myservice_integration_edit",
     subject: principalSubject(userId, "redhat"),
   };
   
   try {
     const response = await client.checkForUpdate(checkRequest);
-    return response.allowed === "ALLOWED_TRUE";
+    return response.allowed === Allowed.ALLOWED_TRUE;
   } catch (error) {
     console.error("CheckForUpdate failed:", error);
     return false;
@@ -428,7 +433,7 @@ include Kessel::RBAC::V2
 def check_write_permission(client, user_id, workspace_id)
   check_request = CheckForUpdateRequest.new(
     object: workspace_resource(workspace_id),
-    relation: "notifications_integrations_edit",
+    relation: "myservice_integration_edit",
     subject: principal_subject(user_id, "redhat")
   )
   
@@ -448,7 +453,7 @@ import static org.project_kessel.api.inventory.v1beta2.KesselInventoryServiceGrp
 public boolean checkWritePermission(KesselInventoryServiceBlockingStub client, String userId, String workspaceId) {
     CheckForUpdateRequest checkRequest = CheckForUpdateRequest.newBuilder()
         .setObject(Utils.workspaceResource(workspaceId))
-        .setRelation("notifications_integrations_edit")
+        .setRelation("myservice_integration_edit")
         .setSubject(Utils.principalSubject(userId, "redhat"))
         .build();
     
@@ -543,8 +548,8 @@ func RequirePermission(relation string, next http.HandlerFunc) http.HandlerFunc 
 }
 
 func main() {
-	http.HandleFunc("GET /integrations/{id}", RequirePermission("notifications_integrations_view", getIntegrationHandler))
-	http.HandleFunc("PUT /integrations/{id}", RequirePermission("notifications_integrations_edit", updateIntegrationHandler))
+	http.HandleFunc("GET /integrations/{id}", RequirePermission("myservice_integration_view", getIntegrationHandler))
+	http.HandleFunc("PUT /integrations/{id}", RequirePermission("myservice_integration_edit", updateIntegrationHandler))
 	
 	http.ListenAndServe(":8080", nil)
 }
@@ -618,12 +623,12 @@ def require_permission(relation: str):
     return decorator
 
 @app.route("/integrations/<integration_id>", methods=["GET"])
-@require_permission(relation="notifications_integrations_view")
+@require_permission(relation="myservice_integration_view")
 def get_integration(integration_id):
     return {"integration_id": integration_id, "name": "Example Integration"}
 
 @app.route("/integrations/<integration_id>", methods=["PUT"])
-@require_permission(relation="notifications_integrations_edit")
+@require_permission(relation="myservice_integration_edit")
 def update_integration(integration_id):
     return {"status": "updated"}
 
@@ -679,14 +684,14 @@ async def check_permission(
 @app.get("/integrations/{integration_id}")
 async def get_integration(
     integration_id: str,
-    permitted: bool = Depends(lambda: check_permission("notifications_integrations_view"))
+    permitted: bool = Depends(lambda: check_permission("myservice_integration_view"))
 ):
     return {"integration_id": integration_id, "name": "Example Integration"}
 
 @app.put("/integrations/{integration_id}")
 async def update_integration(
     integration_id: str,
-    permitted: bool = Depends(lambda: check_permission("notifications_integrations_edit"))
+    permitted: bool = Depends(lambda: check_permission("myservice_integration_edit"))
 ):
     return {"status": "updated"}
 ```
@@ -699,6 +704,7 @@ async def update_integration(
 ```javascript
 import express from "express";
 import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
+import { Allowed } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/allowed";
 import { principalSubject, workspaceResource } from "@project-kessel/kessel-sdk/kessel/rbac/v2";
 
 const app = express();
@@ -733,7 +739,7 @@ function requirePermission(relation) {
       // Perform permission check
       const response = await client.check(checkRequest);
       
-      if (response.allowed !== "ALLOWED_TRUE") {
+      if (response.allowed !== Allowed.ALLOWED_TRUE) {
         return res.status(403).json({ error: `Permission denied for relation '${relation}'` });
       }
       
@@ -747,14 +753,14 @@ function requirePermission(relation) {
 }
 
 app.get("/integrations/:id", 
-  requirePermission("notifications_integrations_view"),
+  requirePermission("myservice_integration_view"),
   (req, res) => {
     res.json({ integration_id: req.params.id, name: "Example Integration" });
   }
 );
 
 app.put("/integrations/:id",
-  requirePermission("notifications_integrations_edit"),
+  requirePermission("myservice_integration_edit"),
   (req, res) => {
     res.json({ status: "updated" });
   }
@@ -808,12 +814,12 @@ def require_permission(relation)
 end
 
 get '/integrations/:id' do
-  require_permission('notifications_integrations_view')
+  require_permission('myservice_integration_view')
   { integration_id: params[:id], name: 'Example Integration' }.to_json
 end
 
 put '/integrations/:id' do
-  require_permission('notifications_integrations_edit')
+  require_permission('myservice_integration_edit')
   { status: 'updated' }.to_json
 end
 ```
@@ -897,9 +903,9 @@ public class PermissionFilter extends OncePerRequestFilter {
         
         if (path.startsWith("/integrations/")) {
             if ("GET".equals(method)) {
-                return "notifications_integrations_view";
+                return "myservice_integration_view";
             } else if ("PUT".equals(method) || "POST".equals(method) || "DELETE".equals(method)) {
-                return "notifications_integrations_edit";
+                return "myservice_integration_edit";
             }
         }
         
