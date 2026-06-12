@@ -9,7 +9,7 @@ import archDiagramUrl from 'src/assets/architecture.svg?url';
 
 Kessel is a distributed system that keeps track of resources reported by services, and answers permission questions about those resources. Services talk to a single API (Kessel Inventory API) for both.
 
-When a resource is written, the corresponding permission data is replicated to the authorization backend, either asynchronously (default) or synchronously if the service requests immediate consistency. Kessel offers different consistency modes so services can choose whether to prioritize speed or freshness when checking permissions. See [Consistency model](/building-with-kessel/concepts/consistency/) for details.
+When a resource is written, the corresponding permission data is replicated to the authorization backend, either asynchronously (default) or synchronously if the service requests immediate consistency. Kessel offers different consistency modes so services can choose whether to prioritize speed or freshness when checking permissions. See [Consistency model](/docs/building-with-kessel/concepts/consistency/) for details.
 
 ## Components
 
@@ -46,7 +46,7 @@ When using the default async replication, there is a brief window between a writ
 <LinkCard
   title="Consistency model"
   description="Deep dive into consistency modes, tokens, and strategies for choosing the right mode."
-  href="/building-with-kessel/concepts/consistency/"
+  href="/docs/building-with-kessel/concepts/consistency/"
 />
 
 ## Event-driven integration
@@ -72,7 +72,7 @@ Services can integrate with Kessel either by calling the Inventory API directly 
 <LinkCard
   title="Consistency model"
   description="Understand consistency modes, tokens, and how to choose the right strategy."
-  href="/building-with-kessel/concepts/consistency/"
+  href="/docs/building-with-kessel/concepts/consistency/"
 />
 
 <LinkCard
