@@ -1,0 +1,473 @@
+---
+title: Configuration Reference
+description: All configuration parameters for Kessel services — Inventory API, Relations API, and Inventory Consumer.
+sidebar:
+  order: 1
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Every Kessel service is configured through a combination of YAML config files, environment variables, and CLI flags. This page lists all available parameters for each service.
+
+<Aside type="note" title="ClowdApp integration">
+  When deployed with `CLOWDER_ENABLED=true`, Clowder auto-injects database, Kafka, and inter-service connection settings from the ClowdApp manifest. These override any corresponding values in the config file or environment. This applies to Inventory API and Inventory Consumer.
+</Aside>
+
+<Tabs>
+<TabItem label="Inventory API">
+
+## Inventory API
+
+Configuration is loaded from `.inventory-api.yaml`, searched first in the current working directory, then in the home directory. You can set an explicit path with the `--config` CLI flag or the `INVENTORY_API_CONFIG` environment variable. All parameters are also available as CLI flags. Environment variables use an `INVENTORY_API_` prefix, with dots and hyphens replaced by underscores.
+
+### Server
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `server.id` | string | hostname | Server identifier |
+| `server.name` | string | `kessel-inventory-api` | Server name |
+| `server.public_url` | string | `http://localhost:8000` | Public URL where the server is reachable |
+| `server.read-only` | boolean | `false` | Start in read-only mode, blocking write operations |
+
+### HTTP server
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `server.http.address` | string | `0.0.0.0:8000` | Listen address |
+| `server.http.timeout-seconds` | int | `300` | Request timeout in seconds |
+| `server.http.certfile` | string | — | TLS certificate file |
+| `server.http.keyfile` | string | — | TLS private key file |
+| `server.http.client-ca-file` | string | — | CA file for client certificate validation |
+| `server.http.sni-servername` | string | — | SNI server name for client certs |
+| `server.http.certopt` | int | `3` | Client auth type (0-4, maps to Go's `crypto/tls.ClientAuthType`) |
+
+### gRPC server
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `server.grpc.address` | string | `0.0.0.0:9000` | Listen address |
+| `server.grpc.timeout-seconds` | int | `300` | Request timeout in seconds |
+| `server.grpc.certfile` | string | — | TLS certificate file |
+| `server.grpc.keyfile` | string | — | TLS private key file |
+| `server.grpc.client-ca-file` | string | — | CA file for client certificate validation |
+| `server.grpc.sni-servername` | string | — | SNI server name for client certs |
+| `server.grpc.certopt` | int | `3` | Client auth type (0-4) |
+
+### Profiling (pprof)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `server.pprof.enabled` | boolean | `false` | Enable pprof profiling |
+| `server.pprof.port` | string | `5000` | pprof server port |
+| `server.pprof.addr` | string | `0.0.0.0` | pprof bind address |
+
+### Storage
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `storage.database` | enum | `sqlite3` | Database backend: `sqlite3` or `postgres` |
+| `storage.max-serialization-retries` | int | `10` | Max retries for serialized transactions |
+| `storage.outbox-mode` | enum | `table` | Outbox publishing mode: `table` (outbox_events table) or `wal` (pg_logical_emit_message, requires postgres) |
+
+### PostgreSQL
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `storage.postgres.host` | string | `localhost` | Database host |
+| `storage.postgres.port` | string | `5432` | Database port |
+| `storage.postgres.dbname` | string | — | Database name (defaults to username if unset) |
+| `storage.postgres.user` | string | — | Username |
+| `storage.postgres.password` | string | — | Password |
+| `storage.postgres.sslmode` | enum | — | SSL mode: `disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full` |
+| `storage.postgres.sslrootcert` | string | — | SSL root certificate path (PostgreSQL defaults to `~/.postgresql/root.crt` if unset) |
+
+### SQLite3
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `storage.sqlite3.dsn` | string | `inventory.db` | Database file path or connection string |
+
+### Authentication
+
+The Inventory API uses a chain-based authenticator. Each entry in the chain is tried in order until one matches.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `authn.authenticator.type` | string | — | Authenticator type (e.g., `first_match`) |
+| `authn.authenticator.chain[].type` | enum | — | Entry type: `oidc`, `guest`, `allow-unauthenticated`, `x-rh-identity` |
+| `authn.authenticator.chain[].enable` | boolean | `true` | Enable this authenticator |
+| `authn.authenticator.chain[].transport.http` | boolean | `true` | Apply to HTTP |
+| `authn.authenticator.chain[].transport.grpc` | boolean | `true` | Apply to gRPC |
+| `authn.authenticator.chain[].config` | map | — | Authenticator-specific configuration |
+
+For `oidc` chain entries, the config map accepts:
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `authn-server-url` | string | — | Authorization server URL |
+| `client-id` | string | — | Client ID |
+| `principal-user-domain` | string | — | Domain qualifier for Kessel principal IDs |
+| `insecure-client` | boolean | `false` | Skip TLS cert validation |
+| `skip-client-id-check` | boolean | `false` | Skip clientId claim validation |
+| `enforce-aud-check` | boolean | `false` | Enforce audience claim check |
+| `skip-issuer-check` | boolean | `false` | Skip issuer validation (testing only) |
+| `grpc-endpoints` | string[] | — | Specific gRPC endpoints this authenticator applies to (omit for all) |
+
+### Authorization
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `authz.impl` | enum | `allow-all` | Authorization backend: `allow-all` or `kessel` |
+| `authz.kessel.url` | string | — | Relations API gRPC endpoint |
+| `authz.kessel.insecure-client` | boolean | `false` | Skip TLS cert verification |
+| `authz.kessel.enable-oidc-auth` | boolean | `true` | Enable OIDC auth to Relations API |
+| `authz.kessel.sa-client-id` | string | — | Service account client ID |
+| `authz.kessel.sa-client-secret` | string | — | Service account secret |
+| `authz.kessel.sso-token-endpoint` | string | — | SSO token endpoint |
+
+### Embedded Kafka consumer
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `consumer.enabled` | boolean | `true` | Enable the embedded Kafka consumer |
+| `consumer.bootstrap-servers` | string[] | — | Kafka broker addresses |
+| `consumer.consumer-group-id` | string | `inventory-consumer` | Consumer group name |
+| `consumer.topic` | string | `outbox.event.kessel.tuples` | Kafka topic |
+| `consumer.commit-modulo` | int | `10` | Commit offsets every N messages |
+| `consumer.session-timeout` | string | `45000` | Session timeout (ms) |
+| `consumer.heartbeat-interval` | string | `3000` | Heartbeat interval (ms) |
+| `consumer.max-poll-interval` | string | `300000` | Max poll interval (ms) |
+| `consumer.enable-auto-commit` | string | `false` | Auto-commit offsets |
+| `consumer.auto-offset-reset` | string | `earliest` | Offset reset policy: `earliest` or `latest` |
+| `consumer.statistics-interval-ms` | string | `60000` | librdkafka stats interval (ms) |
+| `consumer.debug` | string | — | Comma-separated librdkafka debug contexts |
+| `consumer.read-after-write-enabled` | boolean | `true` | Enable read-after-write consistency |
+| `consumer.read-after-write-allowlist` | string[] | `[]` | Services requiring read-after-write (empty = all) |
+
+### Kafka authentication
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `consumer.auth.enabled` | boolean | `true` | Enable Kafka auth |
+| `consumer.auth.security-protocol` | string | — | Protocol: `PLAINTEXT`, `SSL`, `SASL_PLAINTEXT`, `SASL_SSL` |
+| `consumer.auth.sasl-mechanism` | string | — | Mechanism: `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512` |
+| `consumer.auth.sasl-username` | string | — | SASL username |
+| `consumer.auth.sasl-password` | string | — | SASL password |
+| `consumer.auth.ca-cert-location` | string | — | Kafka CA certificate path |
+
+### Consumer retry options
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `consumer.retry-options.consumer-max-retries` | int | `2` | Max retries before killing consumer (`-1` for unlimited) |
+| `consumer.retry-options.operation-max-retries` | int | `3` | Max retries per operation |
+| `consumer.retry-options.backoff-factor` | int | `5` | Exponential backoff multiplier |
+| `consumer.retry-options.max-backoff-seconds` | int | `30` | Max backoff cap in seconds |
+
+### Consistency
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `consistency.read-after-write-enabled` | boolean | `true` | Enable read-after-write consistency |
+| `consistency.read-after-write-allowlist` | string[] | `[]` | Services requiring read-after-write |
+| `consistency.default-to-at-least-as-acknowledged` | boolean | `true` | Default consistency for Check operations |
+| `consistency.idempotency-check-enabled` | boolean | `true` | Enable transaction ID idempotency checks |
+
+### Schema
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `schema.repository` | enum | `in-memory` | Schema repository type (CLI flag: `--schema.schemas`) |
+| `schema.in-memory.Type` | enum | `empty` | In-memory type: `empty`, `json`, or `dir` |
+| `schema.in-memory.Path` | string | — | Path to schema data (required for `json` or `dir`) |
+
+### Self-subject strategy
+
+In YAML config, use the `redhatRbacSelfSubjectStrategy` key. CLI flags use `--selfsubjectstrategy.redhat-rbac.*` instead.
+
+| Parameter (YAML) | Type | Default | Description |
+|-------------------|------|---------|-------------|
+| `selfsubjectstrategy.redhatRbacSelfSubjectStrategy.enabled` | boolean | `false` | Enable Red Hat RBAC self-subject strategy |
+| `selfsubjectstrategy.redhatRbacSelfSubjectStrategy.issuerDomain` | string | — | Domain for x-rh-identity subjects |
+| `selfsubjectstrategy.redhatRbacSelfSubjectStrategy.oidcIssuerDomains[].iss` | string | — | OIDC issuer URL (YAML only, not available as CLI flag) |
+| `selfsubjectstrategy.redhatRbacSelfSubjectStrategy.oidcIssuerDomains[].domain` | string | — | Domain for this issuer (YAML only, not available as CLI flag) |
+
+### Meta-authorizer
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `metaauthorizer.tuple-crud-allowlist` | string[] | `[]` | Client IDs allowed to access tuple CRUD endpoints (empty = deny all, `*` for testing) |
+
+### Business metrics
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `business-metrics.enabled` | boolean | `false` | Enable metrics collection from summary table |
+
+### Logging
+
+These parameters are available via YAML config and environment variables only, not CLI flags.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `log.level` | enum | `info` | Log level: `debug`, `info`, `warn`, `error`, `fatal` |
+| `log.livez` | boolean | `true` | Enable `/api/kessel/v1/livez` endpoint |
+| `log.readyz` | boolean | `true` | Enable `/api/kessel/v1/readyz` endpoint |
+
+### Example configuration file
+
+When deployed with Clowder, database and Kafka settings are injected automatically. The config file only needs to specify what Clowder does not provide. Deployments without Clowder will need to supply the full storage, consumer, and auth configuration explicitly.
+
+```yaml
+authn:
+  authenticator:
+    type: first_match
+    chain:
+      - type: oidc
+        enable: true
+        transport:
+          http: true
+          grpc: true
+        config:
+          authn-server-url: https://sso.example.com/auth/realms/redhat-external
+          client-id: "my-client-id"
+          principal-user-domain: redhat
+      - type: x-rh-identity
+        enable: true
+        transport:
+          http: true
+          grpc: false
+authz:
+  impl: kessel
+  kessel:
+    url: relations-api:9000
+    enable-oidc-auth: true
+    sa-client-id: "my-sa-client-id"
+    sa-client-secret: "my-sa-client-secret"
+    sso-token-endpoint: https://sso.example.com/protocol/openid-connect/token
+schema:
+  repository: in-memory
+  in-memory:
+    type: json
+    path: schema_cache.json
+consumer:
+  enabled: true
+  topic: outbox.event.kessel.tuples
+log:
+  level: "info"
+```
+
+</TabItem>
+<TabItem label="Relations API">
+
+## Relations API
+
+<Aside type="caution" title="Consolidation in progress">
+  The Relations API is being merged into the Inventory API as a single service. The configuration options below reflect the current standalone deployment and will change as this consolidation progresses.
+</Aside>
+
+Configuration is loaded from a YAML file in the `configs/` directory by default (set via `-conf <path>`, which accepts a directory or file path). The Kratos config loader automatically prepends a `SPICEDB_` prefix to environment variable references in the config file — for example, `${ENDPOINT}` in YAML resolves to the `SPICEDB_ENDPOINT` environment variable. Additional non-prefixed variables are listed in the mapping table below.
+
+### HTTP server
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `server.http.network` | string | — | Network type (e.g., `tcp`) |
+| `server.http.addr` | string | `0.0.0.0:8000` | Listen address |
+| `server.http.timeout` | duration | `1s` | Request timeout |
+| `server.http.pathprefix` | string | `/api/authz` | HTTP API path prefix |
+
+### gRPC server
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `server.grpc.network` | string | — | Network type |
+| `server.grpc.addr` | string | `0.0.0.0:9000` | Listen address |
+| `server.grpc.timeout` | duration | `30s` | Request timeout |
+
+### Logging
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `server.minLogLevel` | string | `Info` | Minimum log level: `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL` |
+
+### Authentication
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `server.auth.enableAuth` | boolean | `false` | Enable JWT authentication |
+| `server.auth.jwksUrl` | string | `http://0.0.0.0:8180/jwks` | JWKS endpoint URL |
+
+### SpiceDB connection
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `data.spiceDb.useTLS` | boolean | `false` | Enable TLS for SpiceDB connection |
+| `data.spiceDb.endpoint` | string | `0.0.0.0:50051` | SpiceDB gRPC endpoint |
+| `data.spiceDb.token` | string | — | SpiceDB bearer token |
+| `data.spiceDb.tokenFile` | string | `.secrets/local-spicedb-secret` | File containing SpiceDB token |
+| `data.spiceDb.schemaFile` | string | `deploy/schema.zed` | Path to SpiceDB schema file |
+| `data.spiceDb.fullyConsistent` | boolean | `false` | Use fully consistent reads by default (higher latency) |
+
+<Aside type="caution">
+  `token` takes precedence over `tokenFile`. At least one of the two must be set.
+</Aside>
+
+### Environment variable mapping
+
+| Env Var | Config Path |
+|---------|-------------|
+| `SPICEDB_PRESHARED` | `data.spiceDb.token` |
+| `SPICEDB_ENDPOINT` | `data.spiceDb.endpoint` |
+| `SPICEDB_SCHEMA_FILE` | `data.spiceDb.schemaFile` |
+| `SPICEDB_PRESHARED_FILE` | `data.spiceDb.tokenFile` |
+| `HTTPADDR` | `server.http.addr` |
+| `GRPCADDR` | `server.grpc.addr` |
+| `ENABLEAUTH` | `server.auth.enableAuth` |
+| `JWKSURL` | `server.auth.jwksUrl` |
+
+### Health endpoints
+
+The Relations API exposes the following health and observability endpoints:
+
+| Protocol | Endpoint | Purpose |
+|----------|----------|---------|
+| HTTP | `GET /api/authz/readyz` | Readiness probe |
+| HTTP | `GET /api/authz/livez` | Liveness probe |
+| gRPC | `grpc.health.v1.Health/Check` | gRPC health check |
+| HTTP | `GET /metrics` | Prometheus metrics |
+
+### Example configuration file
+
+```yaml
+server:
+  http:
+    addr: 0.0.0.0:8000
+    timeout: 1s
+    pathprefix: "/api/authz"
+  grpc:
+    addr: 0.0.0.0:9000
+    timeout: 30s
+  minLogLevel: Info
+  auth:
+    enableAuth: false
+    jwksUrl: http://localhost:8180/jwks
+data:
+  spiceDb:
+    useTLS: false
+    endpoint: localhost:50051
+    tokenFile: .secrets/local-spicedb-secret
+    schemaFile: deploy/schema.zed
+    fullyConsistent: false
+```
+
+</TabItem>
+<TabItem label="Inventory Consumer">
+
+## Inventory Consumer
+
+Configuration is loaded from `.inventory-consumer.yaml`, searched first in the current working directory, then in the home directory. You can set an explicit path with the `--config` CLI flag or the `INVENTORY_CONSUMER_CONFIG` environment variable. Environment variables use an `INVENTORY_CONSUMER_` prefix.
+
+### Kafka consumer
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `consumer.enabled` | boolean | `true` | Enable the consumer |
+| `consumer.bootstrap-servers` | string[] | — | Kafka broker addresses (required if enabled) |
+| `consumer.consumer-group-id` | string | `kic` | Consumer group name |
+| `consumer.topics` | string[] | — | Kafka topics to subscribe to (required if enabled) |
+| `consumer.session-timeout` | string | `45000` | Session timeout (ms) |
+| `consumer.heartbeat-interval` | string | `3000` | Heartbeat interval (ms), must be less than session-timeout |
+| `consumer.max-poll-interval` | string | `300000` | Max poll interval (ms) |
+| `consumer.enable-auto-commit` | string | `false` | Auto-commit offsets |
+| `consumer.auto-offset-reset` | string | `earliest` | Offset reset policy: `earliest` or `latest` |
+| `consumer.statistics-interval-ms` | string | `60000` | librdkafka stats interval (ms) |
+| `consumer.commit-modulo` | int | `10` | Commit offsets every N messages (must be positive) |
+| `consumer.debug` | string | — | Comma-separated librdkafka debug contexts |
+
+### Kafka authentication
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `consumer.auth.enabled` | boolean | `false` | Enable Kafka auth |
+| `consumer.auth.security-protocol` | string | — | Protocol: `PLAINTEXT`, `SSL`, `SASL_PLAINTEXT`, `SASL_SSL` |
+| `consumer.auth.sasl-mechanism` | string | — | Mechanism: `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512` |
+| `consumer.auth.sasl-username` | string | — | SASL username |
+| `consumer.auth.sasl-password` | string | — | SASL password |
+| `consumer.auth.ca-cert-location` | string | — | Kafka CA certificate path |
+
+### Consumer retry options
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `consumer.retry-options.consumer-max-retries` | int | `2` | Max retries before killing consumer (`-1` for unlimited) |
+| `consumer.retry-options.operation-max-retries` | int | `3` | Max retries per operation (`-1` for unlimited) |
+| `consumer.retry-options.backoff-factor` | int | `5` | Exponential backoff multiplier |
+| `consumer.retry-options.max-backoff-seconds` | int | `30` | Max backoff cap in seconds |
+
+### Inventory API client
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `client.enabled` | boolean | `true` | Enable Inventory API gRPC client |
+| `client.url` | string | — | Inventory API gRPC endpoint (required if enabled) |
+| `client.insecure-client` | boolean | `false` | Skip TLS cert verification |
+| `client.ca-cert-file` | string | — | CA certificate for TLS to Inventory API |
+| `client.enable-oidc-auth` | boolean | `false` | Enable OIDC auth (cannot be true if insecure-client is true) |
+| `client.client-id` | string | — | Service account client ID (required if OIDC enabled) |
+| `client.client-secret` | string | — | Service account secret (required if OIDC enabled) |
+| `client.sso-token-endpoint` | string | — | SSO token endpoint (required if OIDC enabled) |
+
+### Logging
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `log.level` | enum | `info` | Log level: `debug`, `info`, `warn`, `error`, `fatal` |
+
+### Clowder-injected settings
+
+When deployed with Clowder, the following Kafka settings are auto-injected from the ClowdApp and override any values in the config file:
+
+- `consumer.bootstrap-servers`
+- `consumer.auth.security-protocol`
+- `consumer.auth.sasl-mechanism`
+- `consumer.auth.sasl-username`
+- `consumer.auth.sasl-password`
+
+### Topic configuration
+
+Topics must be defined in two places: in the consumer config (`consumer.topics`) and in the ClowdApp CR's `kafkaTopics` list. The consumer config controls what the Kafka client subscribes to. The ClowdApp definition tells Clowder which Kafka cluster connection details to inject. It is best practice to keep both in sync. The Inventory Consumer does not support subscribing to topics from multiple Kafka clusters.
+
+### Example configuration file
+
+When deployed with Clowder, Kafka connection settings are injected automatically. The config file only needs to specify what Clowder does not provide. Deployments without Clowder will need to supply the full Kafka bootstrap servers and auth configuration explicitly.
+
+```yaml
+consumer:
+  topics:
+  - outbox.event.sp.table
+  - outbox.event.anothersp.table
+  retry-options:
+    consumer-max-retries: -1
+    operation-max-retries: -1
+    backoff-factor: 5
+    max-backoff-seconds: 30
+  auth:
+    enabled: true
+    ca-cert-location: "/path/to/kafka/ca-cert" # only needed for untrusted CAs
+client:
+  url: "kessel-inventory-api:9000"
+  client-id: "my-sso-client-id"
+  client-secret: "my-sso-client-secret"
+  sso-token-endpoint: https://sso.example.com/protocol/openid-connect/token
+  enable-oidc-auth: true
+log:
+  level: "info"
+```
+
+### Metrics
+
+The consumer exposes Prometheus metrics on port 9000 (hardcoded, not configurable) at `/metrics`.
+
+</TabItem>
+</Tabs>
