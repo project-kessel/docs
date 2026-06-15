@@ -31,7 +31,7 @@ Automate retries and alerting on the **gRPC code**. Messages marked `stable` are
 | `UNIMPLEMENTED` | RPC not available | Wrong API version or disabled feature | Confirm service version |
 | `INTERNAL` | Server failure | DB error, meta-authorizer down, bulk mismatch | Check logs; verify backend health |
 | `UNAVAILABLE` | Cannot accept traffic | Read-only mode, process down | Retry; check read-only flag |
-| `UNAUTHENTICATED` | No valid auth | No credentials, middleware reject, missing stream metadata | Configure [authentication](/building-with-kessel/how-to/authenticate-with-python-sdk/) |
+| `UNAUTHENTICATED` | No valid auth | No credentials, middleware reject, missing stream metadata | Configure [authentication](/building-with-kessel/how-to/authenticate-with-sdks/) |
 
 :::note[Authorization checks vs errors]
 `Check` returning **allowed = false** is a successful response, not `PERMISSION_DENIED`. `PERMISSION_DENIED` means the caller cannot perform the RPC (meta-authorization).
