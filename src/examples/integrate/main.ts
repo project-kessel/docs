@@ -82,22 +82,16 @@ const deleteTask: handleUnaryCall<DeleteTaskRequest, DeleteTaskResponse> = async
 ) => {
     await db.deleteTask(call.request.id);
 
-    const reportRequest: ReportResourceRequest = {
-        type: "task",
-        reporterType: "TASKMANAGER",
-        reporterInstanceId: INSTANCE_ID,
-        representations: {
-            metadata: {
-                localResourceId: call.request.id,
-                resourceDeleted: true,
-            },
-        },
-    };
-
     try {
-        await kesselClient.reportResource(reportRequest);
+        await kesselClient.deleteResource({
+            reference: {
+                resourceType: "task",
+                resourceId: call.request.id,
+                reporter: { type: "TASKMANAGER" },
+            },
+        });
     } catch (err) {
-        console.warn(`kessel: failed to report task deletion ${call.request.id}:`, err);
+        console.warn(`kessel: failed to delete task ${call.request.id}:`, err);
     }
 
     callback(null, {});

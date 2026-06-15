@@ -8,6 +8,7 @@ from kessel.auth import OAuth2ClientCredentials, fetch_oidc_discovery
 from kessel.inventory.v1beta2 import (
     ClientBuilder,
     check_request_pb2,
+    delete_resource_request_pb2,
     report_resource_request_pb2,
     reporter_reference_pb2,
     representation_metadata_pb2,
@@ -93,21 +94,17 @@ class TaskServicer:
         self.db.delete_task(request.id)
 
         try:
-            self.kessel_stub.ReportResource(
-                report_resource_request_pb2.ReportResourceRequest(
-                    type="task",
-                    reporter_type="TASKMANAGER",
-                    reporter_instance_id=self.instance_id,
-                    representations=resource_representations_pb2.ResourceRepresentations(
-                        metadata=representation_metadata_pb2.RepresentationMetadata(
-                            local_resource_id=request.id,
-                            resource_deleted=True,
-                        ),
+            self.kessel_stub.DeleteResource(
+                delete_resource_request_pb2.DeleteResourceRequest(
+                    reference=resource_reference_pb2.ResourceReference(
+                        resource_type="task",
+                        resource_id=request.id,
+                        reporter=reporter_reference_pb2.ReporterReference(type="TASKMANAGER"),
                     ),
                 )
             )
         except grpc.RpcError as e:
-            logger.warning("kessel: failed to report task deletion %s: %s - %s", request.id, e.code(), e.details())
+            logger.warning("kessel: failed to delete task %s: %s - %s", request.id, e.code(), e.details())
 
         return DeleteTaskResponse()
 

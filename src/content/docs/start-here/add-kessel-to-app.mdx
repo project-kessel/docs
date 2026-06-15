@@ -104,7 +104,7 @@ Your service needs to tell Kessel about resources as they are created, updated, 
 
 The pattern is straightforward: after your service method successfully writes to the database, report the resource to Kessel. If the Kessel report fails, log the error but don't fail the request. The resource exists in your database and Kessel will catch up on the next report.
 
-The example below shows the create path. Deletes follow the same pattern: after removing the resource from your database, call `ReportResource` with `resource_deleted: true` so Kessel removes it from the authorization graph. See the [complete examples](https://github.com/project-kessel/docs/tree/main/src/examples/integrate) for the full create and delete implementation.
+The example below shows the create path. Deletes follow a similar pattern: after removing the resource from your database, call `DeleteResource` with a resource reference so Kessel removes it from the authorization graph. See the [complete examples](https://github.com/project-kessel/docs/tree/main/src/examples/integrate) for the full create and delete implementation.
 
 <CodeExamples files={integrationExamples} regions="report-on-create" />
 

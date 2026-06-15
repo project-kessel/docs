@@ -142,19 +142,15 @@ func (s *TaskService) DeleteTask(ctx context.Context, req *DeleteTaskRequest) (*
 		return nil, status.Errorf(codes.Internal, "delete task: %v", err)
 	}
 
-	_, err := s.kessel.ReportResource(ctx, &v1beta2.ReportResourceRequest{
-		Type:               "task",
-		ReporterType:       "TASKMANAGER",
-		ReporterInstanceId: s.instanceID,
-		Representations: &v1beta2.ResourceRepresentations{
-			Metadata: &v1beta2.RepresentationMetadata{
-				LocalResourceId: req.ID,
-				ResourceDeleted: true,
-			},
+	_, err := s.kessel.DeleteResource(ctx, &v1beta2.DeleteResourceRequest{
+		Reference: &v1beta2.ResourceReference{
+			ResourceType: "task",
+			ResourceId:   req.ID,
+			Reporter:     &v1beta2.ReporterReference{Type: "TASKMANAGER"},
 		},
 	})
 	if err != nil {
-		log.Printf("kessel: failed to report task deletion %s: %v", req.ID, err)
+		log.Printf("kessel: failed to delete task %s: %v", req.ID, err)
 	}
 
 	return &DeleteTaskResponse{}, nil
