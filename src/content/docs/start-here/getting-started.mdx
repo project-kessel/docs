@@ -333,9 +333,9 @@ In this example, a document is reported along with its relationship to a workspa
 Once Kessel knows about a resource and its relationships, you can check whether a user has a specific permission on it.
 
 <Aside type="caution" title="Consistency: what to expect">
-Kessel is eventually consistent. After reporting a resource, there is a brief window (typically 100-500ms) where permission checks may not yet reflect the change. If your check returns `ALLOWED_FALSE` right after a report, that's expected.
+By default, there is a brief window (typically 100-500ms) between reporting a resource and that change being visible to permission checks. If your check returns `ALLOWED_FALSE` right after a report, wait a moment and try again.
 
-Kessel provides several ways to handle this, including fully consistent checks (`CheckForUpdate`) and write visibility modes. See the [Consistency model](/docs/building-with-kessel/concepts/consistency/) for details.
+Kessel's consistency model is tunable. You can use `CheckForUpdate` for fully consistent checks, or IMMEDIATE write visibility to eliminate the replication window entirely. See the [Consistency model](/docs/building-with-kessel/concepts/consistency/) for details.
 </Aside>
 
 <CodeExamples files={gettingStartedExamples} regions="check" />

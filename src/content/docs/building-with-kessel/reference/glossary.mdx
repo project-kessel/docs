@@ -179,7 +179,7 @@ See [Report resources](/docs/building-with-kessel/how-to/report-resources/).
 
 ### Consistency Mode
 
-The level of freshness guaranteed when performing a [Check](#check). Kessel provides several modes that let services choose whether to prioritize speed or data freshness when evaluating permissions.
+The level of freshness guaranteed when performing a [Check](#check). Kessel's consistency model is tunable: services choose the right trade-off between latency and data freshness for each operation, from fast reads with `minimize_latency` to fully consistent checks with `CheckForUpdate`.
 
 See [Consistency model](/docs/building-with-kessel/concepts/consistency/).
 

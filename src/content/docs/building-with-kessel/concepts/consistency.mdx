@@ -1,17 +1,17 @@
 ---
 title: Consistency model
-description: Understand Kessel's eventually consistent architecture, consistency modes, and strategies for handling replication to the authorization backend.
+description: Understand Kessel's tunable consistency model, consistency modes, and strategies for choosing the right level of freshness for your use case.
 sidebar:
   order: 80
 ---
 
 import { Aside, LinkCard } from '@astrojs/starlight/components';
 
-Kessel is a distributed system with two distinct data stores: the **inventory database** holds resource data, and the **authorization graph** holds relationships between resources, users, and permissions. When you report a resource, the data is written to the inventory database first and then flows asynchronously to the authorization backend through a Change Data Capture (CDC) pipeline. This means Kessel is **eventually consistent** -- there is always a window of time between a write and that write becoming visible to permission checks.
+Kessel is a distributed system with two distinct data stores: the **inventory database** holds resource data, and the **authorization graph** holds relationships between resources, users, and permissions. When you report a resource, the data is written to the inventory database first and then replicated to the authorization backend through a Change Data Capture (CDC) pipeline.
 
-This is not a bug or a limitation to work around. It is a deliberate architectural choice. Decoupling the write path from the authorization path allows Kessel to accept resource reports at high throughput without blocking on the authorization backend. Most authorization checks tolerate small amounts of staleness, and the replication window is typically measured in hundreds of milliseconds.
+Kessel's consistency model is **tunable**. By default, replication is asynchronous and fast (typically 100-500ms). But you can choose stronger guarantees when you need them. For example, you can get causal consistency between resource writes and reads by using write visibility `IMMEDIATE`. You can also get causal consistency for relationship queries by using the `at_least_as_fresh` mode with a consistency token from a prior operation. For security-sensitive operations like updates and deletes, `CheckForUpdate` provides full consistency with the latest committed authorization state.
 
-Understanding this consistency model is essential for building integrations that behave correctly. This document explains how data flows through the system, what consistency guarantees are available, and how to choose the right strategy for your use case.
+This is not a system that forces you to accept stale reads. It is a system that lets you choose the right trade-off between latency and freshness for each operation. This page explains how data flows through the system, what consistency guarantees are available, and how to choose the right strategy for your use case.
 
 ## How data flows
 
@@ -67,9 +67,13 @@ Use this when you need causal consistency between two operations -- for example,
 
 ### `at_least_as_acknowledged`
 
+<Aside type="caution" title="Experimental">
+This mode should be considered experimental. It is functional but has not been hardened through broad production use. For security-critical decisions, prefer `CheckForUpdate` instead.
+</Aside>
+
 The Inventory API looks up the consistency token stored in the resource's `ktn` column in the inventory database. This token represents the last state that the Consumer successfully replicated to the authorization backend. The check is guaranteed to reflect at least this committed state.
 
-Use this for critical authorization decisions where you need confidence that the check reflects the resource's current state in the database, without requiring the caller to manage tokens.
+This mode only covers changes to the resource itself. It does not account for changes to other entities that affect the result, such as a user's role binding being modified. For operations where those changes matter (updates, deletes, sensitive reads), use `CheckForUpdate` instead.
 
 ### Comparing the modes
 
@@ -77,7 +81,7 @@ Use this for critical authorization decisions where you need confidence that the
 |------|-------------|---------------------|---------|----------|
 | `minimize_latency` | None | May read stale data | Lowest | Dashboards, list views, read-heavy paths |
 | `at_least_as_fresh` | Caller-provided | At least the caller's known state | Medium | Causal consistency between operations |
-| `at_least_as_acknowledged` | Database lookup (`ktn`) | At least the last committed state | Higher | Critical access decisions |
+| `at_least_as_acknowledged` | Database lookup (`ktn`) | At least the resource's last committed state | Higher | Experimental; resource-scoped freshness |
 
 <Aside type="tip">
   When in doubt, start with `minimize_latency`. Upgrade to a stronger mode only for paths where stale authorization data would cause a visible correctness problem.
@@ -110,7 +114,7 @@ To prevent requests from hanging indefinitely if the replication pipeline is slo
 IMMEDIATE mode adds the full replication latency to the request -- typically **100-500ms** on top of the base write latency. Use IMMEDIATE mode only when your application flow genuinely requires the authorization state to be updated before proceeding.
 
 <Aside type="caution">
-  Do not add artificial `sleep()` delays in your code to wait for replication. Either use IMMEDIATE mode for guaranteed write visibility, or design your UX to handle eventual consistency gracefully (e.g., show a "processing" indicator).
+  Do not add artificial `sleep()` delays in your code to wait for replication. Either use IMMEDIATE mode for guaranteed write visibility, or design your UX to handle the replication window gracefully (for example, show a "processing" indicator).
 </Aside>
 
 ## Choosing a consistency strategy
@@ -119,13 +123,13 @@ The right consistency mode depends on what your application is doing at the mome
 
 **User is browsing a dashboard or list page.** Use `minimize_latency`. A stale result for a few hundred milliseconds is invisible to the user, and the lower latency makes the page feel responsive.
 
-**User just performed a write and is viewing the result.** Use `at_least_as_acknowledged` or set write visibility to IMMEDIATE. The user expects to see the effect of their action. Showing stale data here creates confusion ("I just shared this document, why can't my collaborator see it?").
+**User just performed a write and is viewing the result.** Set write visibility to IMMEDIATE so the authorization graph reflects the change before your response returns. The user expects to see the effect of their action. Showing stale data here creates confusion ("I just shared this document, why can't my collaborator see it?").
 
 **Your service is chaining operations.** Use `at_least_as_fresh` with a token from the prior operation. This gives you causal ordering without paying for a database lookup on every check.
 
-**Your service is making a security-critical decision.** Use `at_least_as_acknowledged`. The small additional latency is worth the guarantee that the check reflects the committed state.
+**Your service is making a security-critical decision.** Use `CheckForUpdate`. Unlike `at_least_as_acknowledged` (which only reflects changes to the resource itself), `CheckForUpdate` evaluates against the latest committed authorization state. This catches changes that affect the result indirectly, such as a user's role binding being modified. The additional latency is worth the guarantee for updates, deletes, and other sensitive operations.
 
-### UX patterns for eventual consistency
+### UX patterns for asynchronous replication
 
 If you choose not to use IMMEDIATE mode, consider these patterns:
 
@@ -137,6 +141,8 @@ If you choose not to use IMMEDIATE mode, consider these patterns:
 ## Limitations
 
 There are several constraints to be aware of when working with Kessel's consistency model:
+
+- **`at_least_as_acknowledged` is experimental and resource-scoped.** This mode only reflects changes to the target resource. It does not account for unrelated changes (such as role binding updates) that affect the permission result. For operations where those changes matter, use `CheckForUpdate`.
 
 - **Bulk operations do not support `at_least_as_acknowledged`.** `CheckBulk` and `CheckSelfBulk` span multiple resources, and looking up a consistency token per resource would be prohibitively expensive. These methods support `minimize_latency` or `at_least_as_fresh` only. (`CheckForUpdateBulk` is not affected by this limitation because it always uses full consistency, as described above.)
 
