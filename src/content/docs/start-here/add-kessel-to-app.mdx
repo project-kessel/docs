@@ -1,6 +1,6 @@
 ---
 title: "Tutorial: Add Kessel to an existing application"
-description: Integrate Kessel authorization into your existing service by mapping resources, setting up authenticated clients, reporting at CRUD boundaries, and checking permissions with gRPC interceptors.
+description: Integrate Kessel authorization into your existing service by mapping resources, creating a client, reporting at CRUD boundaries, and checking permissions with gRPC interceptors.
 ---
 
 import { Aside, CardGrid, LinkCard, Steps } from '@astrojs/starlight/components';
@@ -74,29 +74,21 @@ For the full schema workflow (writing the base `kessel.ksl` and `rbac.ksl` files
 The KSL schema, resource type configuration, and full working code examples for this tutorial are available in the [examples/integrate](https://github.com/project-kessel/docs/tree/main/src/examples/integrate) directory. Use them as a reference if you get stuck.
 </Aside>
 
-## Add the SDK and create an authenticated client
-
-The Quick Start uses `insecure()` mode for local development. For a real integration, configure the SDK with OAuth2 credentials and TLS.
+## Add the SDK and create a client
 
 <Steps>
 1. **Install the SDK** in your project. See the [Quick Start prerequisites](../getting-started/#set-up-your-environment) for language-specific install commands.
 
-2. **Create an authenticated client.**
+2. **Create a client.**
 
-    The examples below use environment variables for credentials. In production, your service account credentials come from your platform's secret management (for example, Vault or app-interface secrets).
+    Set the `KESSEL_ENDPOINT` environment variable to your Kessel instance address (for example, `localhost:9081`).
 
     <CodeExamples files={integrationExamples} regions="client-setup" />
 
-    <Aside type="note" title="Environment variables differ by language">
-    Go passes the token endpoint directly via `KESSEL_TOKEN_ENDPOINT`. Python and TypeScript discover it automatically via OIDC discovery from `KESSEL_ISSUER_URL`. Both approaches produce the same result, but your environment setup will differ depending on which language you use. Check the code tab for the specific variables your language expects.
+    <Aside type="note">
+    The SDKs also support authenticated connections with OAuth2 credentials and TLS. When your environment requires authentication, each SDK provides an `authenticated()` or `oauth2_client_authenticated()` builder that accepts client credentials and channel credentials. See the SDK source for details.
     </Aside>
-
-    For a detailed walkthrough of TLS certificate loading and OAuth2 configuration, see [Enable TLS](/docs/building-with-kessel/how-to/enable-tls/).
 </Steps>
-
-<Aside type="tip" title="Local development">
-When developing locally against a Kessel instance started with `make kessel-up`, use the `insecure()` builder from the [Quick Start](../getting-started/#set-up-your-environment) instead. Switch to authenticated clients when deploying to shared environments.
-</Aside>
 
 ## Report resources at your CRUD boundaries
 
@@ -133,7 +125,7 @@ The interceptor:
 This pattern keeps authorization logic separate from business logic. Your service methods don't need to know about Kessel; they only run if the interceptor allows the call through.
 
 <Aside type="caution" title="Adapt to your framework">
-The examples above show gRPC server interceptors for Go, Python, and TypeScript. The same pattern applies to any gRPC framework: extract user and resource identifiers from metadata, call `Check`, and gate the request on the result.
+The examples above show gRPC server interceptors in each language. The same pattern applies to any gRPC framework: extract user and resource identifiers from metadata, call `Check`, and gate the request on the result.
 </Aside>
 
 ## Choose your consistency strategy
@@ -154,12 +146,16 @@ For the full set of consistency modes, tokens, and strategies, see the [Consiste
 In this tutorial, you:
 
 - **Mapped your resources** to Kessel's model, identifying resource types, workspaces, and permissions
-- **Created an authenticated client** with OAuth2 and TLS for production use
+- **Created a Kessel client** using the SDK
 - **Reported resources at your CRUD boundaries** by adding Kessel reporting alongside your existing database operations
 - **Checked permissions with a gRPC interceptor**, gating requests on Kessel authorization without changing your service methods
 - **Chose a consistency strategy** using `Check` for reads and `CheckForUpdate` for writes and security-critical decisions
 
 These are the integration seams you'll use in any Kessel-enabled service. The patterns are the same whether your application manages tasks, hosts, clusters, or any other resource type.
+
+<Aside type="tip" title="Migrating from RBAC v1?">
+If your application currently uses the legacy Insights RBAC system, see [Migrate from RBAC v1 to RBAC v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) for specific guidance on converting permission definitions and adapting authorization checks.
+</Aside>
 
 ## Next steps
 
@@ -169,7 +165,3 @@ These are the integration seams you'll use in any Kessel-enabled service. The pa
   <LinkCard title="Design permissions" href="/docs/building-with-kessel/how-to/design-permissions/" description="Authorization patterns for hierarchical resources, shared access, and org-wide settings." />
   <LinkCard title="Consistency model" href="/docs/building-with-kessel/concepts/consistency/" description="Tunable consistency modes, write visibility, and strategies for handling replication." />
 </CardGrid>
-
-<Aside type="tip" title="Migrating from RBAC v1?">
-If your application currently uses the legacy Insights RBAC system, see [Migrate from RBAC v1 to RBAC v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) for specific guidance on converting permission definitions and adapting authorization checks.
-</Aside>

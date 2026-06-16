@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"log"
 	"net"
@@ -11,13 +9,10 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	"github.com/project-kessel/kessel-sdk-go/kessel/auth"
-	kesselgrpc "github.com/project-kessel/kessel-sdk-go/kessel/grpc"
 	"github.com/project-kessel/kessel-sdk-go/kessel/inventory/v1beta2"
 )
 
@@ -72,25 +67,9 @@ func main() {
 	}
 }
 
-// newKesselClient creates an authenticated Kessel Inventory client
-// using OAuth2 credentials and TLS.
 func newKesselClient() (v1beta2.KesselInventoryServiceClient, func(), error) {
-	oauthCreds := auth.NewOAuth2ClientCredentials(
-		os.Getenv("KESSEL_CLIENT_ID"),
-		os.Getenv("KESSEL_CLIENT_SECRET"),
-		os.Getenv("KESSEL_TOKEN_ENDPOINT"),
-	)
-
-	caCert, err := os.ReadFile(os.Getenv("KESSEL_CA_CERT_PATH"))
-	if err != nil {
-		return nil, nil, fmt.Errorf("read CA cert: %w", err)
-	}
-	certPool := x509.NewCertPool()
-	certPool.AppendCertsFromPEM(caCert)
-	tlsCreds := credentials.NewTLS(&tls.Config{RootCAs: certPool})
-
 	client, conn, err := v1beta2.NewClientBuilder(os.Getenv("KESSEL_ENDPOINT")).
-		Authenticated(kesselgrpc.OAuth2CallCredentials(&oauthCreds), tlsCreds).
+		Insecure().
 		Build()
 	if err != nil {
 		return nil, nil, fmt.Errorf("build client: %w", err)

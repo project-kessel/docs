@@ -1,9 +1,7 @@
-import { readFileSync } from "fs";
 import {
     Server,
     ServerCredentials,
     Metadata,
-    credentials,
     status as grpcStatus,
 } from "@grpc/grpc-js";
 import type {
@@ -13,7 +11,7 @@ import type {
     ServerInterceptingCall,
 } from "@grpc/grpc-js";
 import { ClientBuilder } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2";
-import { fetchOIDCDiscovery, OAuth2ClientCredentials } from "@project-kessel/kessel-sdk/kessel/auth";
+import { Allowed } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/allowed";
 import type { CheckRequest } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/check_request";
 import type { ReportResourceRequest } from "@project-kessel/kessel-sdk/kessel/inventory/v1beta2/report_resource_request";
 
@@ -21,24 +19,9 @@ import type { ReportResourceRequest } from "@project-kessel/kessel-sdk/kessel/in
 // Kessel client
 // ---------------------------------------------------------------------------
 
-async function createKesselClient() {
-    const discovery = await fetchOIDCDiscovery(process.env.KESSEL_ISSUER_URL!);
-
-    const auth = new OAuth2ClientCredentials({
-        clientId: process.env.KESSEL_CLIENT_ID!,
-        clientSecret: process.env.KESSEL_CLIENT_SECRET!,
-        tokenEndpoint: discovery.tokenEndpoint,
-    });
-
-    const caCert = readFileSync(process.env.KESSEL_CA_CERT_PATH!);
-    const tlsCreds = credentials.createSsl(caCert);
-
-    return new ClientBuilder(process.env.KESSEL_ENDPOINT!)
-        .oauth2ClientAuthenticated(auth, tlsCreds)
-        .buildAsync();
-}
-
-const kesselClient = await createKesselClient();
+const kesselClient = new ClientBuilder(process.env.KESSEL_ENDPOINT!)
+    .insecure()
+    .buildAsync();
 
 const INSTANCE_ID = process.env.REPORTER_INSTANCE_ID ?? "taskmanager-1";
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:8080";
@@ -142,7 +125,7 @@ function kesselAuthInterceptor(
 
         try {
             const response = await client.check(checkRequest);
-            if (response.allowed !== 1) { // ALLOWED_TRUE
+            if (response.allowed !== Allowed.ALLOWED_TRUE) {
                 call.sendStatus({
                     code: grpcStatus.PERMISSION_DENIED,
                     details: "forbidden",

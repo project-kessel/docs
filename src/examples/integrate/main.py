@@ -4,7 +4,6 @@ from concurrent import futures
 
 import grpc
 from google.protobuf import struct_pb2
-from kessel.auth import OAuth2ClientCredentials, fetch_oidc_discovery
 from kessel.inventory.v1beta2 import (
     ClientBuilder,
     check_request_pb2,
@@ -16,6 +15,7 @@ from kessel.inventory.v1beta2 import (
     resource_representations_pb2,
     subject_reference_pb2,
 )
+from kessel.inventory.v1beta2 import allowed_pb2
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,22 +26,9 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def create_kessel_client():
-    """Create an authenticated Kessel Inventory client using OAuth2 and TLS."""
-    discovery = fetch_oidc_discovery(os.getenv("KESSEL_ISSUER_URL"))
-
-    auth_credentials = OAuth2ClientCredentials(
-        client_id=os.getenv("KESSEL_CLIENT_ID"),
-        client_secret=os.getenv("KESSEL_CLIENT_SECRET"),
-        token_endpoint=discovery.token_endpoint,
-    )
-
-    with open(os.getenv("KESSEL_CA_CERT_PATH"), "rb") as f:
-        ca_cert = f.read()
-    ssl_credentials = grpc.ssl_channel_credentials(root_certificates=ca_cert)
-
     stub, channel = (
         ClientBuilder(os.getenv("KESSEL_ENDPOINT"))
-        .oauth2_client_authenticated(auth_credentials, ssl_credentials)
+        .insecure()
         .build()
     )
     return stub, channel
@@ -163,7 +150,7 @@ class KesselAuthInterceptor(grpc.ServerInterceptor):
                 lambda req, ctx: ctx.abort(grpc.StatusCode.PERMISSION_DENIED, "forbidden")
             )
 
-        if response.allowed != 1:  # ALLOWED_TRUE
+        if response.allowed != allowed_pb2.ALLOWED_TRUE:
             return grpc.unary_unary_rpc_method_handler(
                 lambda req, ctx: ctx.abort(grpc.StatusCode.PERMISSION_DENIED, "forbidden")
             )
