@@ -1,0 +1,221 @@
+---
+title: Error codes
+description: gRPC error codes and messages returned by the Kessel Inventory API, with causes and fixes.
+sidebar:
+  order: 1
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+When something goes wrong, the Inventory API returns a gRPC status with a **code** and a **message**. Use this page to look up what went wrong and how to fix it.
+
+:::tip[Match on code, not message]
+Automate retries and alerting on the **gRPC code**. Messages marked `stable` are safe to match in dashboards. Messages marked `variable` change with request shape or backend version.
+:::
+
+<Tabs>
+<TabItem label="Error Codes">
+
+## gRPC codes
+
+| Code | Meaning | Common causes | What to do |
+|------|---------|---------------|------------|
+| `CANCELLED` | Client canceled | Context canceled, client timeout | Retry; increase deadline |
+| `UNKNOWN` | Unmapped error | Unexpected bug, stream context propagation issue | Check server logs |
+| `INVALID_ARGUMENT` | Validation failed | Missing fields, protovalidate, bad UUID/URL, empty bulk `items`, duplicate `transaction_id` | Fix request; read `message` for hints |
+| `DEADLINE_EXCEEDED` | Deadline exceeded | Slow DB, large bulk, network latency | Increase deadline; reduce batch |
+| `NOT_FOUND` | Resource absent | Wrong `resource_id`, type, or reporter | Verify identifiers; confirm resource was [reported](/building-with-kessel/how-to/report-resources/) |
+| `ALREADY_EXISTS` | Duplicate resource | Duplicate reporter resource key (same `resource_type` + `resource_id` + `reporter.type` + `reporter_instance_id`) | Use update/report semantics or treat as success |
+| `PERMISSION_DENIED` | Meta-authz rejected | Missing role binding, wrong principal | Review [RBAC](/building-with-kessel/concepts/rbac/) |
+| `FAILED_PRECONDITION` | State rejected | Inventory ID mismatch on update | Align IDs on update paths |
+| `UNIMPLEMENTED` | RPC not available | Wrong API version or disabled feature | Confirm service version |
+| `INTERNAL` | Server failure | DB error, meta-authorizer down, bulk mismatch | Check logs; verify backend health |
+| `UNAVAILABLE` | Cannot accept traffic | Read-only mode, process down | Retry; check read-only flag |
+| `UNAUTHENTICATED` | No valid auth | No credentials, middleware reject, missing stream metadata | Configure [authentication](/building-with-kessel/how-to/authenticate-with-sdks/) |
+
+:::note[Authorization checks vs errors]
+`Check` returning **allowed = false** is a successful response, not `PERMISSION_DENIED`. `PERMISSION_DENIED` means the caller cannot perform the RPC (meta-authorization).
+:::
+
+## Client handling
+
+| Code | Behavior |
+|------|----------|
+| `UNAVAILABLE`, `DEADLINE_EXCEEDED` | Retry with exponential backoff |
+| `UNAUTHENTICATED` | Refresh token; verify TLS — see [Enable TLS](/building-with-kessel/how-to/enable-tls/) |
+| `INVALID_ARGUMENT`, `FAILED_PRECONDITION` | Do not retry; fix request |
+| `NOT_FOUND` | Do not retry; verify resource exists |
+| `PERMISSION_DENIED` | Do not retry; fix authorization |
+| `INTERNAL` | Limited retry; escalate if persistent |
+
+</TabItem>
+<TabItem label="Stable Messages">
+
+## Stable messages
+
+These are produced by centralized error mapping. Safe to match in dashboards and alerting.
+
+### Authentication
+
+| Message | Code | Cause | Resolution |
+|---------|------|-------|------------|
+| `authz context missing` | `UNAUTHENTICATED` | No auth context in chain | Attach OAuth2/mTLS credentials |
+| `self subject missing` | `UNAUTHENTICATED` | No resolvable subject for CheckSelf | Authenticate as subject |
+| `authentication required` | `UNAUTHENTICATED` | ReportResource without auth | Add client credentials |
+| `Authentication denied` | `UNAUTHENTICATED` | Authenticator denied | Check credential validity |
+| `No valid authentication found` | `UNAUTHENTICATED` | No credential matched | Supply valid credentials |
+| `Invalid claims: authenticator returned Allow with nil claims` | `UNAUTHENTICATED` | Auth bug | Report to operators |
+| `Wrong context for middleware` | `UNAUTHENTICATED` | Wrong context type | Internal; report bug |
+
+### Authorization
+
+| Message | Code | Cause | Resolution |
+|---------|------|-------|------------|
+| `meta authorization denied` | `PERMISSION_DENIED` | Meta-authorizer rejected | Grant meta permission via RBAC |
+| `meta authorizer unavailable` | `INTERNAL` | Meta-authorizer unreachable | Check backend health |
+
+### Resources
+
+| Message | Code | Cause | Resolution |
+|---------|------|-------|------------|
+| `resource not found` | `NOT_FOUND` | No resource for key | Report resource first |
+| `resource already exists` | `ALREADY_EXISTS` | Duplicate create | Treat as success if idempotent |
+| `resource inventory id mismatch` | `FAILED_PRECONDITION` | ID mismatch on update | Send correct inventory ID |
+| `internal error` | `INTERNAL` | Database failure | Check PostgreSQL |
+
+### Validation
+
+| Message | Code | Cause | Resolution |
+|---------|------|-------|------------|
+| `required field is empty` | `INVALID_ARGUMENT` | Field missing | Fill required fields |
+| `field exceeds maximum length` | `INVALID_ARGUMENT` | String too long | Shorten value |
+| `field below minimum value` | `INVALID_ARGUMENT` | Number too small | Increase value |
+| `invalid URL` | `INVALID_ARGUMENT` | URL parse failed | Use valid absolute URL |
+| `invalid UUID` | `INVALID_ARGUMENT` | Malformed UUID | Use RFC 4122 UUID |
+| `invalid data structure` | `INVALID_ARGUMENT` | JSON invalid for schema | Fix struct |
+| `at least one of reporterRepresentation or commonRepresentation must be provided` | `INVALID_ARGUMENT` | Both representations missing | Supply data |
+| `items array cannot be empty` | `INVALID_ARGUMENT` | Empty bulk request | Pass at least one item |
+| `inventory-managed consistency tokens aren't available` | `INVALID_ARGUMENT` | Feature disabled | Use `minimize_latency` |
+
+### Server state
+
+| Message | Code | Cause | Resolution |
+|---------|------|-------|------------|
+| `request canceled` | `CANCELLED` | Context canceled | Adjust timeouts |
+| `request deadline exceeded` | `DEADLINE_EXCEEDED` | Deadline exceeded | Increase deadline |
+| `endpoint … is a write endpoint and server is in read-only mode` | `UNAVAILABLE` | Read-only mode | Retry write instance |
+| `internal error: mismatched check results: …` | `INTERNAL` | Bulk length mismatch | Retry; report bug |
+| `internal error: mismatched backend check results: …` | `INTERNAL` | Backend shape mismatch | Verify backend version |
+
+</TabItem>
+<TabItem label="Variable Messages">
+
+## Variable messages
+
+Content depends on the specific request or backend state. Use for human debugging — do not match in automation.
+
+### Request conversion
+
+| Message pattern | Code | Resolution |
+|-----------------|------|------------|
+| `invalid request: …` | `INVALID_ARGUMENT` | Fix request per [gRPC API](https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2) |
+| `failed to create reporter resource key: …` | `INVALID_ARGUMENT` | Verify reporter fields |
+| `failed validation for report resource: …` | `INVALID_ARGUMENT` | Align payload with schema |
+| `representation data cannot be empty` | `INVALID_ARGUMENT` | Supply non-empty data |
+| `invalid <field>: …` (e.g. `invalid resource type`, `invalid local resource ID`, `invalid reporter type`, `invalid relation`, `invalid subject`, `invalid API href`, `invalid reporter version`) | `INVALID_ARGUMENT` | Fix the named field in your request |
+| `invalid reporter representation: …` / `invalid common representation: …` | `INVALID_ARGUMENT` | Fix representation struct in request |
+| `invalid <field> at index …` (e.g. `invalid resource at index 0`, `invalid subject at index 1`, `invalid relation at index 2`) | `INVALID_ARGUMENT` | Fix the indexed item in the bulk request |
+| `invalid inventory ID: …` | `INVALID_ARGUMENT` | Supply a valid UUID for the inventory ID |
+| `LookupObjects requires reporter type: …` / `LookupSubjects requires subject reporter type: …` | `INVALID_ARGUMENT` | Include required reporter type in lookup request |
+
+### Middleware and auth
+
+| Message pattern | Code | Resolution |
+|-----------------|------|------------|
+| `Authentication failed with decision: …` | `UNAUTHENTICATED` | Check credentials |
+| `Missing metadata for stream method: …` | `UNAUTHENTICATED` | Include metadata on stream |
+| `meta authorization context missing` | `UNAUTHENTICATED` | No auth context in chain | Attach OAuth2/mTLS credentials |
+| Protovalidate field-specific text (reason `VALIDATOR`) | `INVALID_ARGUMENT` | Fix cited field |
+| Sanitization failure (reason `SANITIZER`) | `INVALID_ARGUMENT` | Reporter representation contains values that can't be rebuilt after null removal |
+| Reason `NON-UNIQUE TRANSACTION ID` + DB detail | `INVALID_ARGUMENT` | Use unique transaction ID |
+
+### Backend and bulk
+
+| Message pattern | Code | Resolution |
+|-----------------|------|------------|
+| `unexpected consistency preference: …` | `INTERNAL` | Use supported mode |
+| `check failed: …` (per-item) | varies | Inspect per-item code |
+| `malformed backend response: …` (per-item) | `INTERNAL` | Retry; report bug |
+
+</TabItem>
+<TabItem label="Examples">
+
+## Response examples
+
+**Resource not found:**
+
+```text
+ERROR:
+  Code: NotFound
+  Message: resource not found
+```
+
+**Unauthenticated:**
+
+```text
+ERROR:
+  Code: Unauthenticated
+  Message: authentication required
+```
+
+**Schema validation failed:**
+
+```text
+ERROR:
+  Code: InvalidArgument
+  Message: failed validation for report resource: common: invalid data structure
+```
+
+**Meta-authorization denied:**
+
+```text
+ERROR:
+  Code: PermissionDenied
+  Message: meta authorization denied
+```
+
+**Read-only mode:**
+
+```text
+ERROR:
+  Code: Unavailable
+  Message: endpoint /kessel.inventory.v1beta2.KesselInventoryService/ReportResource is a write endpoint and server is in read-only mode
+```
+
+**Bulk check — per-item error (top-level RPC succeeds):**
+
+```json
+{
+  "pairs": [
+    {
+      "item": { "allowed": "ALLOWED_FALSE" }
+    },
+    {
+      "error": {
+        "code": 5,
+        "message": "resource not found",
+        "details": []
+      }
+    }
+  ]
+}
+```
+
+</TabItem>
+</Tabs>
+
+## See also
+
+- [Troubleshooting (Docker Compose)](/building-with-kessel/how-to/run-with-docker/#troubleshooting) — ports, containers, networking
+- [gRPC API (Buf)](https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2) — RPC definitions
+- [Getting started](/start-here/getting-started/) — language-specific error handling examples
