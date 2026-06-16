@@ -118,7 +118,8 @@ const baseStarlightConfig = {
           autogenerate: { directory: 'contributing/client-api' }
         }
       ]
-    }
+    },
+    "for-red-hatters",
   ],
   components: {
     // Overridden to template out client package descriptions based on frontmatter.

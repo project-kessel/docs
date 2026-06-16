@@ -1,6 +1,8 @@
 ---
 title: For Red Hatters
 description: Information for Red Hatters about using Kessel.
+prev: false
+next: false
 ---
 
 Kessel is an open source project also deployed internally. To learn more about leveraging Kessel
