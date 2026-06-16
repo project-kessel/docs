@@ -1,0 +1,14 @@
+version 0.1
+namespace taskmanager
+
+import rbac
+
+@rbac.add_permission(name:'task_view')
+@rbac.add_permission(name:'task_edit')
+
+public type task {
+    relation workspace: [ExactlyOne rbac.workspace]
+
+    relation view: workspace.task_view
+    relation edit: workspace.task_edit
+}

@@ -1,0 +1,167 @@
+---
+title: "Tutorial: Add Kessel to an existing application"
+description: Integrate Kessel authorization into your existing service by mapping resources, creating a client, reporting at CRUD boundaries, and checking permissions with gRPC interceptors.
+---
+
+import { Aside, CardGrid, LinkCard, Steps } from '@astrojs/starlight/components';
+import CodeExamples from 'src/components/CodeExamples.astro';
+
+export const integrationExamples = import.meta.glob('/src/examples/integrate/example.*', { query: '?raw', eager: true, import: 'default' });
+
+**Time: ~45 minutes**
+
+This tutorial walks you through integrating Kessel into a service you already have. By the end, your application will:
+
+1. **Report resources** to Kessel whenever it creates or deletes them
+2. **Check permissions** through a gRPC interceptor before serving requests
+
+Unlike the [Quick Start](../getting-started/), which builds everything from scratch, this tutorial focuses on the **integration points**; the places where Kessel code lives alongside your existing application code.
+
+<Aside type="tip" title="Complete the Quick Start first">
+This tutorial assumes you have completed the [Quick Start](../getting-started/) and have a running Kessel instance with a schema loaded. You should understand resources, schema, roles, and permission checks before continuing.
+</Aside>
+
+## Map your resources
+
+Before writing any code, identify what your application manages and how it maps to Kessel's model.
+
+Ask yourself:
+
+- **What are the "things" my application manages?** These are your resource types.
+- **How are they organized?** Do resources belong to a parent container? In Kessel, the built-in **workspace** resource handles this grouping.
+- **Who needs access, and what kind?** What permissions does each resource type need?
+
+For a task management service, the mapping looks like this:
+
+| Your application | Kessel concept |
+|---|---|
+| Project | Workspace (built-in) |
+| Task | Custom resource type `task` |
+| "Can view tasks" | Permission `task_view` on workspace |
+| "Can edit tasks" | Permission `task_edit` on workspace |
+| Team member | Principal with a role binding |
+
+<Aside type="note">
+Not every application concept maps directly to a Kessel concept. The goal is to identify the resources that need access control and find the right level of granularity. See [Design permissions](/docs/building-with-kessel/how-to/design-permissions/) for guidance on common patterns.
+</Aside>
+
+## Design your schema
+
+Write a KSL schema for your resource type. If you followed the Quick Start, this process is familiar. Here is what a task management schema looks like:
+
+```ksl
+version 0.1
+namespace taskmanager
+
+import rbac
+
+@rbac.add_permission(name:'task_view')
+@rbac.add_permission(name:'task_edit')
+
+public type task {
+    relation workspace: [ExactlyOne rbac.workspace]
+
+    relation view: workspace.task_view
+    relation edit: workspace.task_edit
+}
+```
+
+This defines two permissions (`task_view`, `task_edit`) that flow through the workspace hierarchy, and a `task` resource type that belongs to exactly one workspace.
+
+For the full schema workflow (writing the base `kessel.ksl` and `rbac.ksl` files, compiling with `ksl`, creating resource type configuration, and loading into Kessel), see the Quick Start sections on [configuring resources](../getting-started/#configure-resources) and [installing Kessel](../getting-started/#install-and-run-kessel). The steps below assume your schema is compiled and loaded.
+
+<Aside type="tip" title="Need the complete files?">
+The KSL schema, resource type configuration, and full working code examples for this tutorial are available in the [examples/integrate](https://github.com/project-kessel/docs/tree/main/src/examples/integrate) directory. Use them as a reference if you get stuck.
+</Aside>
+
+## Add the SDK and create a client
+
+<Steps>
+1. **Install the SDK** in your project. See the [Quick Start prerequisites](../getting-started/#set-up-your-environment) for language-specific install commands.
+
+2. **Create a client.**
+
+    Set the `KESSEL_ENDPOINT` environment variable to your Kessel instance address (for example, `localhost:9081`).
+
+    <CodeExamples files={integrationExamples} regions="client-setup" />
+
+    <Aside type="note">
+    The SDKs also support authenticated connections with OAuth2 credentials and TLS. When your environment requires authentication, each SDK provides an `authenticated()` or `oauth2_client_authenticated()` builder that accepts client credentials and channel credentials. See the SDK source for details.
+    </Aside>
+</Steps>
+
+## Report resources at your CRUD boundaries
+
+Your service needs to tell Kessel about resources as they are created, updated, and deleted. The natural place to do this is right after your existing database operations.
+
+The pattern is straightforward: after your service method successfully writes to the database, report the resource to Kessel. If the Kessel report fails, log the error but don't fail the request. The resource exists in your database and Kessel will catch up on the next report.
+
+The example below shows the create path. Deletes follow a similar pattern: after removing the resource from your database, call `DeleteResource` with a resource reference so Kessel removes it from the authorization graph. See the [complete examples](https://github.com/project-kessel/docs/tree/main/src/examples/integrate) for the full create and delete implementation.
+
+<CodeExamples files={integrationExamples} regions="report-on-create" />
+
+Key points:
+
+- **Report after the database write**, not before. The resource must exist in your system before Kessel knows about it.
+- **Include the `workspace_id`** in the common representation. This is what connects the resource to the workspace hierarchy and enables permission inheritance.
+- **Handle errors gracefully.** A Kessel outage should not prevent your service from creating resources. Log the failure and consider a reconciliation process to catch up.
+
+<Aside type="note">
+For high-throughput services, reporting inline may not be practical. See [Report resources](/docs/building-with-kessel/how-to/report-resources/) for async alternatives using the outbox pattern or Kafka consumers.
+</Aside>
+
+## Check permissions before serving requests
+
+The most impactful integration point is adding permission checks to your existing endpoints. Rather than scattering `Check` calls through every service method, wrap them in a gRPC server interceptor that runs before the handler executes.
+
+The interceptor:
+1. Extracts the user identity from gRPC metadata and the resource ID from the request or metadata (the approach varies by language)
+2. Calls Kessel's `Check` API
+3. Returns `PERMISSION_DENIED` if the user lacks the required permission
+4. Forwards the call to the handler if access is granted
+
+<CodeExamples files={integrationExamples} regions="check-middleware" />
+
+This pattern keeps authorization logic separate from business logic. Your service methods don't need to know about Kessel; they only run if the interceptor allows the call through.
+
+<Aside type="caution" title="Adapt to your framework">
+The examples above show gRPC server interceptors in each language. The same pattern applies to any gRPC framework: extract user and resource identifiers from metadata, call `Check`, and gate the request on the result.
+</Aside>
+
+## Choose your consistency strategy
+
+Kessel's consistency model is tunable. By default, permission checks use `minimize_latency`, which may read slightly stale data. But you can achieve causal consistency ("read your writes") when your use case requires it.
+
+The two most important check methods are:
+
+- **`Check`** (default `minimize_latency`): fast, suitable for read-heavy paths like dashboards and list views. The authorization graph may lag the inventory database by 100-500ms under normal conditions, but this is invisible for most read operations.
+- **`CheckForUpdate`**: always fully consistent. The authorization backend evaluates against the latest committed state, including any recent changes to role bindings or resource relationships. Use this for updates, deletes, and any security-critical decision where acting on stale data could cause a conflict or incorrect access grant.
+
+For writes, you can also use `write_visibility: IMMEDIATE` on `ReportResource` to wait for replication to complete before returning. This guarantees that a `Check` issued immediately after the report will reflect the change, giving you causal consistency between resource writes and reads.
+
+For the full set of consistency modes, tokens, and strategies, see the [Consistency model](/docs/building-with-kessel/concepts/consistency/).
+
+## What you learned
+
+In this tutorial, you:
+
+- **Mapped your resources** to Kessel's model, identifying resource types, workspaces, and permissions
+- **Created a Kessel client** using the SDK
+- **Reported resources at your CRUD boundaries** by adding Kessel reporting alongside your existing database operations
+- **Checked permissions with a gRPC interceptor**, gating requests on Kessel authorization without changing your service methods
+- **Chose a consistency strategy** using `Check` for reads and `CheckForUpdate` for writes and security-critical decisions
+
+These are the integration seams you'll use in any Kessel-enabled service. The patterns are the same whether your application manages tasks, hosts, clusters, or any other resource type.
+
+<Aside type="tip" title="Migrating from RBAC v1?">
+If your application currently uses the legacy Insights RBAC system, see [Migrate from RBAC v1 to RBAC v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) for specific guidance on converting permission definitions and adapting authorization checks.
+</Aside>
+
+## Next steps
+
+<CardGrid>
+  <LinkCard title="Report resources" href="/docs/building-with-kessel/how-to/report-resources/" description="Async reporting, outbox pattern, and Kafka consumers for high-throughput services." />
+  <LinkCard title="Protect an endpoint" href="/docs/building-with-kessel/how-to/protect-endpoint/" description="Expanded patterns for endpoint protection including Check vs CheckForUpdate." />
+  <LinkCard title="Design permissions" href="/docs/building-with-kessel/how-to/design-permissions/" description="Authorization patterns for hierarchical resources, shared access, and org-wide settings." />
+  <LinkCard title="Consistency model" href="/docs/building-with-kessel/concepts/consistency/" description="Tunable consistency modes, write visibility, and strategies for handling replication." />
+</CardGrid>

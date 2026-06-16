@@ -1,0 +1,3 @@
+resource_type: task
+resource_reporters:
+  - TASKMANAGER
