@@ -1,0 +1,86 @@
+# Lychee link checker configuration
+# https://lychee.cli.rs/usage/config/
+#
+# This config is used by both CI (GitHub Actions) and local runs via
+# ./scripts/check-links.sh. It checks all external URLs in documentation
+# pages under src/content/docs/ and flags broken links.
+#
+# WHAT THIS CHECKS:
+#   - External HTTP/HTTPS links in .md and .mdx files
+#
+# WHAT THIS SKIPS:
+#   - Internal site links (relative/root-relative Astro routes)
+#   - Email addresses
+#   - Links to excluded domains (see exclude list below)
+#
+# HOW ROOT-RELATIVE LINKS WORK:
+#   Markdown files in this repo use root-relative links like
+#   /docs/building-with-kessel/concepts/rbac/ which are Astro routes.
+#   Lychee can't resolve these from source files, so we set base_url to
+#   convert them into full URLs, then exclude the site domain so they're
+#   skipped without any network requests. This avoids false "Cannot resolve
+#   root-relative link" errors.
+#
+# ADDING A NEW EXCLUDED DOMAIN:
+#   1. Add a regex pattern to the appropriate section in the exclude list
+#   2. Escape dots with \\ (e.g., "new\\.domain\\.com")
+#   3. Run ./scripts/check-links.sh to verify it's excluded
+#   4. Add a comment explaining WHY it's excluded (auth, blocks bots, etc.)
+
+include_mail = false
+scheme = ["https", "http"]
+base_url = "https://project-kessel.github.io"
+
+exclude = [
+  # ---- Internal site links ----
+  # Resolved via base_url above, then skipped to avoid network requests.
+  # DO NOT REMOVE — without this, every internal cross-reference would be
+  # checked as an HTTP request against the live site.
+  "project-kessel\\.github\\.io",
+
+  # ---- Red Hat internal (auth/VPN required) ----
+  # Broad patterns to match internal/staging infrastructure without
+  # exposing specific hostnames in this public repo.
+  "\\.stage\\.",                           # Staging environments
+  "\\.cee\\.",                             # Internal corporate domains
+  "\\.atlassian\\.net",                    # Atlassian-hosted tools
+  "issues\\.redhat\\.",                    # Issue tracker
+
+  # ---- Google (authenticated) ----
+  # Google Docs/Drive/Meet links require account auth.
+  # Found in: various planning and reference docs
+  "docs\\.google\\.com",
+
+  # ---- Sites that block automated requests ----
+  # These sites return 403 to bots/crawlers regardless of link validity.
+  # Found in: client-libraries.mdx, setup-sdk-for-ci.mdx
+  "www\\.npmjs\\.com",
+  "blogs\\.oracle\\.com",
+
+  # ---- Local and example domains ----
+  # Used in code examples and configuration snippets. Not real URLs.
+  # Found in: getting-started.mdx, configure-authentication.mdx, and
+  #           various code examples throughout
+  "localhost",
+  "127\\.0\\.0\\.1",
+  "0\\.0\\.0\\.0",
+  "example\\.com",
+  "example\\.org",
+  "sso\\.example\\.com",
+  "acs\\.example\\.com",
+]
+
+# Only treat HTTP 200 and 429 (rate-limited) as success.
+# 429 is accepted because it means the link exists but we hit a rate limit.
+accept = [200, 429]
+
+timeout = 30
+max_retries = 3
+max_concurrency = 8
+
+# Cap redirects to avoid following SSO login chains indefinitely
+max_redirects = 5
+
+# NOTE: GitHub rate-limits unauthenticated requests heavily.
+# In CI, the GitHub Actions workflow passes GITHUB_TOKEN to avoid 429s.
+# Locally, export GITHUB_TOKEN to get the same benefit.

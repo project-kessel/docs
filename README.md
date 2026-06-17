@@ -59,6 +59,39 @@ config-overlay.mjs          # Fork/overlay hooks for internal documentation
 
 This repository is designed to be forked for internal documentation. The `config-overlay.mjs` file provides hook functions to modify the Astro and Starlight configuration (e.g., adding sidebar entries for internal docs) without altering upstream files. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
+## Link Checking
+
+External links in documentation are checked automatically using [lychee](https://github.com/lycheeverse/lychee), a fast link checker written in Rust. This catches broken links, moved pages, and dead URLs before they rot.
+
+### How it runs
+
+- **On pull requests**: checks links in changed docs automatically via GitHub Actions
+- **Weekly schedule**: runs every Monday morning to catch link rot between PRs
+- **On failure**: scheduled runs auto-create a GitHub issue with the `link-rot` label
+
+### Running locally
+
+Install [lychee](https://github.com/lycheeverse/lychee#installation), then run the check script:
+
+```bash
+./scripts/check-links.sh
+```
+
+### What gets checked
+
+The checker only validates external HTTP/HTTPS links in `src/content/docs/`. Internal cross-references (root-relative Astro routes like `/docs/building-with-kessel/...`) are skipped since they can't be resolved from source files.
+
+### Excluding a domain
+
+Some domains need to be excluded because they require authentication, block automated requests, or are placeholders in code examples. To add a new exclusion:
+
+1. Edit `.lychee.toml` and add a regex pattern to the appropriate section
+2. Escape dots with `\\` (e.g., `"new\\.domain\\.com"`)
+3. Add a comment explaining why it's excluded
+4. Run `./scripts/check-links.sh` to verify
+
+See `.lychee.toml` for the full list of excluded domains and the reasons for each.
+
 ## Further Reading
 
 | Resource | Description |
