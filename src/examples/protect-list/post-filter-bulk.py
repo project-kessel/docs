@@ -32,10 +32,8 @@ async def filter_integrations_by_permission(integrations, user_id: str, permissi
 
     # Filter integrations based on bulk check results
     accessible_integrations = []
-    for pair in response.pairs:
+    for index, pair in enumerate(response.pairs):
         if pair.item.allowed == allowed_pb2.ALLOWED_TRUE:
-            # Find the integration that corresponds to this check
-            index = response.pairs.index(pair)
             accessible_integrations.append(integrations[index])
 
     return accessible_integrations
