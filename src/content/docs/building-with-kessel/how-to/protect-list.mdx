@@ -9,6 +9,8 @@ import { Aside, LinkCard, Tabs, TabItem } from '@astrojs/starlight/components';
 import CodeExamples from 'src/components/CodeExamples.astro';
 
 export const preFilterCoarse = import.meta.glob('/src/examples/protect-list/pre-filter-coarse.*', { query: '?raw', eager: true, import: 'default' });
+export const preFilterFine = import.meta.glob('/src/examples/protect-list/pre-filter-fine.*', { query: '?raw', eager: true, import: 'default' });
+export const postFilterCoarse = import.meta.glob('/src/examples/protect-list/post-filter-coarse.*', { query: '?raw', eager: true, import: 'default' });
 export const postFilterBulk = import.meta.glob('/src/examples/protect-list/post-filter-bulk.*', { query: '?raw', eager: true, import: 'default' });
 
 Protecting list endpoints is trickier than checking access to a single resource. Your endpoint might return 10,000 items, but the user can only see 50. You need to filter the list efficiently without checking every single item. This guide shows you the patterns you'll see in production.
@@ -84,35 +86,13 @@ Uses `StreamedListObjects` with your specific resource type to find exactly whic
 2. Get back a list of specific resource IDs the user can access
 3. Query your database with `WHERE id IN (...)` for those exact IDs
 
-**Example:**
-```python
-from kessel.inventory.v1beta2 import ClientBuilder, streamed_list_objects_request_pb2, representation_type_pb2
-from kessel.rbac.v2 import principal_subject
+**Implementation:**
 
-# Initialize client
-client, channel = ClientBuilder("localhost:9000").insecure().build()
+<CodeExamples files={preFilterFine} regions="get-resource-ids" />
 
-# Build request for your resource type
-subject = principal_subject(id=user_id, domain="redhat")
-resource_type = representation_type_pb2.RepresentationType(
-    resource_type="integration",
-    reporter_type="myservice"
-)
+Then use those resource IDs to filter your database query:
 
-request = streamed_list_objects_request_pb2.StreamedListObjectsRequest(
-    object_type=resource_type,
-    relation="view",
-    subject=subject
-)
-
-# Get accessible resource IDs
-resource_ids = []
-async for response in client.streamed_list_objects(request):
-    resource_ids.append(response.object.resource_id)
-
-# Query database with those IDs
-integrations = session.query(Integration).filter(Integration.id.in_(resource_ids)).all()
-```
+<CodeExamples files={preFilterFine} regions="filter-query" />
 
 **Speed tradeoffs:**
 - **Kessel call**: One API call to get the resource IDs
@@ -139,43 +119,16 @@ Query the database first, then check if the user has permission on the workspace
 **How it works:**
 1. Query database and get all matching resources
 2. Collect the unique workspace IDs from the resources
-3. Use `Check()` or `CheckBulk()` to verify permission on those workspaces
+3. Use `CheckBulk()` to verify permission on those workspaces
 4. Filter out resources where the user doesn't have workspace permission
 
-**Example:**
-```python
-from kessel.inventory.v1beta2 import ClientBuilder, check_bulk_request_pb2, allowed_pb2
-from kessel.rbac.v2 import workspace_resource, principal_subject
+**Implementation:**
 
-# Initialize client
-client, channel = ClientBuilder("localhost:9000").insecure().build()
+<CodeExamples files={postFilterCoarse} regions="filter-by-workspace" />
 
-# Step 1: Query database
-integrations = session.query(Integration).filter_by(status="active").all()
+**Full example:**
 
-# Step 2: Get unique workspace IDs
-workspace_ids = set(i.workspace_id for i in integrations)
-
-# Step 3: Check workspace permissions with CheckBulk
-items = [
-    check_bulk_request_pb2.CheckBulkRequestItem(
-        object=workspace_resource(ws_id),
-        relation="myservice_integration_view",
-        subject=principal_subject(id=user_id, domain="redhat")
-    )
-    for ws_id in workspace_ids
-]
-response = client.check_bulk(check_bulk_request_pb2.CheckBulkRequest(items=items))
-
-# Step 4: Build set of allowed workspaces
-allowed_workspaces = set()
-for i, pair in enumerate(response.pairs):
-    if pair.item.allowed == allowed_pb2.ALLOWED_TRUE:
-        allowed_workspaces.add(list(workspace_ids)[i])
-
-# Step 5: Filter resources by allowed workspaces
-return [i for i in integrations if i.workspace_id in allowed_workspaces]
-```
+<CodeExamples files={postFilterCoarse} regions="full-example" />
 
 **The tradeoff:**
 - **Database**: Unfiltered query (might fetch resources user can't access)

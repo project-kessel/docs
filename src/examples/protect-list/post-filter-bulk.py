@@ -6,11 +6,11 @@ from kessel.rbac.v2 import workspace_resource, principal_subject
 # Initialize Kessel client (see "Protect an endpoint" guide for full setup)
 from kessel.inventory.v1beta2 import ClientBuilder
 
-client, channel = ClientBuilder("localhost:9000").insecure().build()
+stub, channel = ClientBuilder("localhost:9000").insecure().build()
 # endregion
 
 # region bulk-check
-async def filter_integrations_by_permission(integrations, user_id: str, permission: str):
+def filter_integrations_by_permission(integrations, user_id: str, permission: str):
     """Filter integrations using CheckBulk to batch permission checks.
 
     This is more efficient than calling Check() in a loop.
@@ -28,7 +28,7 @@ async def filter_integrations_by_permission(integrations, user_id: str, permissi
     request = check_bulk_request_pb2.CheckBulkRequest(items=items)
 
     # Make single API call to check all permissions
-    response = await client.check_bulk(request)
+    response = stub.CheckBulk(request)
 
     # Filter integrations based on bulk check results
     accessible_integrations = []
@@ -43,7 +43,7 @@ async def filter_integrations_by_permission(integrations, user_id: str, permissi
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-async def list_integrations(session: Session, client, user_id: str):
+def list_integrations(session: Session, stub, user_id: str):
     """List integrations the user can access.
 
     Post-filtering with CheckBulk: Query all integrations, then batch-check permissions.
@@ -54,7 +54,7 @@ async def list_integrations(session: Session, client, user_id: str):
     all_integrations = result.scalars().all()
 
     # Step 2: Use CheckBulk to filter by permission
-    accessible = await filter_integrations_by_permission(
+    accessible = filter_integrations_by_permission(
         all_integrations,
         user_id,
         "myservice_integration_view"

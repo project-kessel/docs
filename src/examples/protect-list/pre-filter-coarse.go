@@ -11,13 +11,12 @@ import (
 //#region setup
 // Initialize Kessel client (see "Protect an endpoint" guide for full setup)
 func setupClient() (v1beta2.KesselInventoryServiceClient, error) {
-	inventoryClient, conn, err := v1beta2.NewClientBuilder("localhost:9000").
+	inventoryClient, _, err := v1beta2.NewClientBuilder("localhost:9000").
 		Insecure().
 		Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
-	defer conn.Close()
 	return inventoryClient, nil
 }
 //#endregion
