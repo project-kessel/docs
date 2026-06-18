@@ -6,4 +6,4 @@ next: false
 ---
 
 Kessel is an open source project also deployed internally. To learn more about leveraging Kessel
-internally as well as Red Hat-specific examples and configurations, see our internal docs in **inScope**
+internally as well as Red Hat-specific examples and configurations, see our internal docs in [**inScope**](https://inscope.corp.redhat.com/docs/default/component/kessel-internal-docs)
