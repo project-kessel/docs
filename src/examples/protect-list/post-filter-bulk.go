@@ -62,7 +62,7 @@ func filterIntegrationsByPermission(
 	// Filter integrations based on bulk check results
 	var accessibleIntegrations []*Integration
 	for index, pair := range response.Pairs {
-		if pair.Item != nil && pair.Item.Allowed == v1beta2.Allowed_ALLOWED_TRUE {
+		if item := pair.GetItem(); item != nil && item.Allowed == v1beta2.Allowed_ALLOWED_TRUE {
 			accessibleIntegrations = append(accessibleIntegrations, integrations[index])
 		}
 	}

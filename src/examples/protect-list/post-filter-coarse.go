@@ -70,7 +70,7 @@ func filterByWorkspacePermission(
 	// Step 3: Build set of allowed workspaces
 	allowedWorkspaces := make(map[string]bool)
 	for index, pair := range response.Pairs {
-		if pair.Item != nil && pair.Item.Allowed == v1beta2.Allowed_ALLOWED_TRUE {
+		if item := pair.GetItem(); item != nil && item.Allowed == v1beta2.Allowed_ALLOWED_TRUE {
 			allowedWorkspaces[workspaceIDs[index]] = true
 		}
 	}
