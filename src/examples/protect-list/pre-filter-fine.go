@@ -34,10 +34,11 @@ func getAccessibleResourceIDs(
 	userID string,
 	permission string,
 ) ([]string, error) {
-	subject := v2.PrincipalSubject(userID, "redhat")
+    subject := v2.PrincipalSubject(userID, "redhat")
+	reporterType := "myservice"
 	resourceType := &v1beta2.RepresentationType{
 		ResourceType: "integration",
-		ReporterType: "myservice",
+		ReporterType: &reporterType,
 	}
 
 	request := &v1beta2.StreamedListObjectsRequest{
