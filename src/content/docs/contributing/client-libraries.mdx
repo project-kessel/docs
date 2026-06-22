@@ -105,7 +105,8 @@ The _suffixes_ of these imports SHOULD be consistent from language to language (
 #### Defaults (across all languages)
 
 - Deadlines, retries, load balancing, and other network level behavior MUST NOT be specified by the client defaults, and instead defined by the server and discovered by the client through [service config](https://github.com/grpc/proposal/blob/master/A2-service-configs-in-dns.md). This keeps each client consistent, and allows this to be managed centrally.
-  - TODO: We may want to revisit this since we cannot easily add TXT records in all contexts
+  - The standard gRPC mechanism for publishing service config via DNS TXT records is not practical for Kessel: in multicluster environments, Kessel does not control the authoritative nameserver for tenant clusters. The planned approach is to host a gateway-level HTTP endpoint that serves service config, which the `ClientBuilder` fetches and applies automatically using gRPC's pluggable resolver interface. This is not yet implemented, and current SDKs do not perform service config discovery.
+  - Until service config discovery is available, clients SHOULD NOT hard-code deadlines, retry policies, or load balancing settings as a substitute.
 - One possible exception is [HTTP/2 Keepalive](https://grpc.io/docs/guides/keepalive/). This requires explicitly configuring the channel or stub on the client and is not available through service config.
 
 #### Exceptions
