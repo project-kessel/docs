@@ -95,11 +95,6 @@ const baseStarlightConfig = {
       items: [
         'running-kessel/architecture',
         {
-          label: "Installation",
-          collapsed: true,
-          autogenerate: { directory: 'running-kessel/installation' }
-        },
-        {
           label: "Monitoring Kessel",
           collapsed: true,
           autogenerate: { directory: 'running-kessel/monitoring-kessel' }
