@@ -1,6 +1,12 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 # See https://docs.coderabbit.ai/reference/configuration for all fields and default values
 knowledge_base:
+  learnings:
+    scope: global
   code_guidelines:
     filePatterns:
-      - "docs/*-guidelines.md"
+      - "**/AGENTS.md"
+      - "**/CLAUDE.md"
+      - "**/CONTRIBUTING.md"
+      - "**/GUIDELINES.md"
+      - "KESSEL-INTEGRATION-GUIDE.md"

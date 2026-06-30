@@ -4,16 +4,11 @@ This file provides onboarding context for AI agents working in the `docs` reposi
 
 ## Guidelines Index
 
-Detailed domain-specific guidelines are maintained in the `docs/` directory. Read these before making changes in the relevant area:
-
 | Guideline | Covers |
 |-----------|--------|
-| [docs/api-contracts-guidelines.md](docs/api-contracts-guidelines.md) | API versioning (v1beta2), SDK conventions, ClientBuilder, protobuf message structures, CloudEvents, KSL schema, code example patterns |
-| [docs/security-guidelines.md](docs/security-guidelines.md) | OAuth2 client credentials, TLS configuration, SpiceDB authorization model, KSL permissions, role bindings, Kafka SASL auth |
-| [docs/integration-guidelines.md](docs/integration-guidelines.md) | Kessel architecture (Inventory + Relations APIs), resource reporting patterns, outbox/CDC, Kafka consumers, SDK integration docs |
-| [docs/performance-guidelines.md](docs/performance-guidelines.md) | gRPC channel reuse, token caching, native compilation in CI, CDC monitoring KPIs, Kafka consumer performance, LISTEN/NOTIFY |
-| [docs/error-handling-guidelines.md](docs/error-handling-guidelines.md) | Language-specific gRPC error handling, retry patterns, monitoring metrics, TLS errors, Astro/Zod schema errors |
-| [docs/database-guidelines.md](docs/database-guidelines.md) | Inventory DB schema conventions, outbox table structure, Debezium CDC, Kafka event schemas, Mermaid diagrams |
+| [KESSEL-INTEGRATION-GUIDE.md](KESSEL-INTEGRATION-GUIDE.md) | Kessel platform knowledge: API contracts (v1beta2), SDKs, auth (OAuth2/TLS/SpiceDB), DB schema, CDC/outbox, Kafka, monitoring KPIs, gRPC patterns |
+| [src/content/docs/GUIDELINES.md](src/content/docs/GUIDELINES.md) | Docs content authoring: file formats, Diataxis, content placement, diagrams, security in docs, client-package system |
+| [src/examples/GUIDELINES.md](src/examples/GUIDELINES.md) | Code examples: region markers, language coverage, error handling patterns, CodeExamples component |
 
 ## Source Repositories
 
@@ -81,7 +76,7 @@ src/
   middleware/             # Starlight route middleware
   schemas/                # Zod schemas for frontmatter validation
   styles/                 # Global CSS (minimal custom styles)
-docs/                     # AI agent guidelines (this index points here)
+docs/                     # Source repository metadata (sources.yaml)
 public/                   # Static assets (favicon)
 ```
 
