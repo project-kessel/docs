@@ -45,6 +45,7 @@ exclude = [
   "\\.cee\\.",                             # Internal corporate domains
   "\\.atlassian\\.net",                    # Atlassian-hosted tools
   "issues\\.redhat\\.",                    # Issue tracker
+  "corp\\.redhat\\.com",                   # inScope and other VPN-gated internal tools
 
   # ---- Google (authenticated) ----
   # Google Docs/Drive/Meet links require account auth.
