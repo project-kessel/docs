@@ -1,11 +1,575 @@
 ---
 title: Manage access with RBAC
+description: Define permission schemas with KSL extensions, create custom roles and role bindings, and implement workspace-scoped access control patterns in Kessel.
 sidebar:
   order: 60
 ---
 
-Kessel includes an opinioned, out-of-the-box, but highly-flexible role-based access control service and tenancy model.
+import { Aside, Steps, LinkCard, Code } from '@astrojs/starlight/components';
+import rbacSchema from 'src/examples/rbac.ksl?raw';
+import driveSchema from 'src/examples/drive.ksl?raw';
+import schemaZed from 'src/examples/schema.zed?raw';
 
-TODO: guide to using this
+This guide walks through defining permissions, creating roles, binding them to users and workspaces, and applying common authorization patterns in Kessel. It covers the practical steps for setting up and managing RBAC — from writing your permission schema to granting access at the right scope.
 
-1. How to use RBAC schema extensions
+<Aside type="note">
+  This guide assumes familiarity with Kessel's RBAC model. If you need background on how roles, role bindings, and workspaces work together, start with the [RBAC concepts](/docs/building-with-kessel/concepts/rbac/) and [Identity and multi-tenancy](/docs/building-with-kessel/concepts/tenancy/) pages.
+</Aside>
+
+<Aside type="tip" title="Migrating from RBAC v1?">
+  If you are migrating an existing application from RBAC v1 to Kessel, see [Migrate from RBAC v1 to v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) for a step-by-step guide with wildcard handling and dual-running strategies.
+</Aside>
+
+## Define your permission schema
+
+Permissions in Kessel are defined using the **KSL schema language** (`.ksl` files). KSL schemas declare the permissions your application needs and how they integrate with the RBAC model — roles, role bindings, and the workspace hierarchy.
+
+### The core RBAC schema
+
+The foundation is `rbac.ksl`, which defines the five core types that every application's permissions build on:
+
+<Code code={rbacSchema} lang="text" title="rbac.ksl" />
+
+These types work together:
+- **`principal`** — An individual identity (user or service account)
+- **`group`** — A collection of principals; role bindings typically target groups
+- **`role`** — A named collection of permissions
+- **`role_binding`** — Links a role to a subject (principal or group) — permissions are granted only through role bindings, never by directly assigning permissions to resources
+- **`workspace`** — A container for resources; supports parent-child hierarchy for permission inheritance
+
+The `add_permission` extension is the mechanism for registering permissions. When you call `@rbac.add_permission(name:'view_document')`, it adds a `view_document` relation to `role`, `role_binding`, and `workspace` — threading the permission through the entire RBAC chain so it can be granted via roles and inherited through the workspace hierarchy.
+
+### `@rbac.add_permission` — register a permission
+
+Use `@rbac.add_permission` to register permissions for your application. This is the base extension that all other permission extensions build on.
+
+Here's a complete example — a document management application that defines three permissions:
+
+<Code code={driveSchema} lang="text" title="drive.ksl" />
+
+This schema:
+1. Imports the `rbac` namespace to access the core RBAC types
+2. Registers three permissions (`view_document`, `edit_document`, `delete_document`) using `@rbac.add_permission`
+3. Defines a `document` type that belongs to exactly one workspace and derives its permissions from workspace-level grants
+
+The key line `relation view: workspace.view_document` means: "a user can view this document if they have the `view_document` permission on the document's workspace." This is how permissions flow from workspace-level role bindings down to individual resources.
+
+<Aside type="caution">
+  All permissions must go through role bindings on workspaces (or tenants). There is no mechanism in Kessel to grant permissions directly on individual resources. If you need per-resource access control, assign resources to workspaces and grant role bindings at the workspace level.
+</Aside>
+
+### `@rbac.add_unified_permission` — recommended for new services
+
+For new applications that do not have existing RBAC v1 permissions, use `@rbac.add_unified_permission`. This is the recommended extension for registering permissions — it generates a structured permission name from the application, resource, and verb without the v1 wildcard machinery.
+
+```
+version 0.2
+namespace myservice
+
+import rbac
+
+@rbac.add_unified_permission(app:'myservice', resource:'integration', verb:'view');
+@rbac.add_unified_permission(app:'myservice', resource:'integration', verb:'edit');
+```
+
+This creates permission names like `myservice_integration_view` and `myservice_integration_edit` that can be used in `Check` calls. These permissions are automatically threaded through the RBAC model — they can be granted via roles, bound through role bindings, and inherited through the workspace hierarchy.
+
+<Aside type="note">
+  `@rbac.add_unified_permission` uses KSL **version 0.2**. The `@rbac.add_permission` extension shown above uses version 0.1 and is the low-level building block. For most applications, prefer `@rbac.add_unified_permission` unless you need the raw `add_permission` extension for custom schema patterns.
+</Aside>
+
+See [Protect an Endpoint](/docs/building-with-kessel/how-to/protect-endpoint/#define-your-service-permissions) for a complete example of using `@rbac.add_unified_permission` in context.
+
+### `@rbac.add_v1_based_permission` — v1-compatible permissions with wildcards
+
+If your application has existing RBAC v1 permissions that use wildcards (e.g., `config_manager:*:read`), use `@rbac.add_v1_based_permission` instead. This extension generates the permission plus all wildcard permutations so that existing v1 wildcard grants continue to work after migration.
+
+```
+version 0.1
+namespace config_manager
+
+import rbac
+
+@rbac.add_v1_based_permission(app:'config_manager', resource:'profile', verb:'read', v2_perm:'config_manager_profile_view');
+@rbac.add_v1_based_permission(app:'config_manager', resource:'profile', verb:'write', v2_perm:'config_manager_profile_edit');
+```
+
+**Parameters:**
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `app` | Application name | `'config_manager'` |
+| `resource` | Resource type name (singular) | `'profile'` |
+| `verb` | The v1 verb | `'read'` |
+| `v2_perm` | Name of the compound permission in Kessel | `'config_manager_profile_view'` |
+
+**What it generates:**
+
+For `@rbac.add_v1_based_permission(app:'config_manager', resource:'profile', verb:'read', v2_perm:'config_manager_profile_view')`, Kessel creates:
+
+- `config_manager_profile_read` — direct equivalent of the v1 permission
+- `config_manager_profile_all` — matches `config_manager:profile:*`
+- `config_manager_all_read` — matches `config_manager:*:read`
+- `config_manager_all_all` — matches `config_manager:*:*`
+- `all_all_all` — matches `*:*:*`
+- `config_manager_profile_view` — compound permission that combines all of the above
+
+The compound permission (`v2_perm`) is what your application should use in `Check` calls. It evaluates all wildcard permutations server-side, so your application no longer needs client-side wildcard matching logic.
+
+**Naming convention:** The `v2_perm` name should use `view` instead of `read` and `edit` instead of `write` to distinguish v2 compound permissions from v1 originals.
+
+### `@rbac.add_contingent_permission` — compound permissions for host-centric assets
+
+Some permissions need to be checked in combination with another permission. For example, viewing vulnerability data for a host requires both the vulnerability-specific permission _and_ the inventory host view permission. The `@rbac.add_contingent_permission` extension creates this compound check.
+
+```
+version 0.1
+namespace patch
+
+import rbac
+import hbi
+
+@rbac.add_v1_based_permission(app:'patch', resource:'system', verb:'read', v2_perm:'patch_system_view_assigned');
+@rbac.add_contingent_permission(first: 'inventory_host_view', second: 'patch_system_view_assigned', contingent: 'patch_system_view');
+```
+
+**Parameters:**
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `first` | The prerequisite permission (typically `inventory_host_view`) | `'inventory_host_view'` |
+| `second` | The application-specific permission | `'patch_system_view_assigned'` |
+| `contingent` | The resulting compound permission name | `'patch_system_view'` |
+
+This is equivalent to:
+
+```
+patch_system_view = inventory_host_view AND patch_system_view_assigned
+```
+
+A user must have **both** permissions on the same workspace for the contingent permission to be granted. Use the contingent permission name (`patch_system_view`) in your `Check` calls — not the `_assigned` intermediate.
+
+<Aside type="note" title="The _assigned suffix convention">
+  When using contingent permissions, the intermediate compound permission (from `@rbac.add_v1_based_permission`) uses the `_assigned` suffix (e.g., `patch_system_view_assigned`). The contingent permission without the suffix (`patch_system_view`) is the one your application checks against. This naming convention distinguishes the "has the role assignment" check from the "has both required permissions" check.
+</Aside>
+
+**Full example with host exposure:**
+
+```
+version 0.1
+namespace patch
+
+import rbac
+import hbi
+
+@rbac.add_v1_based_permission(app:'patch', resource:'system', verb:'read', v2_perm:'patch_system_view_assigned');
+@rbac.add_contingent_permission(first: 'inventory_host_view', second: 'patch_system_view_assigned', contingent: 'patch_system_view');
+@hbi.expose_host_permission(v2_perm: 'patch_system_view', host_perm: 'patch_system_view');
+
+@rbac.add_v1_based_permission(app:'patch', resource:'system', verb:'write', v2_perm:'patch_system_edit_assigned');
+@rbac.add_contingent_permission(first: 'inventory_host_view', second: 'patch_system_edit_assigned', contingent: 'patch_system_edit');
+@hbi.expose_host_permission(v2_perm: 'patch_system_edit', host_perm: 'patch_system_edit');
+```
+
+### Test with the SpiceDB Playground
+
+Before submitting your schema, transpile your `.ksl` files to a `.zed` schema and test it in the [SpiceDB Playground](https://play.authzed.com/schema). The playground lets you define test relationships and verify that permission checks produce the expected results.
+
+<Steps>
+1. [Transpile your KSL files](https://github.com/project-kessel/rbac-config?tab=readme-ov-file#building-the-kessel-schema) to generate a `.zed` schema.
+2. Paste the `.zed` schema into the [SpiceDB Playground](https://play.authzed.com/schema).
+3. Add test relationships (roles, role bindings, workspace assignments) in the "Test Relationships" tab.
+4. Write assertions to verify permission checks produce the correct results.
+</Steps>
+
+Here's what the compiled schema looks like for the drive example — this is what you'd paste into the playground. It is transpiled from three sources: `rbac.ksl` (the core RBAC types shown above), `kessel.ksl` (internal `kessel/lock` types that Kessel manages itself — your schema never references them), and your application's `drive.ksl`:
+
+<Code code={schemaZed} lang="text" title="schema.zed (compiled from rbac.ksl + kessel.ksl + drive.ksl)" />
+
+<Aside type="tip">
+  Pay attention to the `rbac/workspace` definition in the compiled schema. The line `permission view_document = t_user_grant->view_document + t_parent->view_document` shows how permissions propagate: they come from role bindings on the workspace (`user_grant`) **or** from the parent workspace (`parent`). This is how workspace hierarchy inheritance works at the SpiceDB level.
+</Aside>
+
+### Submit your schema
+
+Once tested, add your `.ksl` files to the [rbac-config](https://github.com/project-kessel/rbac-config/tree/master) repository by opening a PR. Separate configs exist for each environment ([stage](https://github.com/project-kessel/rbac-config/tree/master/configs/stage), [prod](https://github.com/project-kessel/rbac-config/tree/master/configs/prod)), so you can test in stage before releasing to production.
+
+You do not need to include the compiled `.zed` schema in your PR — an automated job transpiles the `.ksl` files after merge.
+
+## Create custom roles
+
+Custom roles are collections of permissions created by organization administrators. Create a role using the RBAC v2 API:
+
+```
+POST /api/rbac/v2/roles/
+```
+
+```json
+{
+  "name": "Document Editor",
+  "description": "Can view and edit documents",
+  "permissions": [
+    { "application": "drive", "resource_type": "document", "operation": "view" },
+    { "application": "drive", "resource_type": "document", "operation": "edit" }
+  ]
+}
+```
+
+The role stores each permission as a relationship in the authorization graph. When a user receives a role binding to this role, they inherit all its permissions.
+
+Each `application` / `resource_type` / `operation` triple corresponds to a permission your schema has already registered, named `application_resourcetype_operation` — the form generated by `@rbac.add_unified_permission` and `@rbac.add_v1_based_permission`. A role can only reference permissions that exist in the schema, so define the permission in your `.ksl` file before creating roles that use it.
+
+<Aside type="note">
+  In addition to custom roles, Kessel provides **seeded roles** (system-defined, not modifiable) and **platform roles** (internal aggregates for default bindings). See [Role types](/docs/building-with-kessel/concepts/rbac/#role-types) for details.
+</Aside>
+
+### Assign permissions to RHEL persona roles
+
+When onboarding new permissions, also add them to the RHEL persona-based roles so customers get a consistent cross-application experience without per-application role configuration:
+
+| RHEL Role | Scope | Typical mapping |
+|-----------|-------|-----------------|
+| RHEL Viewer | Read-only | `view` permissions |
+| RHEL Operator | Operational edits | `view` + `edit` permissions |
+| RHEL Administrator | Full access | All permissions |
+
+These roles are defined in the [`rhel.json` role file](https://github.com/project-kessel/rbac-config/tree/master/configs/prod/roles) in the rbac-config repository.
+
+## Create role bindings
+
+A role binding grants a role's permissions to a subject (group or principal) on a specific resource (workspace or tenant). Create role bindings using the RBAC v2 API:
+
+```
+POST /api/rbac/v2/role-bindings:batchCreate/
+```
+
+```json
+{
+  "requests": [
+    {
+      "resource": { "id": "<engineering-workspace-uuid>", "type": "workspace" },
+      "subject":  { "id": "<engineering-group-uuid>", "type": "group" },
+      "role":     { "id": "<document-editor-role-uuid>" }
+    }
+  ]
+}
+```
+
+This grants the "Document Editor" role to the Engineering group on the Engineering workspace. All members of the Engineering group can now view and edit documents in that workspace — and in any child workspaces.
+
+### What happens under the hood
+
+A role binding creates three relationships in the authorization graph:
+
+1. **role_binding → granted → role** — Links the binding to the role it grants
+2. **role_binding → subject → principal/group** — Links the binding to who receives it
+3. **workspace → user_grant → role_binding** — Links the workspace to the binding
+
+These three relationships are what Kessel traverses when evaluating a `Check` call. The binding ID follows a deterministic pattern: `{role}--{user}--{resource}`.
+
+<Aside type="caution">
+  Always use Kessel's `Check` and `CheckForUpdate` APIs for authorization decisions. Do not query role bindings via the RBAC API and implement authorization logic in your application — Kessel is the single source of truth for authorization. It evaluates the full authorization graph including group membership, role inheritance, and workspace hierarchy.
+</Aside>
+
+### Bind to groups, not individuals
+
+Role bindings should target **groups** rather than individual principals:
+
+- Adding or removing users from a group automatically updates their access
+- One role binding serves all group members
+- Easier to audit — you can see at a glance what a team can access
+
+Reserve direct principal bindings for exceptional cases where a specific user needs unique access.
+
+## Workspace hierarchy and permission inheritance
+
+Workspaces form a tree rooted at the ROOT workspace. Permissions granted on a parent workspace automatically apply to all descendant workspaces.
+
+```
+Root Workspace                  ← org-wide access (Pattern 4)
+└── Default Workspace           ← general access (Pattern 3)
+    ├── Engineering             ← team-scoped access
+    │   ├── Frontend Team
+    │   └── Backend Team
+    ├── Sales
+    └── Ungrouped Hosts
+```
+
+### How permissions inherit
+
+When Kessel evaluates a `Check` call for a resource in the "Frontend Team" workspace, it walks up the tree:
+
+1. Check "Frontend Team" — any role bindings granting the permission here?
+2. Check "Engineering" (parent) — any role bindings here?
+3. Check "Default Workspace" (grandparent) — any role bindings here?
+4. Check "Root Workspace" (root) — any role bindings here?
+
+Access is granted if **any** workspace in the path has a matching role binding. This means:
+
+- A role binding at **Root** grants access across the entire organization
+- A role binding at **Engineering** grants access to Engineering, Frontend Team, and Backend Team
+- A role binding at **Frontend Team** grants access only to Frontend Team
+
+<Aside type="caution" title="Bindings inherit downward, not upward">
+  A role binding on the Default Workspace does **not** grant access at the Root Workspace. If your application checks permissions at the Root level but roles are bound at Default, the check will fail. This is the [compatibility constraint](/docs/building-with-kessel/reference/migration-pattern-reference/#the-compatibility-constraint) — the binding level must be at or above the check level.
+</Aside>
+
+### Look up built-in workspace IDs
+
+Most patterns require looking up the Root or Default workspace ID. Use the RBAC v2 workspace API:
+
+```
+GET /api/rbac/v2/workspaces/?type=root&with_ancestry=true
+GET /api/rbac/v2/workspaces/?type=default&with_ancestry=true
+```
+
+<Aside type="caution" title="Authentication for workspace lookups">
+  Workspace lookup requests must use the service's own OAuth token — do **not** relay the `x-rh-identity` header from the original request. The requesting user may not have permission to list workspaces, which would cause the lookup to fail. Set the `x-rh-rbac-org-id` header so RBAC can identify the correct tenant.
+</Aside>
+
+Root and Default workspace IDs are **immutable** per tenant. Cache them aggressively to avoid the latency and reliability cost of an RBAC lookup on every request.
+
+## Common patterns
+
+The right authorization pattern depends on the scope of the resource and whether it's already organized into workspaces. These patterns align with the [Migration Pattern Reference](/docs/building-with-kessel/reference/migration-pattern-reference/) — see that page for the full decision tree and detailed request translations.
+
+| Pattern | Check against | Use when |
+|---------|---------------|----------|
+| [Native resource-level](#native-resource-level-access) | The resource itself | The resource is reported to Kessel Inventory and assigned to a workspace |
+| [Workspace-scoped roles](#workspace-scoped-roles-per-team-access) | A specific workspace | Resources are organized into workspaces but not individually represented in Kessel |
+| [Org-wide settings](#org-wide-settings-root-workspace) | The Root workspace | The resource is an org-wide setting that could later be workspace-scoped |
+| [Asset-level access](#asset-level-access-default-workspace) | The Default workspace | Resources are not workspace-aware yet but could be |
+| [Host-centric assets](#host-centric-assets-contingent-permissions) | Workspaces, via a contingent permission | Access also requires `inventory:hosts:read` |
+
+### Native resource-level access
+
+**When:** Your resource is represented natively in Kessel — it has its own type in the schema, and each instance is reported to Kessel Inventory with a `workspace_id`. This is [Pattern 1](/docs/building-with-kessel/reference/migration-pattern-reference/#pattern-1-native-workspace-aware-low-cardinality), the most flexible option, and it applies when queries return fewer than ~10,000 results or most results are accessible to the requesting user.
+
+This is what the `document` type in `drive.ksl` models. The type declares its workspace and derives each permission from the corresponding workspace permission:
+
+```
+public type document {
+    relation workspace: [ExactlyOne rbac.workspace]
+
+    relation view: workspace.view_document
+    relation edit: workspace.edit_document
+    relation delete: workspace.delete_document
+}
+```
+
+Role bindings are still created on workspaces — there is no way to bind a role directly to a document. What native representation buys you is the ability to check against the resource itself and let Kessel resolve the workspace assignment and hierarchy walk:
+
+```go
+result, err := client.Check(ctx, &v1beta2.CheckRequest{
+    Object: &v1beta2.ResourceReference{
+        ResourceType: "document",
+        ResourceId:   documentID,
+        Reporter:     &v1beta2.ReporterReference{Type: "drive"},
+    },
+    Relation: "view",
+    Subject: &v1beta2.SubjectReference{
+        Resource: &v1beta2.ResourceReference{
+            ResourceType: "principal",
+            ResourceId:   fmt.Sprintf("redhat/%s", userID),
+            Reporter:     &v1beta2.ReporterReference{Type: "rbac"},
+        },
+    },
+})
+```
+
+Note the two differences from the workspace-level patterns below: the object is the document rather than its workspace, and the relation is the relation declared on the `document` type (`view`), not the workspace permission it derives from (`view_document`).
+
+For list endpoints, `StreamedListObjects` can return the accessible document IDs directly instead of workspace IDs — see [Protect a list endpoint](/docs/building-with-kessel/how-to/protect-list/).
+
+<Aside type="note">
+  Native representation requires reporting every resource to Kessel Inventory and keeping it in sync as resources are created, updated, and deleted. See [Add a resource type](/docs/building-with-kessel/how-to/add-resource-type/) for how to model and report your resources. If you are not reporting resources individually, use one of the workspace-level patterns below.
+</Aside>
+
+### Workspace-scoped roles (per-team access)
+
+**When:** Your resources are organized into workspaces, and you want different teams to have different levels of access.
+
+Grant role bindings at specific workspaces to scope access to teams or projects:
+
+```json
+{
+  "requests": [
+    {
+      "resource": { "id": "<engineering-workspace-uuid>", "type": "workspace" },
+      "subject":  { "id": "<frontend-team-group-uuid>", "type": "group" },
+      "role":     { "id": "<document-editor-role-uuid>" }
+    }
+  ]
+}
+```
+
+The Frontend Team group can edit documents in the Engineering workspace and its children, but not in the Sales workspace.
+
+**Authorization check:**
+
+Use `Check` for read operations and `CheckForUpdate` for write operations or sensitive reads (e.g., credential access). `CheckForUpdate` provides stronger consistency guarantees.
+
+The relation is the permission name registered in your schema. For the `drive.ksl` example that is `view_document`, because the permission was registered with `@rbac.add_permission(name:'view_document')`. Permissions registered with `@rbac.add_unified_permission` or `@rbac.add_v1_based_permission` instead follow the generated `app_resource_verb` form (for example, `myservice_integration_view`).
+
+```go
+result, err := client.Check(ctx, &v1beta2.CheckRequest{
+    Object: &v1beta2.ResourceReference{
+        ResourceType: "workspace",
+        ResourceId:   resourceWorkspaceID,
+        Reporter:     &v1beta2.ReporterReference{Type: "rbac"},
+    },
+    Relation: "view_document",
+    Subject: &v1beta2.SubjectReference{
+        Resource: &v1beta2.ResourceReference{
+            ResourceType: "principal",
+            ResourceId:   fmt.Sprintf("redhat/%s", userID),
+            Reporter:     &v1beta2.ReporterReference{Type: "rbac"},
+        },
+    },
+})
+```
+
+For listing resources across workspaces, use `StreamedListObjects` to get the workspace IDs the user can access, then filter your database query. See [Protect a list endpoint](/docs/building-with-kessel/how-to/protect-list/) for examples.
+
+### Org-wide settings (Root Workspace)
+
+**When:** The resource represents an organization-wide setting that could eventually be scoped to workspaces (e.g., recommendation acknowledgements, RHC configuration).
+
+Bind roles at the **Root Workspace**. Because permissions inherit downward, a binding at Root grants access across all workspaces:
+
+```json
+{
+  "requests": [
+    {
+      "resource": { "id": "<root-workspace-uuid>", "type": "workspace" },
+      "subject":  { "id": "<admin-group-uuid>", "type": "group" },
+      "role":     { "id": "<org-settings-admin-role-uuid>" }
+    }
+  ]
+}
+```
+
+**Authorization check:**
+
+Check against the Root Workspace:
+
+```go
+result, err := client.Check(ctx, &v1beta2.CheckRequest{
+    Object: &v1beta2.ResourceReference{
+        ResourceType: "workspace",
+        ResourceId:   rootWorkspaceID,
+        Reporter:     &v1beta2.ReporterReference{Type: "rbac"},
+    },
+    Relation: "advisor_recommendation_edit",
+    Subject: &v1beta2.SubjectReference{
+        Resource: &v1beta2.ResourceReference{
+            ResourceType: "principal",
+            ResourceId:   fmt.Sprintf("redhat/%s", userID),
+            Reporter:     &v1beta2.ReporterReference{Type: "rbac"},
+        },
+    },
+})
+```
+
+For settings that will **never** be workspace-scoped (e.g., authentication policy, user invitation), use the tenant resource instead — see [Pattern 5: Organization-level](/docs/building-with-kessel/reference/migration-pattern-reference/#pattern-5-organization-level-non-asset-centric-settings).
+
+### Asset-level access (Default Workspace)
+
+**When:** Your resources are not yet organized into workspaces but can be conceptualized as assets that a customer manages (e.g., repositories, SCAP policies).
+
+Bind roles at the **Default Workspace** as a stepping stone. This preserves org-wide behavior while making the resource compatible with workspace-scoped authorization for a future migration:
+
+```json
+{
+  "requests": [
+    {
+      "resource": { "id": "<default-workspace-uuid>", "type": "workspace" },
+      "subject":  { "id": "<engineering-group-uuid>", "type": "group" },
+      "role":     { "id": "<repo-viewer-role-uuid>" }
+    }
+  ]
+}
+```
+
+**Authorization check:**
+
+Check against the Default Workspace:
+
+```go
+result, err := client.Check(ctx, &v1beta2.CheckRequest{
+    Object: &v1beta2.ResourceReference{
+        ResourceType: "workspace",
+        ResourceId:   defaultWorkspaceID,
+        Reporter:     &v1beta2.ReporterReference{Type: "rbac"},
+    },
+    Relation: "myapp_repository_view",
+    Subject: &v1beta2.SubjectReference{
+        Resource: &v1beta2.ResourceReference{
+            ResourceType: "principal",
+            ResourceId:   fmt.Sprintf("redhat/%s", userID),
+            Reporter:     &v1beta2.ReporterReference{Type: "rbac"},
+        },
+    },
+})
+```
+
+<Aside type="tip">
+  When you later make these assets workspace-aware, you can move them into specific workspaces without changing the authorization check pattern — only the workspace ID changes from the Default workspace to the specific workspace.
+</Aside>
+
+### Host-centric assets (contingent permissions)
+
+**When:** Your resources are related to hosts and access requires both the app-specific permission and the `inventory:hosts:read` permission (e.g., host vulnerabilities, advisories, patch data).
+
+Define contingent permissions in your KSL schema (see [`@rbac.add_contingent_permission`](#rbacadd_contingent_permission--compound-permissions-for-host-centric-assets) above), then use `StreamedListObjects` with the contingent permission name to get workspace IDs where the user has both permissions:
+
+```go
+stream, err := client.StreamedListObjects(ctx, &v1beta2.StreamedListObjectsRequest{
+    ObjectType: &v1beta2.RepresentationType{
+        ResourceType: "workspace",
+        ReporterType: "rbac",
+    },
+    Relation: "patch_system_view",
+    Subject: &v1beta2.SubjectReference{
+        Resource: &v1beta2.ResourceReference{
+            ResourceType: "principal",
+            ResourceId:   fmt.Sprintf("redhat/%s", userID),
+            Reporter:     &v1beta2.ReporterReference{Type: "rbac"},
+        },
+    },
+})
+```
+
+Use the returned workspace IDs to filter your database query (e.g., `WHERE workspace_id IN (...)`). This is Pattern 2 from the [Migration Pattern Reference](/docs/building-with-kessel/reference/migration-pattern-reference/#pattern-2-native-workspace-level-list-workspace-aware-high-cardinality).
+
+## Next steps
+
+<LinkCard
+  title="Protect an endpoint"
+  description="Implement authorization checks in your middleware with multi-language SDK examples."
+  href="/docs/building-with-kessel/how-to/protect-endpoint/"
+/>
+
+<LinkCard
+  title="Protect a list endpoint"
+  description="Filter list results using workspace-based authorization with StreamedListObjects."
+  href="/docs/building-with-kessel/how-to/protect-list/"
+/>
+
+<LinkCard
+  title="Migration Pattern Reference"
+  description="Decision tree and detailed reference for the five migration patterns."
+  href="/docs/building-with-kessel/reference/migration-pattern-reference/"
+/>
+
+<LinkCard
+  title="Migrate from RBAC v1 to v2"
+  description="Step-by-step guide for migrating existing RBAC v1 applications to Kessel."
+  href="/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/"
+/>
+
+<LinkCard
+  title="Add a resource type"
+  description="Model your resources natively in Kessel and report them to Inventory."
+  href="/docs/building-with-kessel/how-to/add-resource-type/"
+/>
