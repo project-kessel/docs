@@ -82,7 +82,7 @@ Users can delete workspaces they created. Build support for this during initial 
 
 **What RBAC does on deletion:**
 
-- Only **standard** workspaces can be deleted. The Root, Default, and Ungrouped Hosts workspaces cannot be deleted, so they are safe permanent targets.
+- Only **standard** workspaces can be deleted. The Root, Default, and Ungrouped Hosts workspaces are built-in and cannot be deleted.
 - Deletion is rejected if the workspace has **child workspaces**. Users must delete or move children first.
 - Deletion is **not** blocked by resources your application has assigned to the workspace. RBAC does not check with your service before deleting.
 - Role bindings scoped to the deleted workspace are removed.
@@ -94,16 +94,16 @@ RBAC does not reassign, delete, or notify you about the resources your applicati
 **What your application should do:**
 
 - **Expect denials, not errors** — After deletion, a `Check` against that workspace ID returns *denied*, not an error. Resources still pointing at the deleted workspace silently become inaccessible to everyone. Do not rely on an error to detect this condition.
-- **Reconcile stale references** — Periodically detect resources whose `workspace_id` no longer resolves to an existing workspace, and reassign them to the tenant's Default workspace so they remain accessible under org-wide permissions.
-- **Decide your policy up front** — Choose whether orphaned resources should fall back to the Default workspace, be soft-deleted, or be flagged for user action. Making this decision during initial integration is far easier than retrofitting it once customers have data in production.
+- **Be able to detect stale references** — Make sure you can identify resources whose `workspace_id` no longer resolves to an existing workspace. Even before the platform-wide policy is settled, having this capability is what makes any remediation possible later.
+- **Leave room for a remediation policy** — Design your data model so that a resource's workspace assignment can be changed after the fact. Retrofitting that once customers have production data is significantly harder than allowing for it now.
 
-<Aside type="caution">
-  Because deletion is not blocked by resource assignments, a user can delete a workspace that still has your application's resources in it. Without reconciliation, those resources become permanently unreachable — no user will pass an authorization check against a workspace that no longer has role bindings.
+<Aside type="caution" title="Platform behavior still being defined">
+  The platform-wide policy for what happens to resources in a deleted workspace has not been finalized. Options under discussion include reassigning them to the Default workspace, blocking deletion of non-empty workspaces, and leaving remediation to each service. Do not hard-code an assumption about this behavior yet — build the ability to detect and reassign orphaned resources, and align with the platform policy once it is decided.
 </Aside>
 
 ### Replace group-based authorization checks
 
-Where your application currently checks "does this user have access to this group?", replace that logic with a Kessel `Check` call against the corresponding workspace:
+Where your application currently checks "does this user have access to this group?", replace that logic with a Kessel `Check` call. What you check against depends on whether your resources are represented natively in Kessel.
 
 **Before (application-level group check):**
 ```
@@ -111,7 +111,8 @@ if user_has_access_to_group(user, resource.group_id):
     allow()
 ```
 
-**After (Kessel authorization check):**
+**Option A — Check against the workspace.** Use this when your resources are *not* individually represented in Kessel. Authorization is evaluated at the workspace level, and every resource assigned to that workspace shares the same access:
+
 ```
 result = kessel_client.check(
     resource=workspace(resource.workspace_id),
@@ -122,7 +123,25 @@ if result == ALLOWED:
     allow()
 ```
 
-For listing resources across groups, use `StreamedListObjects` to get the workspace IDs the user can access, then filter your database query. See [Protect a List Endpoint](/docs/building-with-kessel/how-to/protect-list/) for detailed examples.
+**Option B — Check against the resource directly.** Use this when your resources *are* represented natively in Kessel. Each resource must first be reported to Inventory via `ReportResource` with its `workspace_id`, after which you check against the resource itself rather than its workspace:
+
+```
+result = kessel_client.check(
+    resource=myapp_resource(resource.id),
+    permission="myapp_resource_view",
+    subject=principal(user.id)
+)
+if result == ALLOWED:
+    allow()
+```
+
+Kessel resolves the resource's workspace assignment internally and walks the hierarchy. This is what enables per-resource access control and future role bindings scoped below the workspace level.
+
+<Aside type="note">
+  Native representation requires reporting each resource to Kessel Inventory and keeping it in sync as resources are created, updated, and deleted. If you are not reporting resources individually, use Option A. See [Add a resource type](/docs/building-with-kessel/how-to/add-resource-type/) for how to model your resources in Kessel.
+</Aside>
+
+For listing resources, the approach also differs: with Option A, use `StreamedListObjects` to get accessible workspace IDs and filter your database query by them. With Option B, you can additionally use `StreamedListObjects` to list the accessible resource IDs directly. See [Protect a List Endpoint](/docs/building-with-kessel/how-to/protect-list/) for detailed examples of both.
 
 ## Applications with no existing authorization model
 
