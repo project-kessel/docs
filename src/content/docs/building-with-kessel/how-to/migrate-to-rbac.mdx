@@ -87,18 +87,30 @@ Users can delete workspaces they created. Build support for this during initial 
 - Deletion is **not** blocked by resources your application has assigned to the workspace. RBAC does not check with your service before deleting.
 - Role bindings scoped to the deleted workspace are removed.
 
-**What RBAC does not do:**
+Today, RBAC does not reassign, delete, or notify you about the resources your application assigned to a deleted workspace, so those resources are left pointing at a workspace that no longer exists.
 
-RBAC does not reassign, delete, or notify you about the resources your application assigned to that workspace. Handling orphaned resources is your application's responsibility.
+**Where this is heading:**
+
+Workspace deletion is moving to an **asset-aware** model in which Kessel Inventory is the source of truth for what still depends on a workspace. Under that model:
+
+- RBAC delegates the deletion to Inventory, which checks whether any non-RBAC resources still reference the workspace.
+- If resources still reference it, **deletion is rejected** and the user is told to move or delete those resources first. Assets are not silently relocated.
+- If nothing references it, Inventory removes the workspace's relations and RBAC deletes its record and publishes the workspace deletion event.
+- Reporting a resource into a workspace that has already been deleted **fails** rather than silently succeeding, so an asset cannot attach itself to a workspace on its way out.
+
+<Aside type="caution" title="Design your integration for blocked deletion, not relocation">
+  Do not build logic that assumes orphaned resources will be moved to the Default workspace. That approach was considered and set aside, in part because relocating assets can change who has access to them. Assume instead that deletion will be **refused** while your resources still reference the workspace.
+</Aside>
 
 **What your application should do:**
 
-- **Expect denials, not errors** — After deletion, a `Check` against that workspace ID returns *denied*, not an error. Resources still pointing at the deleted workspace silently become inaccessible to everyone. Do not rely on an error to detect this condition.
-- **Be able to detect stale references** — Make sure you can identify resources whose `workspace_id` no longer resolves to an existing workspace. Even before the platform-wide policy is settled, having this capability is what makes any remediation possible later.
-- **Leave room for a remediation policy** — Design your data model so that a resource's workspace assignment can be changed after the fact. Retrofitting that once customers have production data is significantly harder than allowing for it now.
+- **Report your resources to Inventory with their workspace assignment** — This is what makes your resources visible as dependencies. A resource Inventory does not know about cannot protect its workspace from deletion.
+- **Handle rejected resource reports** — If you report a resource into a workspace that is being or has been deleted, the write is rejected. Treat this as an expected condition: retry against a valid workspace or reconcile the resource, rather than dropping the write or failing the user's request outright.
+- **Expect denials, not errors, on authorization checks** — If a workspace does go away while your resources still point at it, a `Check` against that workspace ID returns *denied*, not an error. Resources become quietly inaccessible, so do not rely on an error to detect the condition.
+- **Keep workspace assignment mutable** — Make sure a resource's workspace can be changed after the fact, so users can move resources out of a workspace they are trying to delete.
 
-<Aside type="caution" title="Platform behavior still being defined">
-  The platform-wide policy for what happens to resources in a deleted workspace has not been finalized. Options under discussion include reassigning them to the Default workspace, blocking deletion of non-empty workspaces, and leaving remediation to each service. Do not hard-code an assumption about this behavior yet — build the ability to detect and reassign orphaned resources, and align with the platform policy once it is decided.
+<Aside type="note">
+  This behavior is still being implemented, and the current RBAC code does not yet block deletion on asset dependencies. Building the two capabilities above — reporting resources to Inventory and handling rejected reports — is what lets your service adopt the asset-aware behavior when it ships, and is considerably easier to do now than to retrofit later.
 </Aside>
 
 ### Replace group-based authorization checks
