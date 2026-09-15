@@ -147,7 +147,7 @@ if result == ALLOWED:
     allow()
 ```
 
-Kessel resolves the resource's workspace assignment internally and walks the hierarchy. This is what enables per-resource access control and future role bindings scoped below the workspace level.
+Kessel resolves the resource's workspace assignment internally and walks the hierarchy. This is what enables per-resource access control and future role bindings scoped below the workspace level. See [Native resource-level access](/docs/building-with-kessel/how-to/rbac/#native-resource-level-access) for the schema this pattern requires and a full `Check` example.
 
 <Aside type="note">
   Native representation requires reporting each resource to Kessel Inventory and keeping it in sync as resources are created, updated, and deleted. If you are not reporting resources individually, use Option A. See [Add a resource type](/docs/building-with-kessel/how-to/add-resource-type/) for how to model your resources in Kessel.
@@ -187,7 +187,7 @@ Even if you start with the Default workspace for everything, design your permiss
 - **Add a `workspace_id` column early** — Even if every resource points to the Default workspace initially, having the column makes future migration straightforward.
 - **Use role bindings, not direct grants** — All access goes through role bindings. Today, role bindings target workspaces or tenants. Support for binding roles directly to other resource types is planned, which will enable finer-grained access control without requiring workspace scoping.
 
-For guidance on structuring your permission schema, see [Design Permissions Schema](/docs/building-with-kessel/how-to/design-permissions/).
+For guidance on structuring your permission schema, see [Define your permission schema](/docs/building-with-kessel/how-to/rbac/#define-your-permission-schema).
 
 ## Dual-running strategies
 
@@ -251,9 +251,14 @@ Once shadow mode shows consistent results across a representative set of tenants
 
 KSL provides two extensions for registering permissions. Which one you use depends on whether your application has existing RBAC v1 permissions that need backward-compatible wildcard support.
 
-**`@rbac.add_unified_permission`** — Use this for **new permissions** or applications that have **no existing RBAC v1 permissions**. This is the simpler option and the recommended default for applications adopting Kessel RBAC for the first time.
+| Extension | Use when | Generated names |
+|---|---|---|
+| [`@rbac.add_unified_permission`](/docs/building-with-kessel/how-to/rbac/#rbacadd_unified_permission--recommended-for-new-services) | New permissions, or an application with no existing RBAC v1 permissions. The recommended default for first-time adoption. | `myservice_integration_view` |
+| [`@rbac.add_v1_based_permission`](/docs/building-with-kessel/how-to/rbac/#rbacadd_v1_based_permission--v1-compatible-permissions-with-wildcards) | The application has existing RBAC v1 permissions with wildcard usage (e.g. `myapp:*:read`) that must keep working after migration. | `myservice_integration_view` plus the `_all_` wildcard variants |
 
-```ksl
+Because you are not coming from RBAC v1, `@rbac.add_unified_permission` is almost always the right choice:
+
+```
 version 0.2
 namespace myservice
 
@@ -265,23 +270,7 @@ import rbac
 
 This creates permission names like `myservice_integration_view` and `myservice_integration_edit` that can be used in `Check` calls.
 
-**`@rbac.add_v1_based_permission`** — Use this when your application has **existing RBAC v1 permissions** with wildcard usage (e.g., `myapp:*:read`). This extension generates the permission plus all wildcard permutations (`_all_` variants) so that existing v1 wildcard grants continue to work after migration.
-
-```ksl
-version 0.1
-namespace myservice
-
-import rbac
-
-@rbac.add_v1_based_permission(app:'myservice', resource:'integration', verb:'read', v2_perm:'myservice_integration_view');
-@rbac.add_v1_based_permission(app:'myservice', resource:'integration', verb:'write', v2_perm:'myservice_integration_edit');
-```
-
-<Aside type="note">
-  `@rbac.add_v1_based_permission` requires an explicit `v2_perm` parameter for the compound permission name because it also generates the v1-compatible wildcard variants. The naming convention maps `read` to `view` and `write` to `edit` to avoid collisions with v1 permission names. See the [v1 to v2 migration guide](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/#model-the-permissions) for full details on wildcard handling.
-</Aside>
-
-For a working example of `@rbac.add_unified_permission` in context, see [Protect an Endpoint](/docs/building-with-kessel/how-to/protect-endpoint/#define-your-service-permissions).
+See [Define your permission schema](/docs/building-with-kessel/how-to/rbac/#define-your-permission-schema) in the Manage access with RBAC guide for the full parameter reference for both extensions, `@rbac.add_contingent_permission`, and how to test a schema in the SpiceDB Playground before submitting it. For a working example of `@rbac.add_unified_permission` in context, see [Protect an Endpoint](/docs/building-with-kessel/how-to/protect-endpoint/#define-your-service-permissions).
 
 ## Migration checklist
 
@@ -351,9 +340,9 @@ For detailed instructions on configuring Kessel client endpoints, authentication
 />
 
 <LinkCard
-  title="Design permissions schema"
-  description="How to structure your KSL permission definitions for common authorization scenarios."
-  href="/docs/building-with-kessel/how-to/design-permissions/"
+  title="Manage access with RBAC"
+  description="Define permissions with KSL extensions, create custom roles and role bindings, and scope access to workspaces."
+  href="/docs/building-with-kessel/how-to/rbac/"
 />
 
 <LinkCard
