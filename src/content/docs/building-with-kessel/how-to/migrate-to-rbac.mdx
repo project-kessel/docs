@@ -1,10 +1,341 @@
 ---
 title: Migrate existing applications to RBAC
+description: Patterns and strategies for adopting Kessel RBAC in applications that have existing authorization or grouping abstractions, or none at all.
 sidebar:
   order: 90
 ---
 
-TODO: Common patterns for taking an existing application (which may or may not have some grouping abstraction like a Workspace)
-and migrating it to use Kessel RBAC.
+import { Aside, Steps, LinkCard } from '@astrojs/starlight/components';
 
-Try to avoid repeating content in [designing permissions schema](./design-permissions) by focusing on migration cases.
+This guide covers how to adopt Kessel RBAC in an application that is **not currently using RBAC v1**. If your application is already using RBAC v1, see the [Migrate from RBAC v1 to v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) guide instead.
+
+Adopting Kessel RBAC means making Kessel the **single source of truth** for authorization decisions in your application. Rather than implementing permission logic locally, your application delegates all access checks to Kessel via `Check` and `CheckForUpdate` calls. See [Protect an Endpoint](/docs/building-with-kessel/how-to/protect-endpoint/) for implementation examples.
+
+## Assess your starting point
+
+Before you begin, identify where your application falls:
+
+**Applications with existing grouping abstractions** — Your application already organizes resources into groups, folders, teams, projects, or similar containers. These map naturally to Kessel workspaces. Examples:
+- Inventory groups or host collections
+- Project or team boundaries
+- Folder hierarchies or tenant partitions
+
+**Applications with no existing authorization model** — Your application either has no access control, uses simple org-wide checks (e.g., "is the user in this org?"), or relies on hardcoded role logic. All resources are effectively accessible to anyone in the organization.
+
+The sections below describe migration patterns for each case. Most applications use a combination — some resource types may have grouping while others are org-wide.
+
+## Applications with existing grouping abstractions
+
+If your application already groups resources (folders, teams, projects, host groups), you can map those groups to Kessel workspaces. This gives you hierarchical, inheritable permissions without reimplementing authorization logic.
+
+### Map groups to workspaces
+
+Identify the grouping concept in your application and decide how it maps to the workspace hierarchy:
+
+| Your application's concept | Kessel mapping | Notes |
+|---|---|---|
+| Top-level container (all resources) | Root workspace | Automatically created per tenant |
+| Primary grouping (projects, teams) | Standard workspaces under Default | Users create workspaces to replace your application's groups |
+| Sub-groups or nested folders | Nested standard workspaces | Permissions inherit downward through the hierarchy |
+| Ungrouped or unclassified resources | Default workspace | Resources not yet assigned to a specific group |
+
+<Aside type="note">
+  Workspaces are owned and managed by users, not by your application. Your application cannot create workspaces on behalf of users. Instead, plan for users to adopt workspaces as a replacement for your existing grouping concept over time. Your application reads workspace assignments and checks permissions against them, but the workspace lifecycle is controlled by the user through the RBAC API.
+</Aside>
+
+<Aside type="tip">
+  Workspace IDs for Root and Default workspaces are immutable per tenant. Cache them aggressively. See the [Migration Pattern Reference](/docs/building-with-kessel/reference/migration-pattern-reference/#caching) for caching guidance.
+</Aside>
+
+### Decide the authorization pattern per resource type
+
+For each resource type in your application, choose a migration pattern based on whether the resource is already workspace-aware:
+
+- **Resource already mapped to a group** — Assign the resource to the corresponding workspace via `workspace_id`. Use Pattern 1 (Native) or Pattern 2 (Native workspace-level list) depending on cardinality. See the [Migration Pattern Reference](/docs/building-with-kessel/reference/migration-pattern-reference/) for the decision tree.
+
+- **Resource not yet mapped but could be** — Use Pattern 3 (Default workspace). Assign all resources to the Default workspace for now. This preserves org-wide behavior while making the resource compatible with workspace-scoped authorization for a future migration.
+
+- **Org-wide settings that apply to groups** — Use Pattern 4 (Root workspace) for settings that could eventually be scoped to workspaces. Use Pattern 5 (Organization-level) for settings that will always be org-wide.
+
+### Migrate resource-group assignments
+
+When your application creates or updates resources, set `workspace_id` to reflect the workspace the resource belongs to. For existing data, run a backfill to populate `workspace_id` once users have created their workspaces:
+
+<Steps>
+1. Add a `workspace_id` column to your resource tables (if not already present). Default it to the tenant's Default workspace so existing resources remain accessible.
+2. As users create workspaces and assign resources to them, store the `workspace_id` on each resource.
+3. Update resource creation and update paths to accept and persist `workspace_id`.
+4. Consider providing guidance or tooling to help users migrate resources from your legacy grouping concept into workspaces.
+</Steps>
+
+<Aside type="note">
+  If your existing groups have a hierarchy (e.g., nested folders), that hierarchy maps to parent-child workspaces — but your application cannot build it. Suggest the structure to your users and let them create the nested workspaces themselves. Permissions granted on a parent workspace automatically apply to child workspaces.
+</Aside>
+
+### Handle deleted workspaces
+
+Users can delete the standard workspaces they create. The built-in Root, Default, and Ungrouped Hosts workspaces cannot be deleted, and a workspace with child workspaces cannot be deleted until those children are moved or deleted. Build support for deletion during initial integration rather than retrofitting it later.
+
+**What RBAC does today — temporary behavior, do not design around it:**
+
+- Deletion is **not** blocked by resources your application has assigned to the workspace. RBAC does not check with your service before deleting.
+- Role bindings scoped to the deleted workspace are removed.
+- RBAC does not reassign, delete, or notify you about the resources your application assigned to the workspace, so those resources are left pointing at a workspace that no longer exists.
+
+**Where this is heading:**
+
+Workspace deletion is moving to an **asset-aware** model in which Kessel Inventory is the source of truth for what still depends on a workspace. This is still being implemented — the current RBAC code does not yet block deletion on asset dependencies. Under that model:
+
+- RBAC delegates the deletion to Inventory, which checks whether any non-RBAC resources still reference the workspace.
+- If resources still reference it, **deletion is rejected** and the user is told to move or delete those resources first. Assets are not silently relocated.
+- If nothing references it, Inventory removes the workspace's relations and RBAC deletes its record and publishes the workspace deletion event.
+- Reporting a resource into a workspace that has already been deleted **fails** rather than silently succeeding, so an asset cannot attach itself to a workspace on its way out.
+
+**What your application should do:**
+
+- **Report your resources to Inventory with their workspace assignment** — This is what makes your resources visible as dependencies. A resource Inventory does not know about cannot protect its workspace from deletion.
+- **Handle rejected resource reports** — If you report a resource into a workspace that is being or has been deleted, the write is rejected. Treat this as an expected condition: retry against a valid workspace or reconcile the resource, rather than dropping the write or failing the user's request outright.
+- **Detect resources pointing at workspaces that no longer exist** — Today this happens whenever a user deletes a workspace holding your resources. Even once deletion is asset-aware, a narrow race remains between a resource being reported and its workspace being deleted. Reconcile periodically — consume the workspace deletion event, or re-resolve stored `workspace_id` values against the workspaces that exist — and surface the affected resources so a user can move them.
+- **Expect denials, not errors, on authorization checks** — If a workspace does go away while your resources still point at it, a `Check` against that workspace ID returns *denied*, not an error. Resources become quietly inaccessible, so do not rely on an error to detect the condition.
+- **Keep workspace assignment mutable** — Make sure a resource's workspace can be changed after the fact, so users can move resources out of a workspace they are trying to delete.
+
+### Replace group-based authorization checks
+
+Where your application currently checks "does this user have access to this group?", replace that logic with a Kessel `Check` call. What you check against depends on whether your resources are represented natively in Kessel.
+
+**Before (application-level group check):**
+```
+if user_has_access_to_group(user, resource.group_id):
+    allow()
+```
+
+**Option A — Check against the workspace.** Use this when your resources are *not* individually represented in Kessel. Authorization is evaluated at the workspace level, and every resource assigned to that workspace shares the same access:
+
+```
+result = kessel_client.check(
+    resource=workspace(resource.workspace_id),
+    permission="myapp_resource_view",
+    subject=principal(user.id)
+)
+if result == ALLOWED:
+    allow()
+```
+
+**Option B — Check against the resource directly.** Use this when your resources *are* represented natively in Kessel. Each resource must first be reported to Inventory via `ReportResource` with its `workspace_id`, after which you check against the resource itself rather than its workspace:
+
+```
+result = kessel_client.check(
+    resource=myapp_resource(resource.id),
+    permission="myapp_resource_view",
+    subject=principal(user.id)
+)
+if result == ALLOWED:
+    allow()
+```
+
+Kessel resolves the resource's workspace assignment internally and walks the hierarchy. This is what enables per-resource access control and future role bindings scoped below the workspace level. See [Native resource-level access](/docs/building-with-kessel/how-to/rbac/#native-resource-level-access) for the schema this pattern requires and a full `Check` example.
+
+<Aside type="note">
+  Native representation requires reporting each resource to Kessel Inventory and keeping it in sync as resources are created, updated, and deleted. If you are not reporting resources individually, use Option A. See [Add a resource type](/docs/building-with-kessel/how-to/add-resource-type/) for how to model your resources in Kessel.
+</Aside>
+
+For listing resources, the approach also differs: with Option A, use `StreamedListObjects` to get accessible workspace IDs and filter your database query by them. With Option B, you can additionally use `StreamedListObjects` to list the accessible resource IDs directly. See [Protect a List Endpoint](/docs/building-with-kessel/how-to/protect-list/) for detailed examples of both.
+
+## Applications with no existing authorization model
+
+If your application has no authorization model — or uses simple org-wide checks — start with the Default workspace pattern. This is the lowest-effort path to adopting Kessel RBAC while maintaining current behavior.
+
+### Start with the Default workspace
+
+The Default workspace represents "all resources in this organization that aren't explicitly placed elsewhere." By checking permissions against the Default workspace, your application gets org-wide authorization that matches the current behavior:
+
+<Steps>
+1. Look up the Default workspace ID for the tenant using `GET /api/rbac/v2/workspaces/?type=default&with_ancestry=true`. The `with_ancestry=true` parameter bypasses permission validation on the request. Cache this value — it never changes for a given tenant.
+2. For each protected endpoint, call `Check` or `CheckForUpdate` with the Default workspace as the resource.
+3. Define your permissions in a `.ksl` file and submit them to the [rbac-config](https://github.com/project-kessel/rbac-config) repository.
+4. Assign your permissions to appropriate roles (application-specific and RHEL persona-based roles).
+</Steps>
+
+<Aside type="tip" title="Authenticating the workspace lookup">
+  Step 1 is a call your service makes on its own behalf, not on the user's: authenticate it with the service's own OAuth token and set the `x-rh-rbac-org-id` header — do not relay the caller's `x-rh-identity`. See [Resolving workspace ids from RBAC](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/#rootdefault-workspace-pattern) for why, and [Configure Authentication](/docs/building-with-kessel/how-to/configure-authentication/) for obtaining the token.
+</Aside>
+
+This approach gives you:
+- Centralized authorization through Kessel (no local permission logic)
+- Compatibility with the workspace model for future workspace-scoped authorization
+- Wildcard permission evaluation handled server-side by Kessel
+
+<Aside type="note">
+  For org-wide settings that will never be workspace-scoped (authentication policies, user management), use Pattern 5 (Organization-level) and check against the tenant resource instead. See the [Migration Pattern Reference](/docs/building-with-kessel/reference/migration-pattern-reference/#pattern-5-organization-level-non-asset-centric-settings).
+</Aside>
+
+### Plan for future workspace adoption
+
+Even if you start with the Default workspace for everything, design your permission schema with future workspace support in mind:
+
+- **Name permissions clearly** — Use the `application:resource_type:operation` format so permissions can be scoped to workspaces later without renaming.
+- **Add a `workspace_id` column early** — Even if every resource points to the Default workspace initially, having the column makes future migration straightforward.
+- **Use role bindings, not direct grants** — All access goes through role bindings. Today, role bindings target workspaces or tenants. Support for binding roles directly to other resource types is planned, which will enable finer-grained access control without requiring workspace scoping.
+
+For guidance on structuring your permission schema, see [Define your permission schema](/docs/building-with-kessel/how-to/rbac/#define-your-permission-schema).
+
+## Dual-running strategies
+
+During migration, you may need to run both your existing authorization logic and Kessel in parallel. This section covers strategies for a safe, incremental transition.
+
+### Feature flag gating
+
+Use a feature flag to control whether Kessel authorization is active. This lets you deploy the integration code and enable it independently:
+
+```
+KESSEL_ENABLED=false  # Toggle Kessel authorization on/off
+```
+
+When `KESSEL_ENABLED` is `false`, your application uses its existing authorization path. When `true`, it calls Kessel. This flag should be the **only** difference between the two paths — no other behavioral changes should be tied to it.
+
+<Aside type="caution">
+  When `KESSEL_ENABLED` is `false`, the application must fall back cleanly to existing authorization with no side effects. Toggling should not require redeployment if possible — use a runtime feature flag system or environment variable reload.
+</Aside>
+
+### Shadow mode (log-only comparison)
+
+Before switching authorization to Kessel, run both systems in parallel and compare results without affecting users:
+
+<Steps>
+1. **Call both** — For each authorization check, call your existing logic **and** Kessel's `Check` API.
+2. **Use the old result** — The existing authorization result controls access. Kessel's result is logged but not enforced.
+3. **Log discrepancies** — When the two results differ, log the details: user, permission, resource, and which system allowed or denied. These discrepancies indicate either a misconfigured permission schema or an intentional behavioral change.
+4. **Investigate mismatches** — Resolve discrepancies before switching to Kessel-only mode. Common causes:
+   - Missing permissions in the KSL schema
+   - Workspace assignment mismatches (resource in wrong workspace)
+   - Wildcard permission handling differences (Kessel evaluates server-side; your old system may have inconsistent client-side logic)
+   - Role binding scope mismatches (see the [Compatibility Constraint](/docs/building-with-kessel/reference/migration-pattern-reference/#the-compatibility-constraint))
+</Steps>
+
+### Incremental rollout
+
+Roll out Kessel authorization gradually rather than all at once:
+
+**By endpoint** — Enable Kessel for low-risk read endpoints first, then write endpoints, then sensitive operations.
+
+**By tenant** — Use a per-tenant feature flag to enable Kessel for specific organizations. Start with internal or test tenants, expand to a small percentage of production tenants, then roll out broadly. The insights-rbac service uses per-org Unleash feature flags for this purpose.
+
+**By resource type** — If your application manages multiple resource types, migrate them independently. One resource type can use Kessel while others remain on the old system.
+
+<Aside type="tip">
+  Per-tenant rollout is the safest strategy for production migrations. It limits blast radius and lets you validate behavior with real data before expanding.
+</Aside>
+
+### Cutover and rollback
+
+Once shadow mode shows consistent results across a representative set of tenants:
+
+<Steps>
+1. **Switch the feature flag** — Set `KESSEL_ENABLED=true` for the target tenants. Kessel results now control access.
+2. **Keep the old path available** — Do not remove your existing authorization code immediately. Leave the feature flag in place so you can revert if issues arise.
+3. **Monitor** — Watch for increased 403 responses, latency changes, or user-reported access issues. Kessel authorization checks typically complete in 10-50ms.
+4. **Remove the old path** — After a stabilization period with no issues, remove the legacy authorization code and the feature flag.
+</Steps>
+
+## Which permission extension to use
+
+KSL provides two extensions for registering permissions. Which one you use depends on whether your application has existing RBAC v1 permissions that need backward-compatible wildcard support.
+
+| Extension | Use when | Generated names |
+|---|---|---|
+| [`@rbac.add_unified_permission`](/docs/building-with-kessel/how-to/rbac/#rbacadd_unified_permission--recommended-for-new-services) | New permissions, or an application with no existing RBAC v1 permissions. The recommended default for first-time adoption. | `myservice_integration_view` |
+| [`@rbac.add_v1_based_permission`](/docs/building-with-kessel/how-to/rbac/#rbacadd_v1_based_permission--v1-compatible-permissions-with-wildcards) | The application has existing RBAC v1 permissions with wildcard usage (e.g. `myapp:*:read`) that must keep working after migration. | `myservice_integration_view` plus the `_all_` wildcard variants |
+
+Because you are not coming from RBAC v1, `@rbac.add_unified_permission` is almost always the right choice:
+
+```
+version 0.2
+namespace myservice
+
+import rbac
+
+@rbac.add_unified_permission(app:'myservice', resource:'integration', verb:'view');
+@rbac.add_unified_permission(app:'myservice', resource:'integration', verb:'edit');
+```
+
+This creates permission names like `myservice_integration_view` and `myservice_integration_edit` that can be used in `Check` calls.
+
+See [Define your permission schema](/docs/building-with-kessel/how-to/rbac/#define-your-permission-schema) in the Manage access with RBAC guide for the full parameter reference for both extensions, `@rbac.add_contingent_permission`, and how to test a schema in the SpiceDB Playground before submitting it. For a working example of `@rbac.add_unified_permission` in context, see [Protect an Endpoint](/docs/building-with-kessel/how-to/protect-endpoint/#define-your-service-permissions).
+
+## Migration checklist
+
+Use this checklist to track your migration progress:
+
+### Preparation
+
+- [ ] Identify all resource types in your application and their current authorization model
+- [ ] For each resource type, choose a [migration pattern](/docs/building-with-kessel/reference/migration-pattern-reference/) (Native, Default workspace, Root workspace, or Organization-level)
+- [ ] Map existing grouping concepts (if any) to Kessel workspaces
+- [ ] Determine which endpoints need `Check` vs `CheckForUpdate` (use `CheckForUpdate` for writes and sensitive reads)
+
+### Permission schema
+
+- [ ] Write `.ksl` permission definitions — choose the right extension for your situation (see [which extension to use](#which-permission-extension-to-use) above), and use `@rbac.add_contingent_permission()` for host-centric permissions that require both app-specific and inventory permissions
+- [ ] Submit `.ksl` files to the [rbac-config](https://github.com/project-kessel/rbac-config) repository (stage first, then prod)
+- [ ] Assign permissions to appropriate roles — both application-specific roles and [RHEL persona-based roles](/docs/building-with-kessel/reference/migration-pattern-reference/#role-definitions) (Viewer, Operator, Administrator)
+
+### Implementation
+
+- [ ] Add the Kessel client SDK as a dependency ([Go](https://github.com/project-kessel/kessel-sdk-go), [Python](https://github.com/project-kessel/kessel-sdk-py), [Java](https://github.com/project-kessel/kessel-sdk-java), [Node](https://github.com/project-kessel/kessel-sdk-node), [Ruby](https://github.com/project-kessel/kessel-sdk-ruby))
+- [ ] Add configuration for Kessel endpoints (`INVENTORY_API_SERVER`, `RELATION_API_SERVER`, auth credentials)
+- [ ] Add a `KESSEL_ENABLED` feature flag
+- [ ] Implement authorization middleware using `Check` / `CheckForUpdate` — see [Protect an Endpoint](/docs/building-with-kessel/how-to/protect-endpoint/)
+- [ ] For list endpoints, implement workspace-based filtering using `StreamedListObjects` — see [Protect a List Endpoint](/docs/building-with-kessel/how-to/protect-list/)
+- [ ] Handle both user principals (`identity.User.UserId`) and service account principals (`identity.ServiceAccount.UserId`)
+- [ ] Implement fail-closed error handling — Kessel errors (connection failures, timeouts) must result in denial, not silent allow
+- [ ] If using Default or Root workspace patterns, look up workspace IDs using the service's own OAuth token (not `x-rh-identity`) with the `x-rh-rbac-org-id` header
+
+For detailed instructions on configuring Kessel client endpoints, authentication credentials, and Clowder service discovery, see the [configuration section of the RBAC v1 to v2 migration guide](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/#add-configuration-options-for-the-kessel-client) and [Configure Authentication](/docs/building-with-kessel/how-to/configure-authentication/).
+
+### Testing
+
+- [ ] Write unit tests with a mock Kessel gRPC client covering: allowed, denied, error, and both principal types
+- [ ] If dual-running, verify parity between old and new authorization for equivalent permissions
+- [ ] Validate in an ephemeral environment with Kessel deployed
+- [ ] Test with `KESSEL_ENABLED=false` to confirm clean fallback to existing authorization
+
+### Rollout
+
+- [ ] Deploy with `KESSEL_ENABLED=false`
+- [ ] Enable shadow mode (if using dual-running) and monitor for discrepancies
+- [ ] Enable for internal/test tenants first
+- [ ] Expand to production tenants incrementally
+- [ ] Monitor for authorization regressions (unexpected 403s, latency changes)
+- [ ] After stabilization, remove the legacy authorization path and feature flag
+
+## Next steps
+
+<LinkCard
+  title="Protect an endpoint"
+  description="Implement authorization checks in your middleware with multi-language SDK examples."
+  href="/docs/building-with-kessel/how-to/protect-endpoint/"
+/>
+
+<LinkCard
+  title="Protect a list endpoint"
+  description="Filter list results using workspace-based authorization with StreamedListObjects."
+  href="/docs/building-with-kessel/how-to/protect-list/"
+/>
+
+<LinkCard
+  title="Migration Pattern Reference"
+  description="Detailed reference for the five migration patterns, decision tree, and request translations."
+  href="/docs/building-with-kessel/reference/migration-pattern-reference/"
+/>
+
+<LinkCard
+  title="Manage access with RBAC"
+  description="Define permissions with KSL extensions, create custom roles and role bindings, and scope access to workspaces."
+  href="/docs/building-with-kessel/how-to/rbac/"
+/>
+
+<LinkCard
+  title="Coming from RBAC v1"
+  description="Conceptual overview of key differences between legacy RBAC and Kessel-based RBAC."
+  href="/docs/building-with-kessel/concepts/coming-from-rbac-v1/"
+/>
