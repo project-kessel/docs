@@ -9,11 +9,7 @@ import { Aside, Steps, LinkCard } from '@astrojs/starlight/components';
 
 This guide covers how to adopt Kessel RBAC in an application that is **not currently using RBAC v1**. If your application is already using RBAC v1, see the [Migrate from RBAC v1 to v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) guide instead.
 
-Adopting Kessel RBAC means making Kessel the **single source of truth** for authorization decisions in your application. Rather than implementing permission logic locally, your application delegates all access checks to Kessel via `Check` and `CheckForUpdate` calls.
-
-<Aside type="caution">
-  Do not query role bindings to make authorization decisions in your application code. Use Kessel's `Check` and `CheckForUpdate` APIs — they evaluate the full authorization graph including group membership, role bindings, permission inheritance, and workspace hierarchy. See [Protect an Endpoint](/docs/building-with-kessel/how-to/protect-endpoint/) for implementation examples.
-</Aside>
+Adopting Kessel RBAC means making Kessel the **single source of truth** for authorization decisions in your application. Rather than implementing permission logic locally, your application delegates all access checks to Kessel via `Check` and `CheckForUpdate` calls. See [Protect an Endpoint](/docs/building-with-kessel/how-to/protect-endpoint/) for implementation examples.
 
 ## Assess your starting point
 
@@ -73,45 +69,35 @@ When your application creates or updates resources, set `workspace_id` to reflec
 </Steps>
 
 <Aside type="note">
-  If your existing groups have a hierarchy (e.g., nested folders), model that hierarchy as parent-child workspace relationships. Permissions granted on a parent workspace automatically apply to child workspaces.
+  If your existing groups have a hierarchy (e.g., nested folders), that hierarchy maps to parent-child workspaces — but your application cannot build it. Suggest the structure to your users and let them create the nested workspaces themselves. Permissions granted on a parent workspace automatically apply to child workspaces.
 </Aside>
 
 ### Handle deleted workspaces
 
-Users can delete workspaces they created. Build support for this during initial integration rather than retrofitting it later.
+Users can delete the standard workspaces they create. The built-in Root, Default, and Ungrouped Hosts workspaces cannot be deleted, and a workspace with child workspaces cannot be deleted until those children are moved or deleted. Build support for deletion during initial integration rather than retrofitting it later.
 
-**What RBAC does on deletion:**
+**What RBAC does today — temporary behavior, do not design around it:**
 
-- Only **standard** workspaces can be deleted. The Root, Default, and Ungrouped Hosts workspaces are built-in and cannot be deleted.
-- Deletion is rejected if the workspace has **child workspaces**. Users must delete or move children first.
 - Deletion is **not** blocked by resources your application has assigned to the workspace. RBAC does not check with your service before deleting.
 - Role bindings scoped to the deleted workspace are removed.
-
-Today, RBAC does not reassign, delete, or notify you about the resources your application assigned to a deleted workspace, so those resources are left pointing at a workspace that no longer exists.
+- RBAC does not reassign, delete, or notify you about the resources your application assigned to the workspace, so those resources are left pointing at a workspace that no longer exists.
 
 **Where this is heading:**
 
-Workspace deletion is moving to an **asset-aware** model in which Kessel Inventory is the source of truth for what still depends on a workspace. Under that model:
+Workspace deletion is moving to an **asset-aware** model in which Kessel Inventory is the source of truth for what still depends on a workspace. This is still being implemented — the current RBAC code does not yet block deletion on asset dependencies. Under that model:
 
 - RBAC delegates the deletion to Inventory, which checks whether any non-RBAC resources still reference the workspace.
 - If resources still reference it, **deletion is rejected** and the user is told to move or delete those resources first. Assets are not silently relocated.
 - If nothing references it, Inventory removes the workspace's relations and RBAC deletes its record and publishes the workspace deletion event.
 - Reporting a resource into a workspace that has already been deleted **fails** rather than silently succeeding, so an asset cannot attach itself to a workspace on its way out.
 
-<Aside type="caution" title="Design your integration for blocked deletion, not relocation">
-  Do not build logic that assumes orphaned resources will be moved to the Default workspace. That approach was considered and set aside, in part because relocating assets can change who has access to them. Assume instead that deletion will be **refused** while your resources still reference the workspace.
-</Aside>
-
 **What your application should do:**
 
 - **Report your resources to Inventory with their workspace assignment** — This is what makes your resources visible as dependencies. A resource Inventory does not know about cannot protect its workspace from deletion.
 - **Handle rejected resource reports** — If you report a resource into a workspace that is being or has been deleted, the write is rejected. Treat this as an expected condition: retry against a valid workspace or reconcile the resource, rather than dropping the write or failing the user's request outright.
+- **Detect resources pointing at workspaces that no longer exist** — Today this happens whenever a user deletes a workspace holding your resources. Even once deletion is asset-aware, a narrow race remains between a resource being reported and its workspace being deleted. Reconcile periodically — consume the workspace deletion event, or re-resolve stored `workspace_id` values against the workspaces that exist — and surface the affected resources so a user can move them.
 - **Expect denials, not errors, on authorization checks** — If a workspace does go away while your resources still point at it, a `Check` against that workspace ID returns *denied*, not an error. Resources become quietly inaccessible, so do not rely on an error to detect the condition.
 - **Keep workspace assignment mutable** — Make sure a resource's workspace can be changed after the fact, so users can move resources out of a workspace they are trying to delete.
-
-<Aside type="note">
-  This behavior is still being implemented, and the current RBAC code does not yet block deletion on asset dependencies. Building the two capabilities above — reporting resources to Inventory and handling rejected reports — is what lets your service adopt the asset-aware behavior when it ships, and is considerably easier to do now than to retrofit later.
-</Aside>
 
 ### Replace group-based authorization checks
 
@@ -169,6 +155,10 @@ The Default workspace represents "all resources in this organization that aren't
 3. Define your permissions in a `.ksl` file and submit them to the [rbac-config](https://github.com/project-kessel/rbac-config) repository.
 4. Assign your permissions to appropriate roles (application-specific and RHEL persona-based roles).
 </Steps>
+
+<Aside type="tip" title="Authenticating the workspace lookup">
+  Step 1 is a call your service makes on its own behalf, not on the user's: authenticate it with the service's own OAuth token and set the `x-rh-rbac-org-id` header — do not relay the caller's `x-rh-identity`. See [Resolving workspace ids from RBAC](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/#rootdefault-workspace-pattern) for why, and [Configure Authentication](/docs/building-with-kessel/how-to/configure-authentication/) for obtaining the token.
+</Aside>
 
 This approach gives you:
 - Centralized authorization through Kessel (no local permission logic)
@@ -285,8 +275,7 @@ Use this checklist to track your migration progress:
 
 ### Permission schema
 
-- [ ] Write `.ksl` permission definitions — choose the right extension for your situation (see [which extension to use](#which-permission-extension-to-use) below)
-- [ ] Use `@rbac.add_contingent_permission()` for host-centric permissions that require both app-specific and inventory permissions
+- [ ] Write `.ksl` permission definitions — choose the right extension for your situation (see [which extension to use](#which-permission-extension-to-use) above), and use `@rbac.add_contingent_permission()` for host-centric permissions that require both app-specific and inventory permissions
 - [ ] Submit `.ksl` files to the [rbac-config](https://github.com/project-kessel/rbac-config) repository (stage first, then prod)
 - [ ] Assign permissions to appropriate roles — both application-specific roles and [RHEL persona-based roles](/docs/building-with-kessel/reference/migration-pattern-reference/#role-definitions) (Viewer, Operator, Administrator)
 
