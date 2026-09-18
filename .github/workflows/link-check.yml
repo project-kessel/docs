@@ -10,18 +10,16 @@ on:
     - cron: '17 8 * * 1'
   workflow_dispatch:
 
-permissions:
-  contents: read
-  issues: write
-
 jobs:
   check-links:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Check documentation links
-        uses: lycheeverse/lychee-action@v2
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
         with:
           args: >-
             -vv
@@ -32,9 +30,15 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fail: true
 
+  notify:
+    needs: check-links
+    if: ${{ always() && needs.check-links.result == 'failure' && github.event_name == 'schedule' }}
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    steps:
       - name: Notify on scheduled run failure
-        if: failure() && github.event_name == 'schedule'
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const title = 'Link check: broken links detected';
