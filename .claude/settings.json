@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /home/edong/personal-repos/kessel-docs status --short)",
+      "Bash(git -C /home/edong/personal-repos/kessel-docs rev-parse --abbrev-ref HEAD)",
+      "Bash(git -C /home/edong/personal-repos/kessel-docs worktree list)",
+      "Bash(git -C /tmp/kessel-migrate-to-rbac-v2 status --short)",
+      "Bash(git checkout *)",
+      "Bash(curl -s -m 20 \"https://api.github.com/repos/project-kessel/docs/pulls/131\")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -m 20 \"https://api.github.com/repos/project-kessel/docs/pulls/131/comments?per_page=100\")",
+      "Bash(curl -s -m 30 \"https://api.github.com/repos/project-kessel/docs/pulls/132/comments?per_page=100\")",
+      "Bash(git stash *)",
+      "Bash(curl -s \"https://api.github.com/repos/project-kessel/docs/pulls/132/comments?per_page=100\")",
+      "Bash(curl -s \"https://api.github.com/repos/project-kessel/docs/issues/132/comments?per_page=100\")",
+      "Bash(curl -s \"https://api.github.com/repos/project-kessel/docs/pulls/132/reviews?per_page=100\")"
+    ]
+  }
+}

@@ -59,7 +59,7 @@ import rbac
 
 The compound permission named by `v2_perm` — here `config_manager_profile_view` — is the one your application checks for. It evaluates all wildcard permutations server-side.
 
-See [`@rbac.add_v1_based_permission`](/docs/building-with-kessel/how-to/rbac/#rbacadd_v1_based_permission--v1-compatible-permissions-with-wildcards) in the Manage access with RBAC guide for the full parameter reference, the list of generated permissions, and the `read` → `view` / `write` → `edit` naming convention.
+See [`@rbac.add_v1_based_permission`](/docs/building-with-kessel/how-to/rbac/#rbacadd_v1_based_permission--when-the-v1-and-v2-names-differ) in the Manage access with RBAC guide for the full parameter reference, the list of generated permissions, and the naming conventions.
 
 ### Permissions that apply to host-centric assets
 
@@ -98,7 +98,7 @@ Note that the way these permissions are associated with a role remains the same,
 
 In some cases a completely new permission may be defined in the process of onboarding to Kessel.
 In that case, consider defining this permission in RHEL persona-based roles (e.g. RHEL Viewer) in addition to application-specific roles (e.g. Advisor Viewer).
-See [Assign permissions to RHEL persona roles](/docs/building-with-kessel/how-to/rbac/#assign-permissions-to-rhel-persona-roles) for the persona-to-permission mapping, and the [Role Definitions](/docs/building-with-kessel/reference/migration-pattern-reference/#role-definitions) section of the Migration Pattern Reference for additional details.
+See the [Role Definitions](/docs/building-with-kessel/reference/migration-pattern-reference/#role-definitions) section of the Migration Pattern Reference for the persona-to-permission mapping and additional details.
 
 
 ## Implement the changes in the application code
