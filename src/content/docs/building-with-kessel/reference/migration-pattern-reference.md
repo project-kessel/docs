@@ -406,3 +406,4 @@ The Default and Root Workspace IDs are **immutable** for a given tenant. Cache t
 - [Design Permissions](/docs/building-with-kessel/how-to/design-permissions/) — Permission schema design guide
 - [Protect an Endpoint](/docs/building-with-kessel/how-to/protect-endpoint/) — SDK implementation guide with middleware examples
 - [Coming from RBAC v1](/docs/building-with-kessel/concepts/coming-from-rbac-v1/) — Conceptual comparison for v1 users
+- [RBAC v1 to v2 concept map](/docs/building-with-kessel/reference/v1-v2-concept-map/) — Lookup table of v1 concepts and their v2 equivalents

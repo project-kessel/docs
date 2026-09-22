@@ -1,0 +1,208 @@
+---
+title: RBAC v1 to v2 concept map
+description: Lookup table mapping every RBAC v1 concept — Default access, groups, roles, policies, resource definitions, wildcards — to its Kessel RBAC v2 equivalent, including where the mapping is not 1:1.
+sidebar:
+  order: 45
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+This page is a lookup table. Find a concept you know from RBAC v1 in the left column and read across to its Kessel RBAC v2 equivalent.
+
+Most onboarding confusion comes from assuming the two models line up term-for-term. Several do not, and two are outright false friends — the same word means a different thing in each version. Those are flagged in the tables and explained in [Where the mapping is not 1:1](#where-the-mapping-is-not-11).
+
+<Aside type="note">
+  This is reference material for looking things up. For the narrative explanation of *why* the model changed — the four conceptual shifts, worked examples, and diagrams — read [Coming from RBAC v1](/docs/building-with-kessel/concepts/coming-from-rbac-v1/) instead.
+</Aside>
+
+## Identity and grouping
+
+| RBAC v1 concept | Kessel RBAC v2 equivalent | 1:1? |
+|---|---|---|
+| **Principal** (user or service account) | **Principal**, identified as `{domain}/{user_id}` (for example `redhat/12345`) | Yes. The identifier format changed; the concept did not. |
+| **Group** (a collection of principals) | **Group** (a collection of principals) | Yes. See the [false friend](#false-friend-a-v1-group-is-not-a-v2-workspace) warning — a v1 Group is *not* a workspace. |
+| **Default access** group (`platform_default`) | **Platform Default Group** plus the tenant's [default role bindings](/docs/building-with-kessel/concepts/tenancy/#default-role-bindings) | **No.** One v1 group becomes a group *and* a set of bindings. See [below](#not-11-default-access-becomes-a-group-plus-several-bindings). |
+| **Default admin access** group (`admin_default`) | **Admin Default Group** plus its default role bindings | **No.** Same split as above. |
+| **Org admin** flag on the identity header | Membership in the Admin Default Group, which is bound to the Org Admin and Workspace Admin roles | **No.** An implicit flag becomes explicit graph relationships. |
+| **Tenant** / `org_id` | **Tenant**, and the ROOT workspace automatically created for it | **No.** v2 splits "the organization" into a tenant resource and a root workspace. See [below](#not-11-the-organization-splits-into-a-tenant-and-a-root-workspace). |
+| **Inventory group** (an HBI concept, referenced from RBAC by `group.id`) | **Workspace** | Close, but workspaces nest and inventory groups did not. |
+| — (no v1 equivalent) | **Workspace hierarchy** — ROOT, DEFAULT, UNGROUPED_HOSTS, and user-created workspaces | New in v2. |
+
+## Roles and grants
+
+| RBAC v1 concept | Kessel RBAC v2 equivalent | 1:1? |
+|---|---|---|
+| **Role** (a named collection of access entries) | **Role** (a named collection of permissions) | Yes, and roles are still defined in [role files](https://github.com/project-kessel/rbac-config/tree/master/configs/prod/roles) in `rbac-config`. |
+| **Seeded role** | **Seeded role** — system-defined, not modifiable | Yes. In v2 their permissions live in the schema rather than as stored rows. |
+| **Custom role** created by an org admin | **Custom role** created by an org admin | Yes. |
+| — (no v1 equivalent) | **Platform role** — an internal aggregate of seeded roles, used for default bindings and not exposed in the API | New in v2. |
+| **Policy** (the object joining a group to a role, org-wide) | **Role binding** (joining a role, a subject, *and* a resource) | **No.** The binding gained a third leg. See [below](#not-11-a-policy-gains-a-resource-and-becomes-a-role-binding). |
+| **Access** entry (permission + resource definitions inside a role) | The permission alone. Scoping moved out of the role and onto the role binding. | **No.** |
+| **Resource definition** / `attributeFilter` (`{key, operation, value}`) | Nothing. Scoping is expressed by which workspace a resource is assigned to and which workspace a role is bound on. | **No — removed entirely.** See [below](#not-11-resource-definitions-have-no-replacement). |
+
+## Permissions
+
+| RBAC v1 concept | Kessel RBAC v2 equivalent | 1:1? |
+|---|---|---|
+| Permission string `app:resource:verb` | Permission name `app_resource_verb` | Mostly. Colons become underscores, and `read` → `view` / `write` → `edit` is the recommended convention to avoid colliding with v1 names. |
+| Permission defined in a [JSON permission file](https://github.com/project-kessel/rbac-config/tree/master/configs/prod/permissions) | Permission declared in a `.ksl` schema with `@rbac.add_unified_permission` or `@rbac.add_v1_based_permission` | **No.** A data record becomes a schema declaration that generates graph relations. |
+| Wildcard permission `app:*:read` | The same wildcard permutations, generated into the schema and evaluated by Kessel | Behaviour is preserved; **who evaluates it changed** from your application to Kessel. |
+| Application-side wildcard matching logic | Nothing — delete it. A single `Check` for the specific permission covers every applicable wildcard. | **No — removed entirely.** |
+| Two permissions checked together in application code (for example an app permission plus `inventory:hosts:read`) | A **contingent permission** declared with `@rbac.add_contingent_permission` | **No.** The `AND` moves from your code into the schema. |
+
+## Asking for an authorization decision
+
+| RBAC v1 concept | Kessel RBAC v2 equivalent | 1:1? |
+|---|---|---|
+| `GET /api/rbac/v1/access/?application=x` returning the caller's permission list | `Check` / `CheckForUpdate` — you ask about one specific permission on one specific resource | **No.** "Give me the list" becomes "answer this question". See [Permission evaluation](#permission-evaluation-flat-list-versus-hierarchical-traversal). |
+| Reading the returned groups list to filter a query, including the `"*"` and `[[]]` special cases | `StreamedListObjects`, which streams back exactly the resource or workspace IDs the subject can access | **No.** No wildcards or special cases are returned, so no interpretation logic is needed. |
+| Your application acting as its own Policy Decision Point | Kessel is the single Policy Decision Point | **No.** This is the central change. |
+| — (no v1 equivalent) | `CheckForUpdate`, for writes and highly sensitive reads, which trades latency for stronger consistency | New in v2. |
+
+## Where the mapping is not 1:1
+
+### False friend: a v1 Group is not a v2 Workspace
+
+This is the single most common mix-up, because both are described as "a group".
+
+- A **Group** in either version is a collection of *principals* — it answers "who?". v1 Groups map directly to v2 Groups.
+- A **Workspace** is a container for *resources* — it answers "over what?". The v1 concept that maps to a workspace is the **inventory group**, which was never an RBAC object at all; RBAC only referenced inventory groups indirectly, by UUID, inside an `attributeFilter`.
+
+If you are looking for the v1 ancestor of workspaces, look at inventory groups and at `resourceDefinitions` with `key: "group.id"` — not at RBAC groups.
+
+Workspaces also do something inventory groups could not: they nest, and permissions inherit down the tree.
+
+### False friend: "default" means two different things
+
+v1 had a **Default access group**. v2 has a **Default workspace**. They are unrelated:
+
+- The v1 Default access group is about *who* gets baseline access, and maps to the v2 Platform Default Group.
+- The v2 Default workspace is about *where* resources live when nobody has filed them anywhere more specific.
+
+### Not 1:1: Default access becomes a group plus several bindings
+
+In v1, the Default access group carried org-wide baseline access in one place. In v2 that becomes two separate things: the Platform Default Group (membership) and a set of default role bindings created when the tenant is created (the grants).
+
+Kessel creates six default role bindings per tenant, spanning three scopes:
+
+| Scope | Subject | Role |
+|---|---|---|
+| Tenant | Admin Default Group | Org Admin |
+| Tenant | Platform Default Group | User Access |
+| Root workspace | Admin Default Group | Workspace Admin |
+| Root workspace | Platform Default Group | User Access |
+| Default workspace | Admin Default Group | Workspace Admin |
+| Default workspace | Platform Default Group | User Access |
+
+The practical consequence: a single v1 default grant can land at any of three levels in v2, and the level matters. See [the compatibility constraint](#the-level-you-bind-at-must-match-the-level-you-check-at).
+
+### Not 1:1: the organization splits into a tenant and a root workspace
+
+v1 had one notion of "org-wide". v2 has two, and picking the wrong one silently breaks checks:
+
+- The **tenant** resource, for settings that should never be workspace-scoped (authentication policy, inviting users).
+- The **ROOT workspace**, for org-wide settings that could plausibly become workspace-scoped later (recommendation acknowledgements, RHC configuration).
+
+Bindings on the tenant do not inherit down into workspaces, and bindings on ROOT do. Choose with [Pattern 4 versus Pattern 5](/docs/building-with-kessel/reference/migration-pattern-reference/#pattern-summary).
+
+### Not 1:1: a Policy gains a resource and becomes a role binding
+
+A v1 Policy joined two things: a group and a role. The grant was implicitly org-wide.
+
+A v2 role binding joins three: a **role**, a **subject**, and the **resource** the grant applies to. There is no way to express "this role, for this group, everywhere" — you always name a scope, even if that scope is the root workspace.
+
+There is also no way to attach a permission directly to a resource. Every permission in v2 arrives through a role binding.
+
+### Not 1:1: resource definitions have no replacement
+
+Resource definitions are the one v1 concept with nothing to migrate to. They are not renamed, they are deleted.
+
+Everything an `attributeFilter` used to express is now expressed structurally:
+
+| What the filter did in v1 | How v2 expresses it |
+|---|---|
+| `{key: "group.id", operation: "in", value: [...]}` restricting a permission to some inventory groups | The resource is assigned to a workspace via `workspace_id`; the role is bound on that workspace |
+| Empty array `[]`, meaning "no filtering, applies everywhere" | A role binding on the root or default workspace |
+| Your service parsing the filter and turning it into a `WHERE` clause | `StreamedListObjects` returns the accessible IDs directly |
+
+If your v1 role used an `attributeFilter` on a key other than `group.id`, there is no mechanical translation. That filter encoded an authorization rule your application was enforcing itself, and it needs to be modelled deliberately — as its own resource type in the schema, or as a permission scoped to a workspace. Start with [Design permissions schema](/docs/building-with-kessel/how-to/design-permissions/).
+
+### The level you bind at must match the level you check at
+
+v1 had no hierarchy, so there was no such thing as binding at the wrong level. v2 has one, and it only flows downward.
+
+A role binding on the Default workspace does **not** grant access when your application checks at the ROOT workspace. The check simply returns denied — there is no error to alert you. Because RBAC binds migrated access per-role at the *highest* level any permission in that role requires, the level it picks may not be the level you were planning to check at.
+
+Confirm both ends against [The Compatibility Constraint](/docs/building-with-kessel/reference/migration-pattern-reference/#the-compatibility-constraint) and [How RBAC Migrates Access Grants](/docs/building-with-kessel/reference/migration-pattern-reference/#how-rbac-migrates-access-grants) before you write the check.
+
+## Permission evaluation: flat list versus hierarchical traversal
+
+The mechanics of answering "is this allowed?" changed completely, even though the question did not.
+
+| | RBAC v1 | Kessel RBAC v2 |
+|---|---|---|
+| Shape of the question | "What may this user do?" | "May this user do *this*, to *this resource*?" |
+| Call made | `GET /api/rbac/v1/access/?application=x` | `Check` or `CheckForUpdate` |
+| Returned | A list of permission strings, plus resource definitions | A single allowed/denied decision |
+| Matching | Your code compares the required permission against every entry, expanding wildcards | Kessel traverses the authorization graph |
+| Scoping | Your code reads `attributeFilter` values and filters results | Resolved by graph structure — workspace assignment and hierarchy |
+| Decision point | Every application, independently | Kessel, once |
+| Cost of a semantics change | Every application has to be updated | The schema changes in one place |
+
+### What v1 did
+
+1. Fetch the caller's full permission list for the application.
+2. Test the required permission against each entry, expanding `app:resource:*`, `app:*:verb`, `app:*:*`, and `*:*:*`.
+3. If the permission carried resource definitions, parse them and filter the result set, handling the `"*"` (everything) and `[[]]` (ungrouped) special cases.
+
+Each step ran in your codebase, which meant every service reimplemented it and the implementations could disagree.
+
+### What v2 does
+
+A `Check` resolves against the graph. For a resource assigned to a workspace, Kessel:
+
+1. Finds the workspace the resource is assigned to.
+2. Looks for a role binding on that workspace granting the permission.
+3. Walks up to the parent workspace and repeats, continuing to the root.
+4. At each level, resolves the subject through group membership, and the role through the permissions declared in the schema — including any wildcard permutations and contingent permissions.
+5. Returns allowed if **any** level in the path matched.
+
+Two properties follow from step 5 that have no v1 analogue. Access granted high in the tree covers everything below it, so a binding at ROOT is organization-wide. And the same user can hold different permissions on different workspaces at the same time, so a decision is only meaningful with respect to a specific resource.
+
+## Related guides
+
+<LinkCard
+  title="Coming from RBAC v1"
+  description="The conceptual explanation behind this table: what changed in the authorization model and why."
+  href="/docs/building-with-kessel/concepts/coming-from-rbac-v1/"
+/>
+
+<LinkCard
+  title="Migrate from RBAC v1 to v2"
+  description="Step-by-step migration for an application already using RBAC v1: identify patterns, model permissions, implement checks."
+  href="/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/"
+/>
+
+<LinkCard
+  title="Migrate existing applications to RBAC"
+  description="Adopting Kessel RBAC in an application that is not on RBAC v1, including mapping existing grouping abstractions to workspaces."
+  href="/docs/building-with-kessel/how-to/migrate-to-rbac/"
+/>
+
+<LinkCard
+  title="Design permissions schema"
+  description="Designing the permission set itself, for concepts that have no mechanical v1 translation."
+  href="/docs/building-with-kessel/how-to/design-permissions/"
+/>
+
+<LinkCard
+  title="Migration Pattern Reference"
+  description="The five patterns, the compatibility constraint, and how RBAC chooses the level to bind migrated access at."
+  href="/docs/building-with-kessel/reference/migration-pattern-reference/"
+/>
+
+<LinkCard
+  title="Glossary"
+  description="Definitions for the v2 terms used in this table."
+  href="/docs/building-with-kessel/reference/glossary/"
+/>
