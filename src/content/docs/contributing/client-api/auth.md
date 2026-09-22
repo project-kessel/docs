@@ -28,10 +28,10 @@ package:
       description: >-
         Credentials class implementing the OAuth 2.0 *Client Credentials* grant.
         Retrieves and refreshes access tokens from a **direct** OAuth 2.0 token
-        endpoint (`tokenEndpoint`) using the *Client Credentials* grant. Token endpoint
-        requests retry transient connection and timeout errors, HTTP 429 responses,
-        and HTTP 5xx responses with bounded exponential backoff and jitter. Other
-        errors are returned without retrying.
+        endpoint (`tokenEndpoint`), which MUST be an HTTPS URL, using the *Client
+        Credentials* grant. Token endpoint requests retry transient connection and
+        timeout errors, HTTP 429 responses, and HTTP 5xx responses with bounded
+        exponential backoff and jitter. Other errors are returned without retrying.
       constructors:
         - description: Initialize the credential helper.
           params:
@@ -46,7 +46,7 @@ package:
             - name: tokenEndpoint
               type:
                 name: string
-              description: OAuth 2.0 token endpoint URL
+              description: OAuth 2.0 token endpoint HTTPS URL
             - name: retry
               type:
                 name: RetryOptions
