@@ -28,7 +28,10 @@ package:
       description: >-
         Credentials class implementing the OAuth 2.0 *Client Credentials* grant.
         Retrieves and refreshes access tokens from a **direct** OAuth 2.0 token
-        endpoint (`token_url`) using the *Client Credentials* grant.
+        endpoint (`tokenEndpoint`) using the *Client Credentials* grant. Token endpoint
+        requests retry transient connection and timeout errors, HTTP 429 responses,
+        and HTTP 5xx responses with bounded exponential backoff and jitter. Other
+        errors are returned without retrying.
       constructors:
         - description: Initialize the credential helper.
           params:
@@ -44,6 +47,15 @@ package:
               type:
                 name: string
               description: OAuth 2.0 token endpoint URL
+            - name: retry
+              type:
+                name: RetryOptions
+                link: "#class-RetryOptions"
+              optional: true
+              description: >-
+                Optional retry policy for token endpoint requests. Defaults to 3
+                retries with full-jitter exponential backoff capped at 0.5, 1, and
+                2 seconds. Set `maxRetries` to 0 to disable retries.
       methods:
         - name: getToken
           description: |
@@ -62,6 +74,29 @@ package:
           returns:
             name: RefreshTokenResponse
             link: "#class-RefreshTokenResponse"
+    - name: RetryOptions
+      description: >-
+        Configuration for bounded retries on transient OAuth token endpoint
+        failures. Retry behavior is applied only while obtaining a token, not to
+        arbitrary API calls or OIDC discovery. Implementations must preserve
+        thread-safe token caching and coalesce concurrent refresh attempts.
+      properties:
+        - name: maxRetries
+          type:
+            name: integer
+          description: "Maximum number of retries after the initial request (default: 3; 0 disables retries)."
+        - name: baseDelay
+          type:
+            name: number
+          description: "Initial exponential backoff delay in seconds (default: 0.5)."
+        - name: maxDelay
+          type:
+            name: number
+          description: "Maximum exponential backoff delay in seconds (default: 2.0)."
+        - name: jitter
+          type:
+            name: string
+          description: Jitter mode, either `full` (default) or `none`.
     - name: RefreshTokenResponse
       description: Parsed token data
       properties:
