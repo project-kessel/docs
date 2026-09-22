@@ -271,18 +271,6 @@ These three relationships are what Kessel traverses when evaluating a `Check` ca
   Always use Kessel's `Check` and `CheckForUpdate` APIs for authorization decisions. Do not query role bindings via the RBAC API and implement authorization logic in your application — Kessel is the single source of truth for authorization. It evaluates the full authorization graph including group membership, role inheritance, and workspace hierarchy.
 </Aside>
 
-### For human users, bind to groups
-
-When the subject is a person, role bindings should target **groups** rather than individual principals:
-
-- Adding or removing users from a group automatically updates their access
-- One role binding serves all group members
-- Easier to audit — you can see at a glance what a team can access
-
-Reserve direct principal bindings for exceptional cases where a specific user needs unique access.
-
-This is advice about how customers organize *user* access, and does not apply to service accounts. A service is a single identity with a fixed set of permissions, so binding its principal directly is normal.
-
 ## Workspace hierarchy and permission inheritance
 
 Workspaces form a tree rooted at the ROOT workspace. Permissions granted on a parent workspace automatically apply to all descendant workspaces.
