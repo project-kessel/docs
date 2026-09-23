@@ -17,7 +17,7 @@ This guide walks through defining permissions, creating roles, binding them to u
 </Aside>
 
 <Aside type="tip" title="Migrating from RBAC v1?">
-  If you are migrating an existing application from RBAC v1 to Kessel, see [Migrate from RBAC v1 to v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) for a step-by-step guide with wildcard handling and dual-running strategies.
+  Start here. Schemas, roles, and role bindings work the same way whether or not your application has an RBAC v1 history, so this guide comes first. [Migrate from RBAC v1 to v2](/docs/building-with-kessel/how-to/migrate-from-rbac-v1-to-v2/) builds on it and covers only the migration-specific work: mapping existing v1 permission names, dual-running, and cutting over.
 </Aside>
 
 ## Define your permission schema
@@ -34,7 +34,7 @@ These types work together:
 - **`principal`** — An individual identity (user or service account)
 - **`group`** — A collection of principals; role bindings typically target groups
 - **`role`** — A named collection of permissions
-- **`role_binding`** — Links a role to a subject (principal or group) — permissions are granted only through role bindings, never by directly assigning permissions to resources
+- **`role_binding`** — Binds a role to a subject (principal or group) *and* to the resource the grant applies to. The role and subject are relations on the binding itself; the resource points back at the binding — in `rbac.ksl`, through the workspace's `user_grant` relation. Permissions are granted only through role bindings, never by assigning a permission directly to a resource
 - **`workspace`** — A container for resources; supports parent-child hierarchy for permission inheritance
 
 The `add_permission` extension is the mechanism for registering permissions. When you call `@rbac.add_permission(name:'view_document')`, it adds a `view_document` relation to `role`, `role_binding`, and `workspace` — threading the permission through the entire RBAC chain so it can be granted via roles and inherited through the workspace hierarchy.
@@ -54,16 +54,20 @@ This schema:
 
 The key line `relation view: workspace.view_document` means: "a user can view this document if they have the `view_document` permission on the document's workspace." This is how permissions flow from workspace-level role bindings down to individual resources.
 
-<Aside type="caution">
-  All permissions must go through role bindings on workspaces (or tenants). There is no mechanism in Kessel to grant permissions directly on individual resources. If you need per-resource access control, assign resources to workspaces and grant role bindings at the workspace level.
+<Aside type="caution" title="These are not production-ready permission names">
+  `drive.ksl` uses short names such as `view_document` to keep the example readable. Real permissions use the `app_resource_verb` form — `drive_document_view`, `drive_document_edit`, `drive_document_delete` — because that is the form the RBAC v2 role API addresses, as an `application` / `resource_type` / `operation` triple. A permission that does not follow the convention cannot be referenced when creating a role. Use `@rbac.add_unified_permission` (below) to generate conforming names rather than writing them by hand.
+</Aside>
+
+<Aside type="note">
+  Today, role bindings attach to workspaces (or tenants), so per-resource access control is expressed by assigning resources to workspaces and binding roles at the workspace level. Support for binding a role directly to an individual resource is planned; when it lands, the invariant above still holds — a permission is only ever granted through a role binding.
 </Aside>
 
 ### `@rbac.add_unified_permission` — recommended for new services
 
-For new applications that do not have existing RBAC v1 permissions, use `@rbac.add_unified_permission`. This is the recommended extension for registering permissions — it generates a structured permission name from the application, resource, and verb without the v1 wildcard machinery.
+For new applications that do not have existing RBAC v1 permissions, use `@rbac.add_unified_permission`. This is the recommended extension for registering permissions — it generates a structured permission name from the application, resource, and verb, along with the wildcard permutations that make broad grants work. It is "unified" because the v1 and v2 names are the same, so there is only one name to maintain.
 
 ```
-version 0.2
+version 0.1
 namespace myservice
 
 import rbac
@@ -75,14 +79,16 @@ import rbac
 This creates permission names like `myservice_integration_view` and `myservice_integration_edit` that can be used in `Check` calls. These permissions are automatically threaded through the RBAC model — they can be granted via roles, bound through role bindings, and inherited through the workspace hierarchy.
 
 <Aside type="note">
-  `@rbac.add_unified_permission` uses KSL **version 0.2**. The `@rbac.add_permission` extension shown above uses version 0.1 and is the low-level building block. For most applications, prefer `@rbac.add_unified_permission` unless you need the raw `add_permission` extension for custom schema patterns.
+  `@rbac.add_permission`, shown above, is the low-level building block the other extensions are written in terms of. Prefer `@rbac.add_unified_permission` unless you need raw `add_permission` for a custom schema pattern.
 </Aside>
 
 See [Protect an Endpoint](/docs/building-with-kessel/how-to/protect-endpoint/#define-your-service-permissions) for a complete example of using `@rbac.add_unified_permission` in context.
 
-### `@rbac.add_v1_based_permission` — v1-compatible permissions with wildcards
+### `@rbac.add_v1_based_permission` — when the v1 and v2 names differ
 
-If your application has existing RBAC v1 permissions that use wildcards (e.g., `config_manager:*:read`), use `@rbac.add_v1_based_permission` instead. This extension generates the permission plus all wildcard permutations so that existing v1 wildcard grants continue to work after migration.
+Use `@rbac.add_v1_based_permission` when an application's existing RBAC v1 permission name is not the name you want to expose in v2 — for example, keeping `config_manager:profile:read` working while your application checks `config_manager_profile_view`.
+
+Both extensions generate the same wildcard permutations; wildcards are not what distinguishes them. The difference is that `add_v1_based_permission` takes the v1 `app` / `resource` / `verb` triple *and* a separate `v2_perm` name, so the two can diverge.
 
 ```
 version 0.1
@@ -198,7 +204,13 @@ You do not need to include the compiled `.zed` schema in your PR — an automate
 
 ## Create custom roles
 
-Custom roles are collections of permissions created by organization administrators. Create a role using the RBAC v2 API:
+Custom roles are collections of permissions created by organization administrators.
+
+<Aside type="note" title="Who calls these APIs">
+  The role and role-binding APIs in this section and the next are shown so you can set up test fixtures — seeding a local or stage environment with the roles and bindings your `Check` calls need. In production, customers create roles and bindings themselves through the console. Your application should not be creating them at runtime; it reads authorization decisions through `Check`, `CheckForUpdate`, and `StreamedListObjects`.
+</Aside>
+
+Create a role using the RBAC v2 API:
 
 ```
 POST /api/rbac/v2/roles/
@@ -223,21 +235,9 @@ Each `application` / `resource_type` / `operation` triple corresponds to a permi
   In addition to custom roles, Kessel provides **seeded roles** (system-defined, not modifiable) and **platform roles** (internal aggregates for default bindings). See [Role types](/docs/building-with-kessel/concepts/rbac/#role-types) for details.
 </Aside>
 
-### Assign permissions to RHEL persona roles
-
-When onboarding new permissions, also add them to the RHEL persona-based roles so customers get a consistent cross-application experience without per-application role configuration:
-
-| RHEL Role | Scope | Typical mapping |
-|-----------|-------|-----------------|
-| RHEL Viewer | Read-only | `view` permissions |
-| RHEL Operator | Operational edits | `view` + `edit` permissions |
-| RHEL Administrator | Full access | All permissions |
-
-These roles are defined in the [`rhel.json` role file](https://github.com/project-kessel/rbac-config/tree/master/configs/prod/roles) in the rbac-config repository.
-
 ## Create role bindings
 
-A role binding grants a role's permissions to a subject (group or principal) on a specific resource (workspace or tenant). Create role bindings using the RBAC v2 API:
+A role binding grants a role's permissions to a subject (group or principal) on a specific resource (workspace or tenant). As with roles, the API below is most useful for seeding a test environment. Create role bindings using the RBAC v2 API:
 
 ```
 POST /api/rbac/v2/role-bindings:batchCreate/
@@ -270,16 +270,6 @@ These three relationships are what Kessel traverses when evaluating a `Check` ca
 <Aside type="caution">
   Always use Kessel's `Check` and `CheckForUpdate` APIs for authorization decisions. Do not query role bindings via the RBAC API and implement authorization logic in your application — Kessel is the single source of truth for authorization. It evaluates the full authorization graph including group membership, role inheritance, and workspace hierarchy.
 </Aside>
-
-### Bind to groups, not individuals
-
-Role bindings should target **groups** rather than individual principals:
-
-- Adding or removing users from a group automatically updates their access
-- One role binding serves all group members
-- Easier to audit — you can see at a glance what a team can access
-
-Reserve direct principal bindings for exceptional cases where a specific user needs unique access.
 
 ## Workspace hierarchy and permission inheritance
 
@@ -357,7 +347,9 @@ public type document {
 }
 ```
 
-Role bindings are still created on workspaces — there is no way to bind a role directly to a document. What native representation buys you is the ability to check against the resource itself and let Kessel resolve the workspace assignment and hierarchy walk:
+As [noted above](#rbacadd_permission--register-a-permission), a real schema would name these permissions `drive_document_view`, `drive_document_edit`, and `drive_document_delete`; the short names here are carried over from the `drive.ksl` example for consistency.
+
+Role bindings are still created on workspaces — today there is no way to bind a role directly to a document. What native representation buys you is the ability to check against the resource itself and let Kessel resolve the workspace assignment and hierarchy walk:
 
 ```go
 result, err := client.Check(ctx, &v1beta2.CheckRequest{
