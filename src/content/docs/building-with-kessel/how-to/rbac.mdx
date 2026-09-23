@@ -67,7 +67,7 @@ The key line `relation view: workspace.view_document` means: "a user can view th
 For new applications that do not have existing RBAC v1 permissions, use `@rbac.add_unified_permission`. This is the recommended extension for registering permissions — it generates a structured permission name from the application, resource, and verb, along with the wildcard permutations that make broad grants work. It is "unified" because the v1 and v2 names are the same, so there is only one name to maintain.
 
 ```
-version 0.2
+version 0.1
 namespace myservice
 
 import rbac
@@ -79,7 +79,7 @@ import rbac
 This creates permission names like `myservice_integration_view` and `myservice_integration_edit` that can be used in `Check` calls. These permissions are automatically threaded through the RBAC model — they can be granted via roles, bound through role bindings, and inherited through the workspace hierarchy.
 
 <Aside type="note">
-  `@rbac.add_unified_permission` works in both KSL **0.1** and **0.2** documents — you do not need to move to 0.2 to use it. `@rbac.add_permission`, shown above, is the low-level building block the other extensions are written in terms of. Prefer `@rbac.add_unified_permission` unless you need raw `add_permission` for a custom schema pattern.
+  `@rbac.add_permission`, shown above, is the low-level building block the other extensions are written in terms of. Prefer `@rbac.add_unified_permission` unless you need raw `add_permission` for a custom schema pattern.
 </Aside>
 
 See [Protect an Endpoint](/docs/building-with-kessel/how-to/protect-endpoint/#define-your-service-permissions) for a complete example of using `@rbac.add_unified_permission` in context.
