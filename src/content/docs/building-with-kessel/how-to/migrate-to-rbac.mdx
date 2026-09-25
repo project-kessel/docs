@@ -244,7 +244,7 @@ KSL provides two extensions for registering permissions. Which one you use depen
 | Extension | Use when | Generated names |
 |---|---|---|
 | [`@rbac.add_unified_permission`](/docs/building-with-kessel/how-to/rbac/#rbacadd_unified_permission--recommended-for-new-services) | New permissions, or an application with no existing RBAC v1 permissions. The recommended default for first-time adoption. | `myservice_integration_view` |
-| [`@rbac.add_v1_based_permission`](/docs/building-with-kessel/how-to/rbac/#rbacadd_v1_based_permission--v1-compatible-permissions-with-wildcards) | The application has existing RBAC v1 permissions with wildcard usage (e.g. `myapp:*:read`) that must keep working after migration. | `myservice_integration_view` plus the `_all_` wildcard variants |
+| [`@rbac.add_v1_based_permission`](/docs/building-with-kessel/how-to/rbac/#rbacadd_v1_based_permission--when-the-v1-and-v2-names-differ) | The application has existing RBAC v1 permissions whose names differ from the v2 names you want to expose (e.g. v1 `myapp:integration:read` → v2 `myservice_integration_view`). | `myservice_integration_view` as a compound over the v1 name and its `_all_` wildcard variants |
 
 Because you are not coming from RBAC v1, `@rbac.add_unified_permission` is almost always the right choice:
 
