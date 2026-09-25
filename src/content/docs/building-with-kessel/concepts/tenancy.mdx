@@ -184,16 +184,16 @@ Org-level permissions (like `notifications:notifications:read`) are bound to the
 
 ## Default Role Bindings
 
-When a tenant is created, Kessel automatically creates 6 default role bindings to bootstrap access control:
+When a tenant is created, Kessel automatically creates 6 default role bindings to bootstrap access control — one for each combination of the two default groups and the three scopes. Each binding uses the platform role for that pair, which aggregates the seeded roles belonging at that scope:
 
 | Scope | Subject | Role |
 |-------|---------|------|
-| Tenant | Admin Default Group | Org Admin role |
-| Tenant | Platform Default Group | User Access role |
-| Root Workspace | Admin Default Group | Workspace Admin role |
-| Root Workspace | Platform Default Group | User Access role |
-| Default Workspace | Admin Default Group | Workspace Admin role |
-| Default Workspace | Platform Default Group | User Access role |
+| Tenant | Admin Default Group | Admin tenant Platform Role |
+| Tenant | Platform Default Group | User tenant Platform Role |
+| Root Workspace | Admin Default Group | Admin root Platform Role |
+| Root Workspace | Platform Default Group | User root Platform Role |
+| Default Workspace | Admin Default Group | Admin default Platform Role |
+| Default Workspace | Platform Default Group | User default Platform Role |
 
 This ensures that:
 - Organization admins have full access across all scopes
