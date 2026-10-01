@@ -41,7 +41,7 @@ package:
                 **Default configuration:** 
                 - Use runtime-default TLS configuration for channel credential
                 - Python should enable use of single-threaded unary streams when asyncio is not used
-                - Otherwise, uses stock gRPC defaults (note: *no* keep alive)
+                - Otherwise, uses stock gRPC defaults, except HTTP/2 keepalive follows the [shared defaults across all languages](/docs/contributing/client-libraries/#defaults-across-all-languages)
       methods:
         - name: oauth2ClientAuthenticated
           description: Configures CallCredentials using the OAuth2 Client Credentials grant.
@@ -89,6 +89,28 @@ package:
           description: |
             Configures only a `ChannelCredentials` to secure communication with the server.
             The client is not authenticated.
+        - name: keepalive
+          description: |
+            Configures HTTP/2 keepalive overrides for this builder and returns it. See the
+            [shared defaults across all languages](/docs/contributing/client-libraries/#defaults-across-all-languages).
+          params:
+            - name: interval
+              type:
+                name: duration
+              optional: true
+              description: Keepalive probe interval, expressed using the language's idiomatic duration type.
+            - name: timeout
+              type:
+                name: duration
+              optional: true
+              description: Keepalive probe timeout, expressed using the language's idiomatic duration type.
+            - name: permitWithoutCalls
+              type:
+                name: boolean
+              optional: true
+              description: Whether keepalive probes are permitted when no RPC is active.
+          returns:
+            name: ClientBuilder
         - name: insecure
           description: Configures insecure communication with the server (e.g. for testing). Neither the client nor the server is authenticated.
         - name: build

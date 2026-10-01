@@ -104,10 +104,16 @@ The _suffixes_ of these imports SHOULD be consistent from language to language (
 
 #### Defaults (across all languages)
 
-- Deadlines, retries, load balancing, and other network level behavior MUST NOT be specified by the client defaults, and instead defined by the server and discovered by the client through [service config](https://github.com/grpc/proposal/blob/master/A2-service-configs-in-dns.md). This keeps each client consistent, and allows this to be managed centrally.
+- Deadlines, retries, load balancing, and other network-level behavior MUST NOT be specified by client defaults. They MUST be defined by the server and discovered by the client through [service config](https://github.com/grpc/proposal/blob/master/A2-service-configs-in-dns.md). This keeps each client consistent and allows this behavior to be managed centrally.
   - The standard gRPC mechanism for publishing service config via DNS TXT records is not practical for Kessel: in multicluster environments, Kessel does not control the authoritative nameserver for tenant clusters. The planned approach is to host a gateway-level HTTP endpoint that serves service config, which the `ClientBuilder` fetches and applies automatically using gRPC's pluggable resolver interface. This is not yet implemented, and current SDKs do not perform service config discovery.
   - Until service config discovery is available, clients SHOULD NOT hard-code deadlines, retry policies, or load balancing settings as a substitute.
-- One possible exception is [HTTP/2 Keepalive](https://grpc.io/docs/guides/keepalive/). This requires explicitly configuring the channel or stub on the client and is not available through service config.
+- [HTTP/2 keepalive](https://grpc.io/docs/guides/keepalive/) is an explicit client-side transport exception; it is not supplied through service config. All SDK-created channels MUST enable keepalive, whether the client is synchronous or asynchronous and whether the channel is secure or insecure.
+  - The default keepalive interval MUST be 45 seconds, the default acknowledgement timeout MUST be 10 seconds, and `permitWithoutCalls` MUST default to `true` so probes are permitted when no RPC is active.
+  - SDKs MUST allow an unlimited number of pings without data wherever the gRPC runtime supports disabling that limit. This runtime-specific setting MUST NOT be exposed as a portable public override.
+  - SDKs MUST provide typed, named overrides for `interval` and `timeout` (durations) and `permitWithoutCalls` (boolean), using idiomatic types and naming in each language. The canonical option names are `interval`, `timeout`, and `permitWithoutCalls`; raw gRPC channel-option APIs are not the portable contract.
+  - Each override MUST be optional. Omitted fields MUST retain their current values; repeated configuration MUST update only supplied fields, and an explicit `false` for `permitWithoutCalls` MUST be honored.
+- Keepalive probes test transport liveness on long-lived, reused channels. They are NOT RPC health checks, retry guarantees, or a guarantee that every load balancer's idle-connection timeout will be reset.
+- Endpoints and intermediaries MUST accept the configured cadence and pings when no RPC is active; otherwise, they MAY close the connection with GOAWAY (`too_many_pings`).
 
 #### Exceptions
 
