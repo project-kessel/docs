@@ -220,7 +220,7 @@ Every `{service}.{major_version}` package exposes a `ClientBuilder` class:
 ### Network Defaults and Service Config
 
 - Deadlines, retries, load balancing, and other network-level behavior must NOT be specified by client defaults. These must be defined by the server and discovered by the client through [gRPC service config](https://github.com/grpc/proposal/blob/master/A2-service-configs-in-dns.md).
-- HTTP/2 Keepalive is an exception -- it requires explicit client-side channel configuration and is not available through service config. The `ClientBuilder` default configuration does NOT include keep alive.
+- HTTP/2 keepalive is an exception -- it requires client-side channel configuration and is not available through service config. The `ClientBuilder` default configuration enables keepalive according to the [shared defaults across all languages](src/content/docs/contributing/client-libraries.mdx#defaults-across-all-languages).
 - The `dns://` URI scheme triggers DNS-based name resolution and service configuration discovery from TXT records. Omitting a scheme defaults to `dns`.
 
 ### Package Isolation
