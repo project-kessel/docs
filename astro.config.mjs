@@ -54,12 +54,14 @@ const baseStarlightConfig = {
       items: [
         {
           label: "How To",
+          collapsed: true,
           items: [
             { autogenerate: { directory: 'building-with-kessel/how-to' } },
           ]
         },
         {
           label: "Concepts",
+          collapsed: true,
           items: [
             { autogenerate: { directory: 'building-with-kessel/concepts' } },
           ],
@@ -98,6 +100,7 @@ const baseStarlightConfig = {
         'running-kessel/architecture',
         {
           label: "Monitoring Kessel",
+          collapsed: true,
           items: [
             { autogenerate: { directory: 'running-kessel/monitoring-kessel' } },
           ]
@@ -112,6 +115,7 @@ const baseStarlightConfig = {
         'contributing/client-libraries',
         {
           label: "Client API Reference",
+          collapsed: true,
           items: [
             { autogenerate: { directory: 'contributing/client-api' } },
           ]
