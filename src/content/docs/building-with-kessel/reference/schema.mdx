@@ -1,9 +1,230 @@
 ---
 title: Schema
-description: Kessel resource schema configuration reference.
+description: Kessel schema configuration reference.
 ---
 
-TODO:
+import { Aside, LinkCard } from '@astrojs/starlight/components';
 
-- Reference material for configuring schema (resource attributes, relationships, and extensions)
-- NOT a guide - terse reference
+Kessel's schema language declares resource types: the data a service reports about a resource, the resource's relationships to other resources, and the permissions that can be checked against it. Schema sources are written in a Starlark-based DSL and live in [starlark-unified-schema](https://github.com/project-kessel/starlark-unified-schema).
+
+This page describes the model the language expresses. Individual symbols — their names, signatures, and arguments — are documented in the [schema DSL API reference](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md), which is generated from the schema sources.
+For the task of working out which permissions a service needs and declaring them, see [Design permissions schema](/docs/building-with-kessel/how-to/design-permissions/). For how Kessel uses schema, see [Schema and extensibility](/docs/building-with-kessel/concepts/schema/).
+
+<Aside type="caution" title="Adoption is in progress">
+  Not every resource type is defined in this language yet. Hand-authored KSL and JSON Schema sources remain in [rbac-config](https://github.com/project-kessel/rbac-config) and [inventory-api](https://github.com/project-kessel/inventory-api). Resource types are cross-compatible, and KSL [extensions](#extensions) can be called from Starlark.
+</Aside>
+
+## Schema sources
+
+A schema is a set of resource type definitions associated with the services that report them.
+
+| Concept | Definition |
+|---------|------------|
+| **Reporting** | Telling Kessel about a new or changed resource.
+| **Reporter** | The service that reports a resource type. Every definition belongs to exactly one reporter. The reporter also names the namespace the definition's generated authorization output is written to. |
+| **Common representation** | Members shared by every reporter's definition of a type, describing the same real-world object regardless of which service reports it. Represented as a dict of fields. *(Correlation of representations on the basis of these members is planned, not yet implemented.)* |
+| **Reporter representation** | One reporter's view of a type: the common members plus the fields and permissions specific to that reporter. Represented as a resource type in schema. |
+
+Each source file `load`s the symbols it depends upon and adds to the schema by defining resource types, calling extension functions, or both.
+
+### `load`ing symbols
+
+Any symbol a source file depends upon that's defined in another source file must be `load`ed using the Starlark intrinsic `load` function.
+The load function accepts a file path that's relative to the root of the schema and one or more symbol names to load from that file. These become available as immutable file-scoped values.
+These values can also be aliased using `alias="symbolname"` notation in the load statement.
+
+Kessel schema DSL primitives are defined in `kessel.star` and are covered in detail in the [API reference](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#module-kessel-star)
+
+```python
+load("kessel.star", "resource", "field", "uuid", "text", "one")
+load("host/common_representation.star", common="host")
+load("workspace/reporters/rbac/workspace.star", "workspace")
+```
+
+## Extensions
+
+An extension is a function a reporter defines that "extends" its part of the schema by adding members to its resource types. This allows a reporter to scale to the needs of its dependents without opening its schema to direct modification.
+
+From the caller perspective, an extension is an ordinary Starlark function. It may return an **accessor** object that allows the caller to reference the added schema bits. 
+This is conventionally a function that can be called on one of the type's relation members. See specific extension's details in the [API reference](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md)
+
+Identical calls for the same reporter are deduplicated.
+
+```python
+load("extensions/rbac.star", "add_v1_based_permission")
+
+add_v1_based_permission("scheduler", "scheduler", "jobs", "cancel", "scheduler_job_cancel")
+
+# Calling the same extension function with the same arguments twice is equivalent to calling it once
+add_v1_based_permission("scheduler", "scheduler", "jobs", "read", "scheduler_job_view")
+add_v1_based_permission("scheduler", "scheduler", "jobs", "read", "scheduler_job_view")
+```
+
+### Accessors
+
+The schema members added by an extension conventionally end in a public permission that serves as an entrypoint for the dependent service. An **accessor** is a value, conventionally a function that takes one parameter (a relation of the type the entrypoint permission was added to),
+that acts as a bridge when referencing the permission from other permissions.
+
+```python
+load("extensions/rbac.star", "add_v1_based_permission")
+
+# Captures the accessor for later use
+scheduler_job_cancel = add_v1_based_permission("scheduler", "scheduler", "jobs", "cancel", "scheduler_job_cancel")
+```
+
+## Resource types
+
+A resource type declares:
+
+| Aspect | Definition |
+|--------|------------|
+| Reporter | The service reporting resources of the type |
+| Identifier type | The value data type of the resource's identifier |
+| Common members | The common representation dict, if used |
+| Fields | Data fields and relations that make up the reporter representation for this type |
+| Permissions | Computed members that represent the subjects authorized to perform each action |
+| Finality | Whether other types may inherit from this one. A final type cannot be inherited. Types that inherit from other types are always final. |
+
+
+```python
+load("kessel.star", "resource", "field", "uuid", "text", "one")
+load("extensions/rbac.star", "add_v1_based_permission")
+load("job/common_representation.star", common="")
+load("schedule/reporters/scheduler/schedule.star", "workspace")
+
+job_view = add_v1_based_permission("scheduler", "scheduler", "jobs", "read", "scheduler_job_view")
+
+job = resource("scheduler", id_type=uuid(), common=common, fields={
+    "workspace_id": one(workspace),
+    "name": field(type=text(maxLength=255), required=True),
+}, permissions={
+    "view": lambda j: job_view(j.workspace_id),
+})
+```
+
+See [API reference](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#kessel-star-resource) for full usage.
+
+### Inheritance
+
+A resource type may extend one other resource type, inheriting the ability to reference its members, though only its own members can be reported. An extending type has no independent identity: an instance of it always corresponds to an instance of the parent type with the same identifier.
+It's this parent instance that's referenced through inherited members.
+
+Inheritance is one level deep. An extending type is always final.
+
+### Fields
+
+The fields of a resource type are **data fields** and **relations**. Both are reported by the reporter and validated on submission.
+
+#### Data fields
+
+A data field is a primitive value the reporter wants to share with Kessel, such as a natural key that can be used with **correlation** in the future.
+
+Basic types are usable directly while others build on basic and other types:
+| Category | Data types |
+|----------|------------|
+| Basic | Text, optionally length- or pattern-constrained; UUID; numeric identifier, optionally range-constrained; boolean; timestamp |
+| Enum | Enumeration over a fixed set of strings |
+| Complex | Array of a single element type; nested object with its own properties |
+| Utility | Union of two alternatives, where a value must match exactly one; nullable wrapper |
+
+See [kessel.star](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#kessel-star) for complete list of types and usage.
+
+Each field is declared with the [**field**](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#kessel-star-field) function.
+
+```python
+load("kessel.star", "resource", "field", "uuid", "numeric_id", "one")
+load("extensions/rbac.star", "add_v1_based_permission")
+load("job/common_representation.star", common="")
+load("schedule/reporters/scheduler/schedule.star", "workspace")
+
+job_view = add_v1_based_permission("scheduler", "scheduler", "jobs", "read", "scheduler_job_view")
+
+job = resource("scheduler", id_type=uuid(), common=common, fields={
+    "workspace_id": one(workspace),
+    "job_number": field(type=numeric_id(), required=True), #Declares a required job_number field as a numeric id.
+}, permissions={
+    "view": lambda j: job_view(j.workspace_id),
+})
+```
+
+#### Relations
+
+Relations represent ways resources can be related to each other and can be thought of similarly to reference fields on classes. Relations are reported as identifiers of the target resource.
+
+Cardinality declares how many targets a reporter may supply:
+
+| Cardinality | Reported as |
+|-------------|-------------|
+| at_most_one | Zero or one identifier |
+| one | Exactly one identifier |
+| at_least_one | A non-empty list of identifiers |
+| many | A list of identifiers, possibly empty |
+| wildcard | A marker standing for every instance of the target type, in place of identifiers |
+| boolean | The same meaning as above, reported as a true/false value |
+
+Relations can also use the [**self**](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#self) metatype to relate to resources of the same type. This is used for modeling hierarchies. 
+
+## Permissions
+
+Where fields describe how a reporter reports a resource, permissions describe which subjects are allowed to perform an operation on the resource. Rather than being reported, this value is derived from a permission expression. 
+
+Reporters can use the Kessel API to check permissions on resources. For more information on using permissions as a reporter, see: [How-To: Protect an Endpoint](/docs/building-with-kessel/how-to/protect-endpoint.mdx)
+
+### Permission Expressions
+
+A permission expression is a Starlark lambda function that represents which subjects have the permission on a given resource as a function of that resource. This has two parts:
+* Traversing relations and other permissions and/or calling (accessor functions)[### Accessors] to find sets of subjects
+* Using set operations to combine those subject sets and express any additional access logic
+
+If a resource is directly related to subjects, that relation can be used directly in permission expressions. Otherwise, subjects are accessed through other permissions for the same subject type.
+
+Common set operations are available to merge subject sets and express access rules:
+
+| Operation | Logical Operation | A subject has access when..
+|-----------|-------------------|---------------------------------|
+| union | Or | On either side |
+| intersect | And  | On both sides |
+| exclude | Unless | On the left and not on the right |
+
+**any** and **all** are also available to union or intersect multiple subject sets, respectively.
+
+```python
+# Example here
+```
+
+## Generated artifacts
+
+
+
+## See also
+
+<LinkCard
+  title="Schema DSL API reference"
+  description="Generated reference for every symbol in the schema language, kept in sync with the sources."
+  href="https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md"
+  target="_blank"
+/>
+
+<LinkCard
+  title="Design permissions schema"
+  description="Work from your API's endpoints to a schema you can submit."
+  href="/docs/building-with-kessel/how-to/design-permissions/"
+/>
+
+<LinkCard
+  title="Add a new resource type"
+  description="Model and report the resources a schema describes."
+  href="/docs/building-with-kessel/how-to/add-resource-type/"
+/>
+
+<LinkCard
+  title="Relationships and permissions"
+  description="How the authorization graph is traversed to answer an access check."
+  href="/docs/building-with-kessel/concepts/relationships-permissions/"
+/>
+
+<LinkCard
+  title="Glossary"
+  description="Definitions of the core terms used across the Kessel documentation."
+  href="/docs/building-with-kessel/reference/glossary/"
+/>
