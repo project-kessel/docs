@@ -162,7 +162,7 @@ See [kessel.star](https://github.com/project-kessel/starlark-unified-schema/blob
 Each field is declared with the [`field`](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#kessel-star-field) function, which wraps a data type and records whether reporting it is mandatory.
 
 ```python
-load("kessel.star", "resource", "field", "uuid", "text")
+load("kessel.star", "resource", "field", "uuid", "text", "one")
 load("extensions/rbac.star", "add_v1_based_permission")
 load("workspace/reporters/rbac/workspace.star", "workspace")
 
