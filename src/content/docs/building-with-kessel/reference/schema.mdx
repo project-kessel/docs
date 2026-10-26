@@ -12,7 +12,9 @@ This page describes the model the language expresses. Individual symbols — the
 To work out which permissions your service needs and declare them, see [Design permissions schema](/docs/building-with-kessel/how-to/design-permissions/). For how Kessel uses schema, see [Schema and extensibility](/docs/building-with-kessel/concepts/schema/).
 
 <Aside type="caution" title="Adoption is in progress">
-  Not every resource type is defined in this language yet. Hand-authored KSL and JSON Schema sources remain in [rbac-config](https://github.com/project-kessel/rbac-config) and [inventory-api](https://github.com/project-kessel/inventory-api). The two formats interoperate, and KSL [extensions](#extensions) can be called from Starlark.
+  This schema language is a work in progress, and the previous-gen KSL and JSONSchema formats may still be in use by some services. Services newly adopting Kessel should start with this language if possible, and services using the previous-gen formats should migrate to this language when possible.
+  
+  To ease gradual adoption, the two generations interoperate: types defined in this language can be referenced in KSL, and KSL [extensions](#extensions) can be called from this language. 
 </Aside>
 
 ## Schema sources
