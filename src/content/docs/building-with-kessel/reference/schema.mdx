@@ -5,9 +5,9 @@ description: Kessel schema configuration reference.
 
 import { Aside, LinkCard } from '@astrojs/starlight/components';
 
-Kessel's schema language declares resource types. For each type it describes the data a service reports about a resource, the resource's relationships to other resources, and the permissions that can be checked against it. Schema sources are written in a Starlark-based DSL and live in [starlark-unified-schema](https://github.com/project-kessel/starlark-unified-schema).
+Kessel's schema language declares resource types. For each type it describes the data a service reports about a resource, the resource's relationships to other resources, and the permissions that can be checked against it. Schema sources are written in a schema language based on the [Starlark](https://starlark-lang.org/) configuration and scripting language, and they live in [starlark-unified-schema](https://github.com/project-kessel/starlark-unified-schema).
 
-This page describes the model the language expresses. Individual symbols — their names, signatures, and arguments — are documented in the [schema DSL API reference](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md), which is generated from the schema sources.
+This page describes the model the language expresses. Individual symbols — their names, signatures, and arguments — are documented in the [Schema API reference](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md), which is generated from the schema sources.
 
 To work out which permissions your service needs and declare them, see [Design permissions schema](/docs/building-with-kessel/how-to/design-permissions/). For how Kessel uses schema, see [Schema and extensibility](/docs/building-with-kessel/concepts/schema/).
 
@@ -34,7 +34,7 @@ Any symbol a source file depends upon that is defined in another source file mus
 
 `load` takes a file path relative to the root of the schema directory followed by one or more symbol names to import from that file. The imported symbols become immutable file-scoped values. A symbol can be bound to a different name with the form: `local_name="exported_name"`.
 
-Kessel schema DSL primitives are defined in `kessel.star` and are covered in detail in the [API reference](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#module-kessel-star).
+Kessel schema primitives are defined in `kessel.star` and are covered in detail in the [API reference](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#module-kessel-star).
 
 ```python
 load("kessel.star", "resource", "field", "uuid", "text", "one")
@@ -252,7 +252,7 @@ Pull requests are then automatically created into the respective repositories on
 ## See also
 
 <LinkCard
-  title="Schema DSL API reference"
+  title="Schema API reference"
   description="Generated reference for every symbol in the schema language, kept in sync with the sources."
   href="https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md"
   target="_blank"
