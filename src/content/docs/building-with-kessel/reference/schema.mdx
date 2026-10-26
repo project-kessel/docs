@@ -242,14 +242,23 @@ document = resource("drive", id_type=uuid(), final=True, fields={
 
 ## Generated artifacts
 
-In order to interoperate with the older model during the migration process, Kessel schema files are transpiled down to KSIL and JSONSchema files compatible with that model which get packaged into releases.
+Once a pull request is merged to the [starlark-unified-schema](https://github.com/project-kessel/starlark-unified-schema) repository, the service team's responsibility is done, but the schema isn't live yet.
 
-Pull requests are then automatically created into the respective repositories on a schedule. This does not happen immediately. 
+In order to interoperate with the previous-gen formats during the migration process, Kessel schema files are transpiled down to those formats. These files are then packaged into releases.
+
+Pull requests are automatically created into the respective repositories on a schedule. This does not happen immediately. 
 
 | Artifact | Format | Repository | Purpose |
 |----------|--------|-------------|---------|
 | JSON Schema | Draft-07, one file per representation | [inventory-api](https://github.com/project-kessel/inventory-api) | Represents the data shape reporters are expected to send |
 | KSIL | JSON, one file per reporter namespace | [rbac-config](https://github.com/project-kessel/rbac-config) | Input to the `ksl` compiler, which produces the backend Zanzibar schema used to evaluate access |
+
+Those pull requests are then merged by the Kessel team when ready and have subsequent team-specific promotion processes. 
+
+| Artifact | Format | Repository | Promotion Schedule |
+|----------|--------|-------------|---------|
+| JSON Schema | Draft-07, one file per representation | [inventory-api](https://github.com/project-kessel/inventory-api) | Weekly, at the start of the week |
+| KSIL | JSON, one file per reporter namespace | [rbac-config](https://github.com/project-kessel/rbac-config) | Weekly, see [README](https://github.com/project-kessel/rbac-config/blob/master/README.md) |
 
 ## See also
 
