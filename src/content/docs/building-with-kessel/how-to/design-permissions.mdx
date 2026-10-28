@@ -1,8 +1,239 @@
 ---
-title: Design permissions schema
-description: How to design schema to handle common authorization concerns.
+title: Add a permission
+description: Name a permission, register it with RBAC and in schema, and attach it to a workspaced resource type.
 sidebar:
   order: 20
 ---
 
-TODO: Guide to designing permissions with RBAC for common scenarios, with some opinionated guidance based on RBAC conventions.
+import { Aside, Steps, LinkCard } from '@astrojs/starlight/components';
+
+This guide adds a permission to Kessel, end to end: how administrators assign the permission, how it's evaluated, and how your service checks it. Repeat it for each permission your service needs.
+
+For the model the schema language expresses, see the [Schema reference](/docs/building-with-kessel/reference/schema/). For individual symbols and their signatures, see the generated [Schema API reference](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md).
+
+## Before you start
+
+- Know your **reporter name** — the short name of the service that reports the resources. This will be used in your schema and in requests to the Kessel API.
+- Have local clones of [starlark-unified-schema](https://github.com/project-kessel/starlark-unified-schema) and [rbac-config](https://github.com/project-kessel/rbac-config). A permission needs work in both.
+
+The examples use a document service whose reporter name is `drive`.
+
+## Name the permission
+
+A permission has both user-facing and service-facing representations.
+
+| Name | Audience | Form | Example |
+|------|-------------|------|---------|
+| **User-facing** | Customers, when granting access | application, resource, and verb triple | `drive:documents:read` |
+| **Service-facing** | Service developers, the Kessel API | `{reporter}_{resource}_{operation}` | `drive_document_view` |
+
+### Choose the service-facing name
+
+This is technical vocabulary: it names a specific logical operation in a way developers for the service recognize.
+
+It conventionally has three parts:
+- **reporter** — your service or reporter name.
+- **resource** — what your team calls the resource the permission applies to. Conventionally a singular noun.
+- **operation** — what your team calls the operation. A good operation name makes it clear to service developers which endpoint(s) it applies to and isn't tied to the user-facing verb selected in the next step.
+
+### Choose the user-facing names
+
+This uses product vocabulary and should be recognizable by product administrators.
+
+- **app** — the user-facing name of your service. This should match what users call the product or service where it's used. It must also match the name of a permissions file in rbac-config, minus the `.json` extension.
+- **resource** — **plural**, and a noun your users call the resource the permission applies to.
+- **verb** — one of the values in the `verb` enum in [`schemas/permissions.schema`](https://github.com/project-kessel/rbac-config/blob/master/schemas/permissions.schema#L11). This is the operation users will select to grant the permission.
+
+One user-facing permission can grant multiple service-facing permissions. This allows service-facing names to be more granular.
+
+## Register the user-facing names with RBAC
+
+The permissions that can be assigned via RBAC are configured separately from the schema, in the [rbac-config](https://github.com/project-kessel/rbac-config) repository. 
+
+If this is a new combination of user-facing names, create or update `configs/stage/permissions/<app>.json`, where the file name is the app, the top-level keys are resources, and each resource holds the list of verbs available on it.
+
+```json title="configs/stage/permissions/drive.json"
+{
+    "documents": [
+        { "verb": "read" },
+        { "verb": "write" },
+        { "verb": "*" }
+    ],
+    "*": [
+        { "verb": "*" }
+    ]
+}
+```
+
+<Steps>
+
+1. **Create the permissions file if it does not already exist** at the path `configs/stage/permissions/<app>.json`. Include a global wildcard if desired, which will allow users to be granted all permissions on all resources for the application. (See above.)
+
+2. **Add the resource key** if this is the first permission for that resource, with a JSON array as the value. Include a wildcard verb if desired, this will allow administrators to grant all permissions, including future ones, with as a single assignment. ex: `"documents": [ {"verb": "*"} ]`
+
+3. **Add the verb** for your permission, using the form `{ "verb": "read" }`, to the array of verbs for the resource.
+
+4. **Open a pull request** into [rbac-config](https://github.com/project-kessel/rbac-config) to start the process of getting this configuration into Stage.
+
+</Steps>
+
+<Aside type="danger" title="The two registrations must agree exactly">
+  The `app`, `resource`, and `verb` you used in the previous step are the same strings you pass to the schema extension in the next step and must match exactly.
+</Aside>
+
+## Declare the permission in schema
+
+Register the permission by calling an [extension](/docs/building-with-kessel/reference/schema/#extensions) function in [starlark-unified-schema](https://github.com/project-kessel/starlark-unified-schema). Put the call in your resource type's file, `schema/<type>/reporters/<reporter>/<type>.star`, or — if your service has no reported resource type — in a per-app file at the top of `schema/`, such as `schema/drive.star`.
+
+Pick the extension that fits:
+
+| Extension | Use when |
+|-----------|----------|
+| [`add_v1_based_permission`](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#extensions-rbac-star-add-v1-based-permission) | Used most often. Maps from a user-facing triple to a service-facing permission. |
+| [`add_unified_permission`](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#extensions-rbac-star-add-unified-permission) | Used if the service-facing permission name happens to equal the the user-facing triple in the form `{app}_{resource}_{verb}` exactly. |
+| [`add_contingent_permission`](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#extensions-rbac-star-add-contingent-permission) | The permission only applies where the subject also holds another permission. See below. |
+
+### Register with add_v1_based_permission
+
+Pass the user-facing and service-facing names separately. This creates the mapping between the user-facing and service-facing names.
+
+```python
+load("extensions/rbac.star", "add_v1_based_permission")
+
+add_v1_based_permission("drive", "drive", "documents", "read", "drive_document_view")
+add_v1_based_permission("drive", "drive", "documents", "write", "drive_document_update")
+add_v1_based_permission("drive", "drive", "documents", "write", "drive_document_delete")
+```
+
+Note that both `drive_document_update` and `drive_document_delete` service-facing names are based on the same `drive:documents:write` user-facing name. This allows both API-aligned permissions to be based on the same user-facing grant.
+
+See [add_v1_based_permission](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#extensions-rbac-star-add-v1-based-permission) for usage details.
+
+
+### Register with add_unified_permission
+
+If the user-facing resource name is pre-existing and already singular, and the verb is already the operation you would have chosen, using `add_v1_based_permission` would cause a name collision. Use `add_unified_permission` instead:
+
+```python
+load("extensions/rbac.star", "add_unified_permission")
+
+add_unified_permission("drive", "drive", "job", "execute")
+```
+
+This registers the permission with the user-facing triple `drive:job:execute` and the permission name `drive_job_execute`.
+
+See [add_unified_permission](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#add_unified_permission) for usage details.
+
+### Predicate one permission on another
+
+Some permissions should only apply where the subject can also do something else. This is common when a service is providing permissions to be used against another service's resources rather than reporting those resources itself. Consider if an annotation service wanted to register a permission to view annotations that only applies to workspaces where the user can also view documents.
+
+In this case, register a placeholder permission with an `_assigned` suffix using one of the extensions above. This represents your permission being assigned but not necessarily granted.
+
+Then register the service-facing permission as contingent on both the `_assigned` placeholder and another permission being available.
+
+```python
+load("extensions/rbac.star", "add_v1_based_permission", "add_contingent_permission")
+
+add_v1_based_permission("annotations", "annotations", "annotations", "read", "annotations_annotation_view_assigned")
+add_contingent_permission("annotations", "annotations_annotation_view_assigned", "drive_document_view", "annotations_annotation_view")
+```
+
+`annotations_annotation_view` is now only available on workspaces where the subject holds both `annotations_annotation_view_assigned` and `drive_document_view`.
+
+If your resources are reported to Kessel Inventory, you can go one step further and define permission fields on the resource itself that can be checked through the Kessel API.
+
+## Attach the permission to a workspaced resource
+
+The extensions discussed above return an [accessor](/docs/building-with-kessel/reference/schema/#accessors): a function that gets the subjects with the permission it created from a workspace relation. These can be used in [permission expressions](/docs/building-with-kessel/reference/schema/#permission-expressions) to tie a named permission on the resource to an RBAC permission on the workspace.
+
+<Steps>
+
+1. **Capture the accessor** in a variable. Name the variable after the permission so the expressions below read clearly.
+
+2. **Ensure the resource type is related to a workspace** — conventionally by a `one(workspace)` field, reported alongside the resource's data.
+
+3. **Define a permission per logical operation against the resource** -  these are often but not necessarily 1:1 with service-facing permissions. Multiple resource permissions may reference the same service-facing permission.
+
+</Steps>
+
+```python
+load("kessel.star", "resource", "field", "uuid", "text", "one")
+load("extensions/rbac.star", "add_v1_based_permission")
+load("workspace/reporters/rbac/workspace.star", "workspace")
+
+drive_document_view = add_v1_based_permission("drive", "drive", "documents", "read", "drive_document_view")
+drive_document_update = add_v1_based_permission("drive", "drive", "documents", "write", "drive_document_update")
+drive_document_delete = add_v1_based_permission("drive", "drive", "documents", "write", "drive_document_delete")
+
+document = resource("drive", id_type=uuid(), final=True, fields={
+    "workspace": one(workspace),
+}, permissions={
+    "view": lambda d: drive_document_view(d.workspace),
+    "update": lambda d: drive_document_update(d.workspace),
+    "delete": lambda d: drive_document_delete(d.workspace),
+})
+```
+
+Each permission field represents the subjects allowed to perform that operation on that resource. Most simply call a permission accessor on the workspace the resource is currently in, as shown here.
+
+This way, you can send `Check` requests about a specific resource with its id rather than checking the workspace it's in. This also allows a resource to encapsulate application-specific access logic if desired. See [permission expressions](/docs/building-with-kessel/reference/schema/#permission-expressions) for details.
+
+<Aside type="note" title="">
+  Avoid using `.intersect` to required two registered permissions in a resource permission. Instead, favor contingent permissions as these are reflected on the workspace as well. This ensures your permission is compatible with the coarse-grained pre-filtering pattern described in [protect a list endpoint](/docs/building-with-kessel/how-to/protect-list/#coarse-grained-workspace-level-filtering).
+</Aside>
+
+## Verify and submit
+
+<Steps>
+
+1. **Compile the schema.** From your starlark-unified-schema clone, with `JSONSCHEMA_OUTPUT_DIR` and `KSL_OUTPUT_DIR` set in `.env`:
+
+    ```bash
+    make build-schema
+    ```
+
+    Ensure there are no compilation errors.
+
+2. **Open a pull request against starlark-unified-schema** containing only your `.star` sources. Merging publishes a release; pull requests carrying the generated artifacts into `inventory-api` and `rbac-config` are raised on a schedule. See [Generated artifacts](/docs/building-with-kessel/reference/schema/#generated-artifacts).
+
+</Steps>
+
+Updates are not immediate: the permission is not checkable until both changes land and promote, so submit them ahead of the service code that depends on them.
+
+## Use the permission
+
+Once the permission is registered and promoted, any service can ask whether a subject holds it on a workspace. Pass the service-facing permission name as the relation:
+
+<LinkCard
+  title="Protect an endpoint"
+  description="Check the permission before serving a request."
+  href="/docs/building-with-kessel/how-to/protect-endpoint/"
+/>
+
+<LinkCard
+  title="Protect a list endpoint"
+  description="List the workspaces where the subject holds the permission, and filter on them."
+  href="/docs/building-with-kessel/how-to/protect-list/"
+/>
+
+
+## Next steps
+
+<LinkCard
+  title="Manage access with RBAC"
+  description="Create the roles and role bindings that grant the permission you just added."
+  href="/docs/building-with-kessel/how-to/rbac/"
+/>
+
+<LinkCard
+  title="Add a new resource type"
+  description="Report the resources your permissions apply to."
+  href="/docs/building-with-kessel/how-to/add-resource-type/"
+/>
+
+<LinkCard
+  title="Schema reference"
+  description="The model the schema language expresses, symbol by symbol."
+  href="/docs/building-with-kessel/reference/schema/"
+/>
