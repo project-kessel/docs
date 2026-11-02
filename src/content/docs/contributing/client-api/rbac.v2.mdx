@@ -28,7 +28,7 @@ package:
         Fetches the root workspace for the specified organization.
         This function queries RBAC v2 to find the root workspace for the given orgId.
 
-        GET /api/rbac/v2/workspaces/?type=root
+        GET /api/rbac/v2/workspaces/?type=root&with_ancestry=true
 
         Example:
 
@@ -86,6 +86,23 @@ package:
             will be used and thus we will only support the default or most used client. e.g. python will
             support `requests` and any requests-compatible client. Node.js will support the `fetch` API and Go will
             only use `http.Client`.
+        - name: withAncestry
+          type:
+            name: boolean
+          optional: true
+          description: |
+            When `true` (the SDK default), sends `with_ancestry=true` in the query string,
+            which includes ancestor workspaces for tree navigation and fallback workspaces
+            (root, default, ungrouped) when the user has no explicit Inventory permission
+            grant. When `false`, the query parameter is omitted and only workspaces with an
+            explicit Inventory permission are returned.
+
+            Note: the RBAC API itself defaults `with_ancestry` to `false`; the SDK helpers
+            default to sending `true`.
+
+            In Go and Node the flag is inverted: setting `DisableAncestry: true` (Go) or
+            `disableAncestry: true` (Node) omits `with_ancestry` from the request, which is
+            equivalent to `withAncestry: false` in the canonical API.
       returns:
         name: Workspace
         link: "#class-Workspace"
@@ -97,7 +114,7 @@ package:
         Fetches the default workspace for the specified organization.
         This function queries RBAC v2 to find the default workspace for the given orgId.
 
-        GET /api/rbac/v2/workspaces/?type=default
+        GET /api/rbac/v2/workspaces/?type=default&with_ancestry=true
 
         Example:
 
@@ -155,6 +172,23 @@ package:
             will be used and thus we will only support the default or most used client. e.g. python will
             support `requests` and any requests-compatible client. Node.js will support the `fetch` API and Go will
             only use `http.Client`.
+        - name: withAncestry
+          type:
+            name: boolean
+          optional: true
+          description: |
+            When `true` (the SDK default), sends `with_ancestry=true` in the query string,
+            which includes ancestor workspaces for tree navigation and fallback workspaces
+            (root, default, ungrouped) when the user has no explicit Inventory permission
+            grant. When `false`, the query parameter is omitted and only workspaces with an
+            explicit Inventory permission are returned.
+
+            Note: the RBAC API itself defaults `with_ancestry` to `false`; the SDK helpers
+            default to sending `true`.
+
+            In Go and Node the flag is inverted: setting `DisableAncestry: true` (Go) or
+            `disableAncestry: true` (Node) omits `with_ancestry` from the request, which is
+            equivalent to `withAncestry: false` in the canonical API.
       returns:
         name: Workspace
         link: "#class-Workspace"
