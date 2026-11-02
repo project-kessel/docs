@@ -103,6 +103,23 @@ package:
             In Go and Node the flag is inverted: setting `DisableAncestry: true` (Go) or
             `disableAncestry: true` (Node) omits `with_ancestry` from the request, which is
             equivalent to `withAncestry: false` in the canonical API.
+        - name: timeout
+          type:
+            name: "number | (number, number) | None"
+          optional: true
+          description: |
+            HTTP connect and read timeout for the workspace fetch request, used to prevent
+            indefinite hangs against a slow or unresponsive RBAC endpoint.
+
+            In Python, accepts a `(connect, read)` tuple of seconds or a single float applied
+            to both. When omitted, the SDK default `DEFAULT_TIMEOUT` of `(5.0, 30.0)`
+            (5 s connect / 30 s read) is used. Pass `None` explicitly to disable the timeout
+            entirely (matching `requests` library semantics).
+
+            Language notes: currently exposed as an optional parameter in the Python SDK.
+            Go prefers propagating a caller `context.Context` deadline on the HTTP request
+            rather than a dedicated timeout argument; other language SDKs should follow the
+            idiomatic timeout/deadline mechanism for their HTTP client.
       returns:
         name: Workspace
         link: "#class-Workspace"
@@ -189,11 +206,28 @@ package:
             In Go and Node the flag is inverted: setting `DisableAncestry: true` (Go) or
             `disableAncestry: true` (Node) omits `with_ancestry` from the request, which is
             equivalent to `withAncestry: false` in the canonical API.
+        - name: timeout
+          type:
+            name: "number | (number, number) | None"
+          optional: true
+          description: |
+            HTTP connect and read timeout for the workspace fetch request, used to prevent
+            indefinite hangs against a slow or unresponsive RBAC endpoint.
+
+            In Python, accepts a `(connect, read)` tuple of seconds or a single float applied
+            to both. When omitted, the SDK default `DEFAULT_TIMEOUT` of `(5.0, 30.0)`
+            (5 s connect / 30 s read) is used. Pass `None` explicitly to disable the timeout
+            entirely (matching `requests` library semantics).
+
+            Language notes: currently exposed as an optional parameter in the Python SDK.
+            Go prefers propagating a caller `context.Context` deadline on the HTTP request
+            rather than a dedicated timeout argument; other language SDKs should follow the
+            idiomatic timeout/deadline mechanism for their HTTP client.
       returns:
         name: Workspace
         link: "#class-Workspace"
         description: |
-          A Workspace object representing the root workspace for the organization.
+          A Workspace object representing the default workspace for the organization.
 
     - name: workspaceType
       description: |
