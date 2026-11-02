@@ -105,7 +105,7 @@ package:
             equivalent to `withAncestry: false` in the canonical API.
         - name: timeout
           type:
-            name: "number | (number, number)"
+            name: "number | (number, number) | None"
           optional: true
           description: |
             HTTP connect and read timeout for the workspace fetch request, used to prevent
@@ -208,7 +208,7 @@ package:
             equivalent to `withAncestry: false` in the canonical API.
         - name: timeout
           type:
-            name: "number | (number, number)"
+            name: "number | (number, number) | None"
           optional: true
           description: |
             HTTP connect and read timeout for the workspace fetch request, used to prevent
