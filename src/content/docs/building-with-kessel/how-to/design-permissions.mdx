@@ -69,7 +69,7 @@ If this is a new combination of user-facing names, create or update `configs/sta
 
 1. **Create the permissions file if it does not already exist** at the path `configs/stage/permissions/<app>.json`. Include a global wildcard if desired, which will allow users to be granted all permissions on all resources for the application. (See above.)
 
-2. **Add the resource key** if this is the first permission for that resource, with a JSON array as the value. Include a wildcard verb if desired, this will allow administrators to grant all permissions, including future ones, with as a single assignment. ex: `"documents": [ {"verb": "*"} ]`
+2. **Add the resource key** if this is the first permission for that resource, with a JSON array as the value. Include a wildcard verb if desired, this will allow administrators to grant all permissions, including future ones, with a single assignment. ex: `"documents": [ {"verb": "*"} ]`
 
 3. **Add the verb** for your permission, using the form `{ "verb": "read" }`, to the array of verbs for the resource.
 
@@ -90,7 +90,7 @@ Pick the extension that fits:
 | Extension | Use when |
 |-----------|----------|
 | [`add_v1_based_permission`](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#extensions-rbac-star-add-v1-based-permission) | Used most often. Maps from a user-facing triple to a service-facing permission. |
-| [`add_unified_permission`](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#extensions-rbac-star-add-unified-permission) | Used if the service-facing permission name happens to equal the the user-facing triple in the form `{app}_{resource}_{verb}` exactly. |
+| [`add_unified_permission`](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#extensions-rbac-star-add-unified-permission) | Used if the service-facing permission name happens to equal the user-facing triple in the form `{app}_{resource}_{verb}` exactly. |
 | [`add_contingent_permission`](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#extensions-rbac-star-add-contingent-permission) | The permission only applies where the subject also holds another permission. See below. |
 
 ### Register with add_v1_based_permission
@@ -180,7 +180,7 @@ Each permission field represents the subjects allowed to perform that operation 
 This way, you can send `Check` requests about a specific resource with its id rather than checking the workspace it's in. This also allows a resource to encapsulate application-specific access logic if desired. See [permission expressions](/docs/building-with-kessel/reference/schema/#permission-expressions) for details.
 
 <Aside type="note" title="">
-  Avoid using `.intersect` to required two registered permissions in a resource permission. Instead, favor contingent permissions as these are reflected on the workspace as well. This ensures your permission is compatible with the coarse-grained pre-filtering pattern described in [protect a list endpoint](/docs/building-with-kessel/how-to/protect-list/#coarse-grained-workspace-level-filtering).
+  Avoid using `.intersect` to require two registered permissions in a resource permission. Instead, favor contingent permissions as these are reflected on the workspace as well. This ensures your permission is compatible with the coarse-grained pre-filtering pattern described in [protect a list endpoint](/docs/building-with-kessel/how-to/protect-list/#coarse-grained-workspace-level-filtering).
 </Aside>
 
 ## Verify and submit
@@ -198,7 +198,7 @@ This way, you can send `Check` requests about a specific resource with its id ra
 
 3. **Add your KSIL output files to the KSL_RELEASE_FILES allowlist** in the [schema makefile](https://github.com/project-kessel/starlark-unified-schema/blob/main/Makefile#L14) if new
 
-3. **Open a pull request against [starlark-unified-schema](https://github.com/project-kessel/starlark-unified-schema/)** containing your `.star` sources and makefile changes if any. 
+4. **Open a pull request against [starlark-unified-schema](https://github.com/project-kessel/starlark-unified-schema/)** containing your `.star` sources and makefile changes if any. 
 
    Merging publishes a release; pull requests carrying the generated artifacts into `inventory-api` and `rbac-config` are raised on a schedule. See [Generated artifacts](/docs/building-with-kessel/reference/schema/#generated-artifacts).
 
@@ -208,8 +208,13 @@ Updates are not immediate: the permission is not checkable until both changes la
 
 ## Use the permission
 
-Once the permission is registered and promoted, any service can ask whether a subject holds it on a workspace. Pass the service-facing permission name as the relation:
+Once the permission is registered and promoted, any service can reference it in Check and StreamedListObjects requests. 
 
+When referencing the permission on workspaces, use the fully qualified service-facing name. 
+
+When referencing permissions on a workspaced resource, use the name from the `permissions` map declared on the resource type.
+
+For details on checking permissions through the Kessel API see:
 <LinkCard
   title="Protect an endpoint"
   description="Check the permission before serving a request."
