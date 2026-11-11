@@ -72,17 +72,28 @@ All three services are reporting about the **same document**, but each has diffe
 ```mermaid
 graph LR
     Doc["Document Resource<br/>project-proposal.pdf"]
-    
+
     Doc --> Common["Common<br/>Representation"]
     Doc --> Content["Content Management<br/>Representation"]
     Doc --> Security["Security<br/>Representation"]
-    
+
     Common --> C1["title<br/>workspace_id"]
     Content --> CM1["author<br/>version<br/>last_modified"]
     Security --> S1["classification<br/>encrypted"]
 ```
 
 Each representation has its own schema defining valid attributes. When a service calls `ReportResource`, it specifies which representation it is updating.
+
+## Updating Representations
+
+Representations are updated in two ways, and the difference matters:
+
+- **Full snapshot.** `ReportResource` replaces the entire representation. Any field not included in the request is removed. Use it when your service has a complete view of the resource and wants to assert its full state.
+- **Partial update.** The `AddResourceRelationships` and `RemoveResourceRelationships` APIs change only the named relationship values; every other field is left untouched. Use them when exactly one thing changed, for example a resource moved to a different workspace, and re-sending the rest of the representation would be wasteful or risky (your service may not own all of the data).
+
+Use caution - the two styles do not mix blindly: a snapshot that does not capture the full current state of the resource silently removes any relationship values that were added through partial updates. This bites services that do not track every change, and resources that more than one service updates.
+
+Because partial updates target relationships specifically, they are also the natural mechanism for high-frequency relationship churn: a snapshot requires the caller to reconstruct and resend the full representation on every change, while a partial update names only the values that changed. See [Update relationships](/building-with-kessel/how-to/update-relationships/) for the how-to.
 
 ## Why Share Data with Kessel?
 

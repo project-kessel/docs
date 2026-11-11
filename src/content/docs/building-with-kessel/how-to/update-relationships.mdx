@@ -1,0 +1,89 @@
+---
+title: Update relationships
+description: "Change specific relationships on a resource without re-reporting its full representation, using the AddResourceRelationships and RemoveResourceRelationships APIs."
+sidebar:
+  order: 31
+---
+
+import { Aside, LinkCard } from "@astrojs/starlight/components";
+import CodeExamples from "src/components/CodeExamples.astro";
+
+export const files = import.meta.glob("/src/examples/relationships/example.*", { query: "?raw", eager: true, import: "default" });
+
+This guide shows you how to add and remove specific relationships on a resource that has already been reported to Kessel, without re-sending its entire representation.
+
+# Updating Relationships
+
+Relationships connect a resource to other resources, for example which workspace a document belongs to or which account pays for a service. When only a relationship changes, you do not need to re-report the whole resource. Kessel provides two endpoints for targeted relationship updates:
+
+- **`AddResourceRelationships`** adds the named relationship values, leaving every other field untouched
+- **`RemoveResourceRelationships`** removes the named relationship values, leaving every other field untouched
+
+## Full snapshot vs. partial update
+
+[`ReportResource`](/building-with-kessel/how-to/report-resources/) and the relationship endpoints differ in one critical way:
+
+| | `ReportResource` | `AddResourceRelationships` / `RemoveResourceRelationships` |
+|---|---|---|
+| **Semantics** | Full snapshot (replaces the entire representation) | Partial (changes only the named relationship values) |
+| **Unmentioned fields** | Removed | Left untouched |
+| **Resource does not exist** | Created | `Add` creates it with the provided relationship values; `Remove` returns `NOT_FOUND` |
+| **Fields accepted** | All fields in the schema | Relationship fields only |
+
+Use `ReportResource` when your service has a complete view of the resource and wants to assert its full state. Use the relationship endpoints when you know exactly which relationship values changed, for example a workspace move or a preference that was toggled in your UI.
+
+<Aside type="danger">
+  Because <code>ReportResource</code> replaces the entire representation, a report that does not capture the full current state of the resource will silently remove relationship values that were added through <code>AddResourceRelationships</code>. This is easy to hit when your service does not track every relationship change, or when other services update the same resource between your reads and writes. Be explicit about which update style your integration needs: if you cannot reconstruct the complete current state at report time, apply relationship changes through the delta endpoints instead.
+</Aside>
+
+## Adding relationships
+
+The request names the resource directly with `type`, `reporterType`, `reporterInstanceId`, and `localResourceId`, the same fields a report uses, and carries the relationship values to add in the `reporter` and/or `common` objects. At least one of the two must be provided.
+
+This example adds the document's workspace relationship, moving it into `workspace-2`'s scope:
+
+<CodeExamples files={files} regions="add" />
+
+A successful call returns an empty response. Like all writes, the change replicates to the authorization engine asynchronously. See [consistency](/building-with-kessel/concepts/consistency/) for how to wait for visibility when you need it.
+
+### Changing a single-valued relationship
+
+Some relationships hold at most one value: a document belongs to exactly one workspace. Adding a second value to a single-valued relationship that already has one is rejected with `INVALID_ARGUMENT`. To change the value, remove the existing one first, then add the new one:
+
+1. `RemoveResourceRelationships` with the current value
+2. `AddResourceRelationships` with the new value
+
+Multi-valued relationships (lists) do not have this restriction. Adding a value that is not present appends it, and adding one that is already present is an idempotent no-op.
+
+## Removing relationships
+
+Removal is the mirror of addition: name the resource and the relationship values to remove. Everything else is untouched.
+
+<CodeExamples files={files} regions="remove" />
+
+Removing a value that is not present is an idempotent no-op: the request succeeds without changing anything, and no new version is written. If the resource does not exist (or was deleted), the request returns `NOT_FOUND`.
+
+## Verifying the change
+
+Permission checks reflect relationship updates once replication completes:
+
+<CodeExamples files={files} regions="check" />
+
+## Behavior notes
+
+- **Relationship fields only.** The `reporter` and `common` objects accept relationship-typed fields from the resource's schema. Attribute fields are rejected with `INVALID_ARGUMENT`. To change attributes, re-report the resource.
+- **Idempotency.** Like `ReportResource`, the requests accept a `transaction_id`. A repeated request with the same `transaction_id` is skipped silently, which makes retries safe.
+- **Writes are asynchronous.** The response is sent once the change is durably stored; replication to the authorization engine follows through the consumer pipeline. Use [IMMEDIATE write visibility](/building-with-kessel/concepts/consistency/#consistency-modes) (`write_visibility`) when a check must reflect the write.
+- **Deleting a resource** cleans up its relationships. See [Report resources](/building-with-kessel/how-to/report-resources/) for the deletion flow.
+
+<LinkCard
+  title="Report resources"
+  description="Report full resource representations, via API or async messaging."
+  href="/building-with-kessel/how-to/report-resources/"
+/>
+
+<LinkCard
+  title="Relationships and permissions"
+  description="How relationships form the authorization graph that permissions evaluate."
+  href="/building-with-kessel/concepts/relationships-permissions/"
+/>

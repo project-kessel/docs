@@ -143,6 +143,7 @@ For `oidc` chain entries, the config map accepts:
 | `consumer.debug` | string | — | Comma-separated librdkafka debug contexts |
 | `consumer.read-after-write-enabled` | boolean | `true` | Enable read-after-write consistency |
 | `consumer.read-after-write-allowlist` | string[] | `[]` | Services requiring read-after-write (empty = all) |
+| `consumer.load-reporter-representation` | boolean | `false` | Load reporter representations while processing tuple events. Required for reporter-side relationship fields to replicate to the authorization engine |
 
 ### Kafka authentication
 

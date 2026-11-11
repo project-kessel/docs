@@ -94,6 +94,7 @@ These are produced by centralized error mapping. Safe to match in dashboards and
 | `invalid UUID` | `INVALID_ARGUMENT` | Malformed UUID | Use RFC 4122 UUID |
 | `invalid data structure` | `INVALID_ARGUMENT` | JSON invalid for schema | Fix struct |
 | `at least one of reporterRepresentation or commonRepresentation must be provided` | `INVALID_ARGUMENT` | Both representations missing | Supply data |
+| `at least one of reporter or common relationship fields must be provided` | `INVALID_ARGUMENT` | Both relationship objects missing on Add/Remove relationships | Supply at least one |
 | `items array cannot be empty` | `INVALID_ARGUMENT` | Empty bulk request | Pass at least one item |
 | `inventory-managed consistency tokens aren't available` | `INVALID_ARGUMENT` | Feature disabled | Use `minimize_latency` |
 
