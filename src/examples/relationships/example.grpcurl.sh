@@ -21,7 +21,8 @@ grpcurl $GRPC_OPTS \
 # region remove
 # First step of changing a single-valued relationship: remove the
 # existing value. Removing a value that is not present is an idempotent
-# no-op.
+# no-op. Requires doc-123 to be reported with workspace-1 first; see
+# the getting-started report example.
 REMOVE_MESSAGE='{"type": "document", "reporterType": "drive", "reporterInstanceId": "drive-1", "localResourceId": "doc-123", "common": {"workspace_id": "workspace-1"}}'
 grpcurl $GRPC_OPTS \
   -d "$REMOVE_MESSAGE" \

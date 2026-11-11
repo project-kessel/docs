@@ -32,7 +32,8 @@ async function run() {
         //#region remove
         // First step of changing a single-valued relationship: remove the
         // existing value. Removing a value that is not present is an
-        // idempotent no-op.
+        // idempotent no-op. Requires doc-123 to be reported with workspace-1
+        // first; see the getting-started report example.
         const removeCommon = { workspace_id: "workspace-1" };
         const removeRequest: RemoveResourceRelationshipsRequest = {
             type: "document",

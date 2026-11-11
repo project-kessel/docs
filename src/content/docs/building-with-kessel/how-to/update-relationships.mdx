@@ -52,7 +52,7 @@ If the resource already exists and the relationship is single-valued with a valu
 
 Some relationships hold at most one value: a document belongs to exactly one workspace. Adding a second value to a single-valued relationship that already has one is rejected with `INVALID_ARGUMENT`. To change the value, remove the existing one first, then add the new one.
 
-This example moves a document from `workspace-1` to `workspace-2`.
+This example moves a document from `workspace-1` to `workspace-2`. It assumes `doc-123` has already been reported with `workspace-1` as its workspace, as shown in the report example in the [getting started guide](/start-here/getting-started/).
 
 First, remove the existing relationship:
 
@@ -61,6 +61,8 @@ First, remove the existing relationship:
 Then add the replacement:
 
 <CodeExamples files={files} regions="add" />
+
+The two calls are separate writes: the replacement is not atomic. If the add fails after the remove succeeded, the document is left without a workspace relationship, and once the removal replicates, permission checks that depend on the workspace see the document as denied. Retry the failed add, or reconcile by re-reporting the resource with its complete intended state.
 
 Multi-valued relationships (lists) do not have this restriction. Adding a value that is not present appends it, and adding one that is already present is an idempotent no-op.
 

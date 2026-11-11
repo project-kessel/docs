@@ -35,6 +35,8 @@ client.add_resource_relationships(
 # region remove
 # First step of changing a single-valued relationship: remove the existing
 # value. Removing a value that is not present is an idempotent no-op.
+# Requires doc-123 to be reported with workspace-1 first; see the
+# getting-started report example.
 remove_common = Google::Protobuf::Struct.decode_json({ 'workspace_id' => 'workspace-1' }.to_json)
 client.remove_resource_relationships(
   RemoveResourceRelationshipsRequest.new(

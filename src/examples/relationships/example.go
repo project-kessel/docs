@@ -50,6 +50,14 @@ func main() {
 
 	_, err = inventoryClient.AddResourceRelationships(ctx, createRequest)
 	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.InvalidArgument:
+				log.Fatalf("Invalid request: %v", st.Message())
+			default:
+				log.Fatalf("AddResourceRelationships failed: %v", st.Message())
+			}
+		}
 		log.Fatalf("AddResourceRelationships failed: %v", err)
 	}
 	//#endregion
@@ -57,7 +65,8 @@ func main() {
 	//#region remove
 	// First step of changing a single-valued relationship: remove the
 	// existing value. Removing a value that is not present is an
-	// idempotent no-op.
+	// idempotent no-op. Requires doc-123 to be reported with workspace-1
+	// first; see the getting-started report example.
 	removeRequest := &v1beta2.RemoveResourceRelationshipsRequest{
 		Type:               "document",
 		ReporterType:       "drive",
@@ -72,6 +81,16 @@ func main() {
 
 	_, err = inventoryClient.RemoveResourceRelationships(ctx, removeRequest)
 	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.InvalidArgument:
+				log.Fatalf("Invalid request: %v", st.Message())
+			case codes.NotFound:
+				log.Fatalf("Resource not found: %v", st.Message())
+			default:
+				log.Fatalf("RemoveResourceRelationships failed: %v", st.Message())
+			}
+		}
 		log.Fatalf("RemoveResourceRelationships failed: %v", err)
 	}
 	//#endregion
@@ -94,6 +113,14 @@ func main() {
 
 	_, err = inventoryClient.AddResourceRelationships(ctx, addRequest)
 	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.InvalidArgument:
+				log.Fatalf("Invalid request: %v", st.Message())
+			default:
+				log.Fatalf("AddResourceRelationships failed: %v", st.Message())
+			}
+		}
 		log.Fatalf("AddResourceRelationships failed: %v", err)
 	}
 	//#endregion
