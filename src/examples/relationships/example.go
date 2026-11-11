@@ -33,14 +33,14 @@ func main() {
 	}()
 	//#endregion
 
-	//#region add
-	// Add the workspace relationship without re-reporting the document's
-	// full representation. Only the named relationship values change.
-	addRequest := &v1beta2.AddResourceRelationshipsRequest{
+	//#region create
+	// Add a workspace relationship to a document that has not been reported
+	// yet: the resource is created with the provided relationship values.
+	createRequest := &v1beta2.AddResourceRelationshipsRequest{
 		Type:               "document",
 		ReporterType:       "drive",
 		ReporterInstanceId: "drive-1",
-		LocalResourceId:    "doc-123",
+		LocalResourceId:    "doc-456",
 		Common: &structpb.Struct{
 			Fields: map[string]*structpb.Value{
 				"workspace_id": structpb.NewStringValue("workspace-2"),
@@ -48,15 +48,16 @@ func main() {
 		},
 	}
 
-	_, err = inventoryClient.AddResourceRelationships(ctx, addRequest)
+	_, err = inventoryClient.AddResourceRelationships(ctx, createRequest)
 	if err != nil {
 		log.Fatalf("AddResourceRelationships failed: %v", err)
 	}
 	//#endregion
 
 	//#region remove
-	// Remove the previous workspace relationship. Removing a value that is
-	// not present is an idempotent no-op.
+	// First step of changing a single-valued relationship: remove the
+	// existing value. Removing a value that is not present is an
+	// idempotent no-op.
 	removeRequest := &v1beta2.RemoveResourceRelationshipsRequest{
 		Type:               "document",
 		ReporterType:       "drive",
@@ -72,6 +73,28 @@ func main() {
 	_, err = inventoryClient.RemoveResourceRelationships(ctx, removeRequest)
 	if err != nil {
 		log.Fatalf("RemoveResourceRelationships failed: %v", err)
+	}
+	//#endregion
+
+	//#region add
+	// Second step of changing a single-valued relationship: add the
+	// replacement value. Adding a second value without removing the
+	// existing one first is rejected with INVALID_ARGUMENT.
+	addRequest := &v1beta2.AddResourceRelationshipsRequest{
+		Type:               "document",
+		ReporterType:       "drive",
+		ReporterInstanceId: "drive-1",
+		LocalResourceId:    "doc-123",
+		Common: &structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				"workspace_id": structpb.NewStringValue("workspace-2"),
+			},
+		},
+	}
+
+	_, err = inventoryClient.AddResourceRelationships(ctx, addRequest)
+	if err != nil {
+		log.Fatalf("AddResourceRelationships failed: %v", err)
 	}
 	//#endregion
 

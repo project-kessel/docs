@@ -20,25 +20,27 @@ def main():
     # endregion
 
     with channel:
-        # region add
-        # Add the workspace relationship without re-reporting the document's
-        # full representation. Only the named relationship values change.
-        add_common = struct_pb2.Struct()
-        add_common.update({"workspace_id": "workspace-2"})
+        # region create
+        # Add a workspace relationship to a document that has not been
+        # reported yet: the resource is created with the provided
+        # relationship values.
+        create_common = struct_pb2.Struct()
+        create_common.update({"workspace_id": "workspace-2"})
 
-        add_request = add_resource_relationships_request_pb2.AddResourceRelationshipsRequest(
+        create_request = add_resource_relationships_request_pb2.AddResourceRelationshipsRequest(
             type="document",
             reporter_type="drive",
             reporter_instance_id="drive-1",
-            local_resource_id="doc-123",
-            common=add_common,
+            local_resource_id="doc-456",
+            common=create_common,
         )
-        stub.AddResourceRelationships(add_request)
+        stub.AddResourceRelationships(create_request)
         # endregion
 
         # region remove
-        # Remove the previous workspace relationship. Removing a value that
-        # is not present is an idempotent no-op.
+        # First step of changing a single-valued relationship: remove the
+        # existing value. Removing a value that is not present is an
+        # idempotent no-op.
         remove_common = struct_pb2.Struct()
         remove_common.update({"workspace_id": "workspace-1"})
 
@@ -50,6 +52,23 @@ def main():
             common=remove_common,
         )
         stub.RemoveResourceRelationships(remove_request)
+        # endregion
+
+        # region add
+        # Second step of changing a single-valued relationship: add the
+        # replacement value. Adding a second value without removing the
+        # existing one first is rejected with INVALID_ARGUMENT.
+        add_common = struct_pb2.Struct()
+        add_common.update({"workspace_id": "workspace-2"})
+
+        add_request = add_resource_relationships_request_pb2.AddResourceRelationshipsRequest(
+            type="document",
+            reporter_type="drive",
+            reporter_instance_id="drive-1",
+            local_resource_id="doc-123",
+            common=add_common,
+        )
+        stub.AddResourceRelationships(add_request)
         # endregion
 
         # region check

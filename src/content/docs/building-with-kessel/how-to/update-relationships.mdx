@@ -40,18 +40,27 @@ Use `ReportResource` when your service has a complete view of the resource and w
 
 The request names the resource directly with `type`, `reporterType`, `reporterInstanceId`, and `localResourceId`, the same fields a report uses, and carries the relationship values to add in the `reporter` and/or `common` objects. At least one of the two must be provided.
 
-This example adds the document's workspace relationship, moving it into `workspace-2`'s scope:
+This example adds a workspace relationship to a document that has not been reported yet. Adding a relationship to a resource that does not exist creates the resource with the provided relationship values as its initial representation:
 
-<CodeExamples files={files} regions="add" />
+<CodeExamples files={files} regions="create" />
 
 A successful call returns an empty response. Like all writes, the change replicates to the authorization engine asynchronously. See [consistency](/building-with-kessel/concepts/consistency/) for how to wait for visibility when you need it.
 
+If the resource already exists and the relationship is single-valued with a value already set, the add is rejected with `INVALID_ARGUMENT`. Remove the existing value first as shown below.
+
 ### Changing a single-valued relationship
 
-Some relationships hold at most one value: a document belongs to exactly one workspace. Adding a second value to a single-valued relationship that already has one is rejected with `INVALID_ARGUMENT`. To change the value, remove the existing one first, then add the new one:
+Some relationships hold at most one value: a document belongs to exactly one workspace. Adding a second value to a single-valued relationship that already has one is rejected with `INVALID_ARGUMENT`. To change the value, remove the existing one first, then add the new one.
 
-1. `RemoveResourceRelationships` with the current value
-2. `AddResourceRelationships` with the new value
+This example moves a document from `workspace-1` to `workspace-2`.
+
+First, remove the existing relationship:
+
+<CodeExamples files={files} regions="remove" />
+
+Then add the replacement:
+
+<CodeExamples files={files} regions="add" />
 
 Multi-valued relationships (lists) do not have this restriction. Adding a value that is not present appends it, and adding one that is already present is an idempotent no-op.
 

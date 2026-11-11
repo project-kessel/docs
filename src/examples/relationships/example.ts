@@ -14,23 +14,25 @@ async function run() {
     //#endregion
 
     try {
-        //#region add
-        // Add the workspace relationship without re-reporting the document's
-        // full representation. Only the named relationship values change.
-        const common = { workspace_id: "workspace-2" };
-        const addRequest: AddResourceRelationshipsRequest = {
+        //#region create
+        // Add a workspace relationship to a document that has not been
+        // reported yet: the resource is created with the provided
+        // relationship values.
+        const createCommon = { workspace_id: "workspace-2" };
+        const createRequest: AddResourceRelationshipsRequest = {
             type: "document",
             reporterType: "drive",
             reporterInstanceId: "drive-1",
-            localResourceId: "doc-123",
-            common,
+            localResourceId: "doc-456",
+            common: createCommon,
         };
-        await client.addResourceRelationships(addRequest);
+        await client.addResourceRelationships(createRequest);
         //#endregion
 
         //#region remove
-        // Remove the previous workspace relationship. Removing a value that
-        // is not present is an idempotent no-op.
+        // First step of changing a single-valued relationship: remove the
+        // existing value. Removing a value that is not present is an
+        // idempotent no-op.
         const removeCommon = { workspace_id: "workspace-1" };
         const removeRequest: RemoveResourceRelationshipsRequest = {
             type: "document",
@@ -40,6 +42,21 @@ async function run() {
             common: removeCommon,
         };
         await client.removeResourceRelationships(removeRequest);
+        //#endregion
+
+        //#region add
+        // Second step of changing a single-valued relationship: add the
+        // replacement value. Adding a second value without removing the
+        // existing one first is rejected with INVALID_ARGUMENT.
+        const addCommon = { workspace_id: "workspace-2" };
+        const addRequest: AddResourceRelationshipsRequest = {
+            type: "document",
+            reporterType: "drive",
+            reporterInstanceId: "drive-1",
+            localResourceId: "doc-123",
+            common: addCommon,
+        };
+        await client.addResourceRelationships(addRequest);
         //#endregion
 
         //#region check

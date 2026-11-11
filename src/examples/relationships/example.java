@@ -19,15 +19,16 @@ public class Example {
         //#endregion
 
         try {
-            //#region add
-            // Add the workspace relationship without re-reporting the document's
-            // full representation. Only the named relationship values change.
-            AddResourceRelationshipsRequest addRequest = AddResourceRelationshipsRequest
+            //#region create
+            // Add a workspace relationship to a document that has not been
+            // reported yet: the resource is created with the provided
+            // relationship values.
+            AddResourceRelationshipsRequest createRequest = AddResourceRelationshipsRequest
                 .newBuilder()
                 .setType("document")
                 .setReporterType("drive")
                 .setReporterInstanceId("drive-1")
-                .setLocalResourceId("doc-123")
+                .setLocalResourceId("doc-456")
                 .setCommon(
                     Struct
                         .newBuilder()
@@ -36,12 +37,13 @@ public class Example {
                 )
                 .build();
 
-            client.addResourceRelationships(addRequest);
+            client.addResourceRelationships(createRequest);
             //#endregion
 
             //#region remove
-            // Remove the previous workspace relationship. Removing a value that
-            // is not present is an idempotent no-op.
+            // First step of changing a single-valued relationship: remove the
+            // existing value. Removing a value that is not present is an
+            // idempotent no-op.
             RemoveResourceRelationshipsRequest removeRequest = RemoveResourceRelationshipsRequest
                 .newBuilder()
                 .setType("document")
@@ -57,6 +59,27 @@ public class Example {
                 .build();
 
             client.removeResourceRelationships(removeRequest);
+            //#endregion
+
+            //#region add
+            // Second step of changing a single-valued relationship: add the
+            // replacement value. Adding a second value without removing the
+            // existing one first is rejected with INVALID_ARGUMENT.
+            AddResourceRelationshipsRequest addRequest = AddResourceRelationshipsRequest
+                .newBuilder()
+                .setType("document")
+                .setReporterType("drive")
+                .setReporterInstanceId("drive-1")
+                .setLocalResourceId("doc-123")
+                .setCommon(
+                    Struct
+                        .newBuilder()
+                        .putFields("workspace_id", Value.newBuilder().setStringValue("workspace-2").build())
+                        .build()
+                )
+                .build();
+
+            client.addResourceRelationships(addRequest);
             //#endregion
 
             //#region check

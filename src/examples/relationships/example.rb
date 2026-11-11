@@ -17,24 +17,24 @@ client = KesselInventoryService::ClientBuilder.new(ENV.fetch('KESSEL_ENDPOINT', 
                                               .build
 # endregion
 
-# region add
-# Add the workspace relationship without re-reporting the document's full
-# representation. Only the named relationship values change.
-add_common = Google::Protobuf::Struct.decode_json({ 'workspace_id' => 'workspace-2' }.to_json)
+# region create
+# Add a workspace relationship to a document that has not been reported
+# yet: the resource is created with the provided relationship values.
+create_common = Google::Protobuf::Struct.decode_json({ 'workspace_id' => 'workspace-2' }.to_json)
 client.add_resource_relationships(
   AddResourceRelationshipsRequest.new(
     type: 'document',
     reporter_type: 'drive',
     reporter_instance_id: 'drive-1',
-    local_resource_id: 'doc-123',
-    common: add_common
+    local_resource_id: 'doc-456',
+    common: create_common
   )
 )
 # endregion
 
 # region remove
-# Remove the previous workspace relationship. Removing a value that is not
-# present is an idempotent no-op.
+# First step of changing a single-valued relationship: remove the existing
+# value. Removing a value that is not present is an idempotent no-op.
 remove_common = Google::Protobuf::Struct.decode_json({ 'workspace_id' => 'workspace-1' }.to_json)
 client.remove_resource_relationships(
   RemoveResourceRelationshipsRequest.new(
@@ -43,6 +43,22 @@ client.remove_resource_relationships(
     reporter_instance_id: 'drive-1',
     local_resource_id: 'doc-123',
     common: remove_common
+  )
+)
+# endregion
+
+# region add
+# Second step of changing a single-valued relationship: add the
+# replacement value. Adding a second value without removing the existing
+# one first is rejected with INVALID_ARGUMENT.
+add_common = Google::Protobuf::Struct.decode_json({ 'workspace_id' => 'workspace-2' }.to_json)
+client.add_resource_relationships(
+  AddResourceRelationshipsRequest.new(
+    type: 'document',
+    reporter_type: 'drive',
+    reporter_instance_id: 'drive-1',
+    local_resource_id: 'doc-123',
+    common: add_common
   )
 )
 # endregion
@@ -74,6 +90,6 @@ begin
   p response
 rescue => e
   p 'gRPC error occurred during check:'
-  p "Exception: #{e}"
+  p "Exception: #{e.class}: #{e.message}"
 end
 # endregion

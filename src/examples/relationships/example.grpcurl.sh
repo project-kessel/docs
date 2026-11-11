@@ -8,25 +8,36 @@ KESSEL_GRPC_ENDPOINT="localhost:9081"
 GRPC_OPTS="-plaintext"
 # endregion
 
-# region add
-# Add the workspace relationship to an existing document without
-# re-reporting its full representation. Only the named relationship
-# values change; every other field is left untouched.
-ADD_MESSAGE='{"type": "document", "reporterType": "drive", "reporterInstanceId": "drive-1", "localResourceId": "doc-123", "common": {"workspace_id": "workspace-2"}}'
+# region create
+# Add a workspace relationship to a document that has not been reported
+# yet: the resource is created with the provided relationship values.
+CREATE_MESSAGE='{"type": "document", "reporterType": "drive", "reporterInstanceId": "drive-1", "localResourceId": "doc-456", "common": {"workspace_id": "workspace-2"}}'
 grpcurl $GRPC_OPTS \
-  -d "$ADD_MESSAGE" \
+  -d "$CREATE_MESSAGE" \
   "$KESSEL_GRPC_ENDPOINT" \
   kessel.inventory.v1beta2.KesselInventoryService.AddResourceRelationships
 # endregion
 
 # region remove
-# Remove the previous workspace relationship. Removing a value that is
-# not present is an idempotent no-op.
+# First step of changing a single-valued relationship: remove the
+# existing value. Removing a value that is not present is an idempotent
+# no-op.
 REMOVE_MESSAGE='{"type": "document", "reporterType": "drive", "reporterInstanceId": "drive-1", "localResourceId": "doc-123", "common": {"workspace_id": "workspace-1"}}'
 grpcurl $GRPC_OPTS \
   -d "$REMOVE_MESSAGE" \
   "$KESSEL_GRPC_ENDPOINT" \
   kessel.inventory.v1beta2.KesselInventoryService.RemoveResourceRelationships
+# endregion
+
+# region add
+# Second step of changing a single-valued relationship: add the
+# replacement value. Adding a second value without removing the existing
+# one first is rejected with INVALID_ARGUMENT.
+ADD_MESSAGE='{"type": "document", "reporterType": "drive", "reporterInstanceId": "drive-1", "localResourceId": "doc-123", "common": {"workspace_id": "workspace-2"}}'
+grpcurl $GRPC_OPTS \
+  -d "$ADD_MESSAGE" \
+  "$KESSEL_GRPC_ENDPOINT" \
+  kessel.inventory.v1beta2.KesselInventoryService.AddResourceRelationships
 # endregion
 
 # region check
