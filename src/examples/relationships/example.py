@@ -76,6 +76,7 @@ def main():
             print("gRPC error occurred:")
             print(f"Code: {e.code()}")
             print(f"Details: {e.details()}")
+            raise
 
         # region check
         # NOTE: You may need to wait for replication and caches to update.
