@@ -118,6 +118,7 @@ Content depends on the specific request or backend state. Use for human debuggin
 
 | Message pattern | Code | Resolution |
 |-----------------|------|------------|
+| `validation error: …` | `INVALID_ARGUMENT` | Fix the protovalidate violations listed in the message |
 | `invalid request: …` | `INVALID_ARGUMENT` | Fix request per [gRPC API](https://buf.build/project-kessel/inventory-api/docs/main:kessel.inventory.v1beta2) |
 | `failed to create reporter resource key: …` | `INVALID_ARGUMENT` | Verify reporter fields |
 | `failed validation for report resource: …` | `INVALID_ARGUMENT` | Align payload with schema |

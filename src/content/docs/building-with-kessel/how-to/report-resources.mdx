@@ -76,6 +76,10 @@ Service providers can report resources directly to Kessel using gRPC API calls o
 
 Direct API calls give you immediate visibility and synchronous error handling, which makes them a good fit for simple integrations. However, your application is responsible for atomicity, guaranteed delivery, and ordering. The API does not provide built-in consistency or durability guarantees if your application fails between database writes and API calls.
 
+<Aside type="tip">
+  `ReportResource` replaces the resource's entire representation. When only specific relationship values change, it may be valuable to use the partial-update endpoints instead of re-reporting: see [Update relationships](/building-with-kessel/how-to/update-relationships/).
+</Aside>
+
 ## Reporting via Async Messaging
 
 Asynchronous messaging is a good alternative when your application needs decoupled, fault-tolerant data replication. Unlike direct API calls that can fail due to network issues or service unavailability, async messaging offers built-in resilience through message persistence and retries. This approach works well for high-volume applications or those that cannot block business operations while waiting for external acknowledgments.
