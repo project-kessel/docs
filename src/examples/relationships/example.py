@@ -72,37 +72,42 @@ def main():
             )
             stub.AddResourceRelationships(add_request)
             # endregion
-
-            # region check
-            # NOTE: You may need to wait for replication and caches to update.
-            subject = subject_reference_pb2.SubjectReference(
-                resource=resource_reference_pb2.ResourceReference(
-                    reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
-                    resource_id="sarah",
-                    resource_type="principal",
-                )
-            )
-
-            resource_ref = resource_reference_pb2.ResourceReference(
-                resource_id="doc-123",
-                resource_type="document",
-                reporter=reporter_reference_pb2.ReporterReference(type="drive"),
-            )
-
-            check_request = check_request_pb2.CheckRequest(
-                subject=subject,
-                relation="view",
-                object=resource_ref,
-            )
-
-            check_response = stub.Check(check_request)
-            print("Check response received successfully")
-            print(check_response)
         except grpc.RpcError as e:
             print("gRPC error occurred:")
             print(f"Code: {e.code()}")
             print(f"Details: {e.details()}")
-            # endregion
+
+        # region check
+        # NOTE: You may need to wait for replication and caches to update.
+        subject = subject_reference_pb2.SubjectReference(
+            resource=resource_reference_pb2.ResourceReference(
+                reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
+                resource_id="sarah",
+                resource_type="principal",
+            )
+        )
+
+        resource_ref = resource_reference_pb2.ResourceReference(
+            resource_id="doc-123",
+            resource_type="document",
+            reporter=reporter_reference_pb2.ReporterReference(type="drive"),
+        )
+
+        check_request = check_request_pb2.CheckRequest(
+            subject=subject,
+            relation="view",
+            object=resource_ref,
+        )
+
+        try:
+            check_response = stub.Check(check_request)
+            print("Check response received successfully")
+            print(check_response)
+        except grpc.RpcError as e:
+            print("gRPC error occurred during Check:")
+            print(f"Code: {e.code()}")
+            print(f"Details: {e.details()}")
+        # endregion
 
 
 if __name__ == "__main__":
