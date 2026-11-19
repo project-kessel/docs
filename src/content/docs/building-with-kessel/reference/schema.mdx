@@ -44,6 +44,42 @@ load("extensions/rbac.star", "add_v1_based_permission")
 load("workspace/reporters/rbac/workspace.star", rbac_workspace="workspace")
 ```
 
+### Default reporter
+
+Set the reporter once per source file with `reporter(name)`, before declaring resources or calling extension wrappers. This builtin is available without a `load()` statement. Imported files have independent defaults: a caller's default does not become an imported file's default, and loading another file does not change the caller's default.
+
+```python
+load("extensions/rbac.star", "add_v1_based_permission")
+
+reporter("advisor")
+add_v1_based_permission("advisor", "weekly_report", "read", "advisor_weekly_report_view")
+
+# Override the default for this call only.
+add_v1_based_permission(
+    reporter="patch",
+    app="patch",
+    resource="systems",
+    verb="read",
+    v2_perm="patch_system_view",
+)
+```
+
+`resource()` uses the same default and accepts an explicit `reporter=` override. An override affects only that call; later calls still use the file's default. In the first extension call above, `"advisor"` is the `app` argument; the reporter comes from the file's default.
+
+Reporter names must be non-empty strings. Empty names, values of other types, and duplicate `reporter()` declarations fail. A call that omits its reporter also fails if the file has no default, even when an imported file declares one.
+
+A file can skip `reporter()` if every call passes its reporter explicitly. In extension wrappers, `reporter` is keyword-only and comes after the domain arguments. A reporter passed as the first positional argument fails. `reporter` is still the first parameter of `resource()`, so `resource("drive", ...)` works.
+
+```python
+load("kessel.star", "resource", "uuid")
+load("extensions/rbac.star", "add_v1_based_permission")
+
+document = resource(reporter="drive", id_type=uuid())
+add_v1_based_permission("drive", "documents", "read", "drive_document_view", reporter="drive")
+```
+
+To write your own wrapper, call the `resolve_reporter(reporter)` builtin. It returns an explicit reporter unchanged, or the file's default when the value is `None`.
+
 ## Extensions
 
 An extension is a function a reporter defines to "extend" its part of the schema, adding members to its own resource types on a caller's behalf. This lets a reporter define patterns that can be added to its schema on behalf of dependents without opening itself up to direct modification.
@@ -55,12 +91,14 @@ Identical calls for the same reporter are deduplicated.
 ```python
 load("extensions/rbac.star", "add_v1_based_permission")
 
-add_v1_based_permission("drive", "drive", "documents", "read", "drive_document_view")
+reporter("drive")
+
+add_v1_based_permission("drive", "documents", "read", "drive_document_view")
 
 # Calling the same extension function with the same arguments twice
 # is equivalent to calling it once
-add_v1_based_permission("drive", "drive", "documents", "write", "drive_document_update")
-add_v1_based_permission("drive", "drive", "documents", "write", "drive_document_update")
+add_v1_based_permission("drive", "documents", "write", "drive_document_update")
+add_v1_based_permission("drive", "documents", "write", "drive_document_update")
 ```
 
 ### Accessors
@@ -74,10 +112,12 @@ load("kessel.star", "resource", "uuid", "one")
 load("extensions/rbac.star", "add_v1_based_permission")
 load("workspace/reporters/rbac/workspace.star", "workspace")
 
-# Registers drive_document_view on the workspace type and captures the accessor
-document_view = add_v1_based_permission("drive", "drive", "documents", "read", "drive_document_view")
+reporter("drive")
 
-document = resource("drive", id_type=uuid(), fields={
+# Registers drive_document_view on the workspace type and captures the accessor
+document_view = add_v1_based_permission("drive", "documents", "read", "drive_document_view")
+
+document = resource(id_type=uuid(), fields={
     "workspace": one(workspace),
 }, permissions={
     # Uses the accessor to get the principals allowed to view this document in its current workspace
@@ -105,11 +145,13 @@ load("kessel.star", "resource", "field", "uuid", "text", "one")
 load("extensions/rbac.star", "add_v1_based_permission")
 load("workspace/reporters/rbac/workspace.star", "workspace")
 
-document_view = add_v1_based_permission("drive", "drive", "documents", "read", "drive_document_view")
-document_update = add_v1_based_permission("drive", "drive", "documents", "write", "drive_document_update")
-document_delete = add_v1_based_permission("drive", "drive", "documents", "write", "drive_document_delete")
+reporter("drive")
 
-document = resource("drive", id_type=uuid(), final=True, fields={
+document_view = add_v1_based_permission("drive", "documents", "read", "drive_document_view")
+document_update = add_v1_based_permission("drive", "documents", "write", "drive_document_update")
+document_delete = add_v1_based_permission("drive", "documents", "write", "drive_document_delete")
+
+document = resource(id_type=uuid(), final=True, fields={
     "workspace": one(workspace),
     "name": field(type=text(maxLength=255), required=True),
 }, permissions={
@@ -132,9 +174,11 @@ load("kessel.star", "resource", "at_most_one")
 load("billing_account/reporters/features/billing_account.star", "billing_account")
 load("workspace/reporters/rbac/workspace.star", rbac_workspace="workspace")
 
+reporter("features")
+
 # The features reporter adds its own view of a workspace RBAC already defines.
 # No id_type: it is inherited, along with the parent's "parent" relation.
-workspace = resource("features", extends=rbac_workspace, fields={
+workspace = resource(extends=rbac_workspace, fields={
     "direct_billing_account": at_most_one(billing_account),
 }, permissions={
   "services": lambda w: w.direct_billing_account.services
@@ -168,7 +212,9 @@ load("kessel.star", "resource", "field", "uuid", "text", "one")
 load("extensions/rbac.star", "add_v1_based_permission")
 load("workspace/reporters/rbac/workspace.star", "workspace")
 
-document = resource("drive", id_type=uuid(), final=True, fields={
+reporter("drive")
+
+document = resource(id_type=uuid(), final=True, fields={
     "workspace": one(workspace),
     "name": field(type=text(maxLength=255), required=True),
 })
@@ -226,11 +272,13 @@ load("extensions/rbac.star", "add_v1_based_permission")
 load("workspace/reporters/rbac/workspace.star", "workspace")
 load("principal/reporters/rbac/principal.star", "principal")
 
-document_view = add_v1_based_permission("drive", "drive", "documents", "read", "drive_document_view")
-document_update = add_v1_based_permission("drive", "drive", "documents", "write", "drive_document_update")
-document_delete = add_v1_based_permission("drive", "drive", "documents", "write", "drive_document_delete")
+reporter("drive")
 
-document = resource("drive", id_type=uuid(), final=True, fields={
+document_view = add_v1_based_permission("drive", "documents", "read", "drive_document_view")
+document_update = add_v1_based_permission("drive", "documents", "write", "drive_document_update")
+document_delete = add_v1_based_permission("drive", "documents", "write", "drive_document_delete")
+
+document = resource(id_type=uuid(), final=True, fields={
     "workspace": one(workspace),
 }, permissions={
     # Principals with drive_document_view permission on the document's workspace or ancestors can 'view'
