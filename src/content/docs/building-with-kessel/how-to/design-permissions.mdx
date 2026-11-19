@@ -93,7 +93,7 @@ Pick the extension that fits:
 | [`add_unified_permission`](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#extensions-rbac-star-add-unified-permission) | Used if the service-facing permission name happens to equal the user-facing triple in the form `{app}_{resource}_{verb}` exactly. |
 | [`add_contingent_permission`](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#extensions-rbac-star-add-contingent-permission) | The permission only applies where the subject also holds another permission. See below. |
 
-Set your default reporter once per file with `reporter(name)`, as shown below. It applies to both extension calls and resource definitions in that file. Pass `reporter="other"` on a call to override it. See [Default reporter](/docs/building-with-kessel/reference/schema/#default-reporter) for details.
+Set a default reporter once per file with `reporter(name)`, as in the examples below. It covers extension calls and resource definitions in that file, and an explicit `reporter="other"` overrides it for one call. See [Default reporter](/docs/building-with-kessel/reference/schema/#default-reporter).
 
 ### Register with add_v1_based_permission
 

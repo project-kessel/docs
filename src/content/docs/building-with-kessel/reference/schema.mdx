@@ -46,7 +46,7 @@ load("workspace/reporters/rbac/workspace.star", rbac_workspace="workspace")
 
 ### Default reporter
 
-Set the reporter once per source file with `reporter(name)`, before declaring resources or calling extension wrappers. This builtin is available without a `load()` statement. Imported files have independent defaults: a caller's default does not become an imported file's default, and loading another file does not change the caller's default.
+Set the reporter once per source file with `reporter(name)`, before declaring resources or calling extension wrappers. It needs no `load()` statement. A default applies only to the file that declares it. Imported files do not inherit it, and loading another file leaves the caller's unchanged.
 
 ```python
 load("extensions/rbac.star", "add_v1_based_permission")
@@ -64,11 +64,11 @@ add_v1_based_permission(
 )
 ```
 
-`resource()` uses the same default and accepts an explicit `reporter=` override. An override affects only that call; later calls still use the file's default. In the first extension call above, `"advisor"` is the `app` argument; the reporter comes from the file's default.
+`resource()` reads the same default. An explicit `reporter=` affects only that call; later calls still use the file's default. In the first extension call above, `"advisor"` is the `app` argument, and the reporter comes from the file's default.
 
-Reporter names must be non-empty strings. Empty names, values of other types, and duplicate `reporter()` declarations fail. A call that omits its reporter also fails if the file has no default, even when an imported file declares one.
+A reporter name must be a non-empty string. Values of other types, empty strings, and a second `reporter()` call in the same file fail. A call that omits its reporter also fails when the file declares no default, even if an imported file declares one.
 
-A file can skip `reporter()` if every call passes its reporter explicitly. In extension wrappers, `reporter` is keyword-only and comes after the domain arguments. A reporter passed as the first positional argument fails. `reporter` is still the first parameter of `resource()`, so `resource("drive", ...)` works.
+A file can skip `reporter()` if every call passes `reporter=` explicitly. In extension wrappers, `reporter` is keyword-only, so it goes after the domain arguments. Passing it first by position fails. `resource()` still takes `reporter` first, so `resource("drive", ...)` works.
 
 ```python
 load("kessel.star", "resource", "uuid")
