@@ -93,6 +93,8 @@ Pick the extension that fits:
 | [`add_unified_permission`](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#extensions-rbac-star-add-unified-permission) | Used if the service-facing permission name happens to equal the user-facing triple in the form `{app}_{resource}_{verb}` exactly. |
 | [`add_contingent_permission`](https://github.com/project-kessel/starlark-unified-schema/blob/main/schema/API.md#extensions-rbac-star-add-contingent-permission) | The permission only applies where the subject also holds another permission. See below. |
 
+Set a default reporter once per file with `reporter(name)`, as in the examples below. It covers extension calls and resource definitions in that file, and an explicit `reporter="other"` overrides it for one call. See [Default reporter](/docs/building-with-kessel/reference/schema/#default-reporter).
+
 ### Register with add_v1_based_permission
 
 Pass the user-facing and service-facing names separately. This creates the mapping between the user-facing and service-facing names.
@@ -100,9 +102,11 @@ Pass the user-facing and service-facing names separately. This creates the mappi
 ```python
 load("extensions/rbac.star", "add_v1_based_permission")
 
-add_v1_based_permission("drive", "drive", "documents", "read", "drive_document_view")
-add_v1_based_permission("drive", "drive", "documents", "write", "drive_document_update")
-add_v1_based_permission("drive", "drive", "documents", "write", "drive_document_delete")
+reporter("drive")
+
+add_v1_based_permission("drive", "documents", "read", "drive_document_view")
+add_v1_based_permission("drive", "documents", "write", "drive_document_update")
+add_v1_based_permission("drive", "documents", "write", "drive_document_delete")
 ```
 
 Note that both `drive_document_update` and `drive_document_delete` service-facing names are based on the same `drive:documents:write` user-facing name. This allows both API-aligned permissions to be based on the same user-facing grant.
@@ -117,7 +121,9 @@ If the user-facing resource name is pre-existing and already singular, and the v
 ```python
 load("extensions/rbac.star", "add_unified_permission")
 
-add_unified_permission("drive", "drive", "job", "execute")
+reporter("drive")
+
+add_unified_permission("drive", "job", "execute")
 ```
 
 This registers the permission with the user-facing triple `drive:job:execute` and the permission name `drive_job_execute`.
@@ -135,8 +141,10 @@ Then register the service-facing permission as contingent on both the `_assigned
 ```python
 load("extensions/rbac.star", "add_v1_based_permission", "add_contingent_permission")
 
-add_v1_based_permission("annotations", "annotations", "annotations", "read", "annotations_annotation_view_assigned")
-add_contingent_permission("annotations", "annotations_annotation_view_assigned", "drive_document_view", "annotations_annotation_view")
+reporter("annotations")
+
+add_v1_based_permission("annotations", "annotations", "read", "annotations_annotation_view_assigned")
+add_contingent_permission("annotations_annotation_view_assigned", "drive_document_view", "annotations_annotation_view")
 ```
 
 `annotations_annotation_view` is now only available on workspaces where the subject holds both `annotations_annotation_view_assigned` and `drive_document_view`.
@@ -162,11 +170,13 @@ load("kessel.star", "resource", "field", "uuid", "text", "one")
 load("extensions/rbac.star", "add_v1_based_permission")
 load("workspace/reporters/rbac/workspace.star", "workspace")
 
-drive_document_view = add_v1_based_permission("drive", "drive", "documents", "read", "drive_document_view")
-drive_document_update = add_v1_based_permission("drive", "drive", "documents", "write", "drive_document_update")
-drive_document_delete = add_v1_based_permission("drive", "drive", "documents", "write", "drive_document_delete")
+reporter("drive")
 
-document = resource("drive", id_type=uuid(), final=True, fields={
+drive_document_view = add_v1_based_permission("drive", "documents", "read", "drive_document_view")
+drive_document_update = add_v1_based_permission("drive", "documents", "write", "drive_document_update")
+drive_document_delete = add_v1_based_permission("drive", "documents", "write", "drive_document_delete")
+
+document = resource(id_type=uuid(), final=True, fields={
     "workspace": one(workspace),
 }, permissions={
     "view": lambda d: drive_document_view(d.workspace),
